@@ -39,8 +39,6 @@ public class User {
 
     private String email;
     private String nickname;
-    private int gender;
-    private int age;
     private String bio;
     private String imgUrl;
     private String thumbImgUrl;
