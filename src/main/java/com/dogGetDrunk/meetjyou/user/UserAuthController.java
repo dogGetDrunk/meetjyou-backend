@@ -1,7 +1,9 @@
 package com.dogGetDrunk.meetjyou.user;
 
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse;
+import com.dogGetDrunk.meetjyou.common.exception.business.InvalidAuthorizationHeaderException;
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequestDto;
+import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequestDto;
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequestDto;
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -72,6 +75,28 @@ public class UserAuthController {
     @PostMapping("/login")
     public ResponseEntity<TokenResponseDto> login(@RequestBody LoginRequestDto loginRequestDto) {
         TokenResponseDto tokenResponseDto = userService.login(loginRequestDto);
+        return ResponseEntity.ok(tokenResponseDto);
+    }
+
+    @Operation(summary = "토큰 갱신", description = "리프레시 토큰을 이용해 새로운 액세스 토큰 및 리프레시 토큰을 발급한다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponseDto.class))),
+            @ApiResponse(responseCode = "401", description = "유효하지 않은 토큰",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponseDto> refreshToken(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestBody RefreshTokenRequestDto requestDto
+    ) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new InvalidAuthorizationHeaderException(authorizationHeader);
+        }
+
+        String refreshToken = authorizationHeader.substring("Bearer ".length());
+        TokenResponseDto tokenResponseDto = userService.refreshToken(refreshToken, requestDto.getEmail());
+
         return ResponseEntity.ok(tokenResponseDto);
     }
 }

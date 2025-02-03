@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.jwt;
 
+import com.dogGetDrunk.meetjyou.common.exception.business.IncorrectJwtSubjectException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,8 +28,8 @@ public class JwtManager {
         Date now = new Date();
         return Jwts.builder()
                 .header()
-                    .type("JWT")
-                    .and()
+                .type("JWT")
+                .and()
                 .issuer(issuer)
                 .subject(email)
                 .issuedAt(now)
@@ -41,13 +42,26 @@ public class JwtManager {
         Date now = new Date();
         return Jwts.builder()
                 .header()
-                    .type("JWT")
-                    .and()
+                .type("JWT")
+                .and()
                 .issuer(issuer)
                 .subject(email)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + refreshTokenExpiresIn))
                 .signWith(secretKey)
                 .compact();
+    }
+
+    public void validateToken(String token, String email) {
+        String emailInToken = Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+
+        if (!emailInToken.equals(email)) {
+            throw new IncorrectJwtSubjectException(email);
+        }
     }
 }

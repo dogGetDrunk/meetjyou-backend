@@ -1,6 +1,9 @@
 package com.dogGetDrunk.meetjyou.common.exception;
 
+import com.dogGetDrunk.meetjyou.common.exception.business.CustomExpiredJwtException;
+import com.dogGetDrunk.meetjyou.common.exception.business.CustomJwtException;
 import com.dogGetDrunk.meetjyou.common.exception.business.DuplicateException;
+import com.dogGetDrunk.meetjyou.common.exception.business.IncorrectJwtSubjectException;
 import com.dogGetDrunk.meetjyou.common.exception.business.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -31,6 +34,18 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = e.getErrorCode();
         String value = e.getValue();
         int status = HttpStatus.NOT_FOUND.value();
+        ErrorResponse errorResponse = new ErrorResponse(status, errorCode, value);
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.valueOf(status));
+    }
+
+    @ExceptionHandler(CustomJwtException.class)
+    protected ResponseEntity<ErrorResponse> handleCustomJwtException(CustomJwtException e) {
+        log.info("Handle CustomJwtException", e);
+
+        ErrorCode errorCode = e.getErrorCode();
+        String value = e.getValue();
+        int status = HttpStatus.UNAUTHORIZED.value();
         ErrorResponse errorResponse = new ErrorResponse(status, errorCode, value);
 
         return new ResponseEntity<>(errorResponse, HttpStatus.valueOf(status));

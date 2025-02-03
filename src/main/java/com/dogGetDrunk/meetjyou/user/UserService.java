@@ -107,4 +107,18 @@ public class UserService {
     public boolean isDuplicateNickname(String nickname) {
         return userRepository.existsByNickname(nickname);
     }
+
+
+    public TokenResponseDto refreshToken(String refreshToken, String email) {
+        jwtManager.validateToken(refreshToken, email);
+
+        String newAccessToken = jwtManager.generateAccessToken(email);
+        String newRefreshToken = jwtManager.generateRefreshToken(email);
+
+        return TokenResponseDto.builder()
+                .email(email)
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .build();
+    }
 }
