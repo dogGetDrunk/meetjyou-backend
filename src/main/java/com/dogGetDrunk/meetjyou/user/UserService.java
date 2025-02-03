@@ -121,4 +121,17 @@ public class UserService {
                 .refreshToken(newRefreshToken)
                 .build();
     }
+
+    @Transactional
+    public void withdrawUser(String email, String accessToken) {
+        if (!userRepository.existsByEmail(email)) {
+            throw new EmailNotFoundException(email);
+        }
+
+        jwtManager.validateToken(accessToken, email);
+
+        log.info("유저 탈퇴 시작 (user email: {})", email);
+        userRepository.deleteByEmail(email);
+        log.info("유저 탈퇴 성공 (user email: {})", email);
+    }
 }

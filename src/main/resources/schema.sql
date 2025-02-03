@@ -157,52 +157,52 @@ CREATE TABLE user_party
 );
 
 ALTER TABLE post
-    ADD FOREIGN KEY (user_id) REFERENCES User (id);
+    ADD FOREIGN KEY (user_id) REFERENCES user (id);
 
 ALTER TABLE post
-    ADD FOREIGN KEY (party_id) REFERENCES Party (id);
+    ADD FOREIGN KEY (party_id) REFERENCES party (id);
 
 ALTER TABLE post
-    ADD FOREIGN KEY (plan_id) REFERENCES Plan (id);
+    ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 
 ALTER TABLE party
-    ADD FOREIGN KEY (plan_id) REFERENCES Plan (id);
+    ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 
 ALTER TABLE chat_message
-    ADD FOREIGN KEY (user_id) REFERENCES User (id);
+    ADD FOREIGN KEY (user_id) REFERENCES user (id);
 
 ALTER TABLE chat_message
-    ADD FOREIGN KEY (plan_id) REFERENCES Plan (id);
+    ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 
 ALTER TABLE plan
-    ADD FOREIGN KEY (user_id) REFERENCES User (id);
+    ADD FOREIGN KEY (user_id) REFERENCES user (id);
 
 ALTER TABLE marker
-    ADD FOREIGN KEY (plan_id) REFERENCES Plan (id);
+    ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 
 ALTER TABLE notification
-    ADD FOREIGN KEY (user_id) REFERENCES User (id);
+    ADD FOREIGN KEY (user_id) REFERENCES user (id);
 
 ALTER TABLE user_preference
-    ADD FOREIGN KEY (user_id) REFERENCES User (id);
+    ADD FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE;
 
 ALTER TABLE user_preference
-    ADD FOREIGN KEY (preference_id) REFERENCES Preference (id);
+    ADD FOREIGN KEY (preference_id) REFERENCES preference (id);
 
 ALTER TABLE comp_preference
-    ADD FOREIGN KEY (post_id) REFERENCES Post (id);
+    ADD FOREIGN KEY (post_id) REFERENCES post (id);
 
 ALTER TABLE comp_preference
-    ADD FOREIGN KEY (preference_id) REFERENCES Preference (id);
+    ADD FOREIGN KEY (preference_id) REFERENCES preference (id);
 
 ALTER TABLE party_application
-    ADD FOREIGN KEY (party_id) REFERENCES Party (id);
+    ADD FOREIGN KEY (party_id) REFERENCES party (id);
 
 ALTER TABLE party_application
-    ADD FOREIGN KEY (user_id) REFERENCES User (id);
+    ADD FOREIGN KEY (user_id) REFERENCES user (id);
 
 ALTER TABLE user_party
-    ADD FOREIGN KEY (party_id) REFERENCES Party (id);
+    ADD FOREIGN KEY (party_id) REFERENCES party (id);
 
 ALTER TABLE user_party
-    ADD FOREIGN KEY (user_id) REFERENCES User (id);
+    ADD FOREIGN KEY (user_id) REFERENCES user (id);

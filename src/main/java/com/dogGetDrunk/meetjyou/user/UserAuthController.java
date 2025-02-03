@@ -15,7 +15,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -98,5 +100,21 @@ public class UserAuthController {
         TokenResponseDto tokenResponseDto = userService.refreshToken(refreshToken, requestDto.getEmail());
 
         return ResponseEntity.ok(tokenResponseDto);
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "현재는 DELETE, 추후 PATCH로 변경될 수 있음.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "회원 탈퇴 성공"),
+            @ApiResponse(responseCode = "401", description = "유효하지 않은 액세스 토큰입니다.",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+    })
+    @DeleteMapping("/")
+    public void withdraw(@RequestHeader("Authorization") String authorizationHeader, @RequestParam String email) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new InvalidAuthorizationHeaderException(authorizationHeader);
+        }
+
+        String accessToken = authorizationHeader.substring("Bearer ".length());
+        userService.withdrawUser(email, accessToken);
     }
 }
