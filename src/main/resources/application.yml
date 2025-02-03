@@ -2,10 +2,9 @@ spring:
   application:
     name: meetjyou
   profiles:
-    active: local
+    active: release
     group:
       local: local, db, secrets
-      dev: local, db, secrets
       release: release, db, secrets
   jpa:
     hibernate:
