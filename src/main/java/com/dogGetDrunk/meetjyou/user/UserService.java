@@ -1,7 +1,7 @@
 package com.dogGetDrunk.meetjyou.user;
 
 import com.dogGetDrunk.meetjyou.common.exception.business.DuplicateEmailException;
-import com.dogGetDrunk.meetjyou.common.exception.business.EmailNotFoundException;
+import com.dogGetDrunk.meetjyou.common.exception.business.UserNotFoundException;
 import com.dogGetDrunk.meetjyou.jwt.JwtManager;
 import com.dogGetDrunk.meetjyou.preference.Etc;
 import com.dogGetDrunk.meetjyou.preference.Personality;
@@ -75,11 +75,11 @@ public class UserService {
             ));
         }
 
-        String accessToken = jwtManager.generateAccessToken(request.getEmail());
-        String refreshToken = jwtManager.generateRefreshToken(request.getEmail());
+        String accessToken = jwtManager.generateAccessToken(createdUser.getId());
+        String refreshToken = jwtManager.generateRefreshToken(createdUser.getId());
 
         return TokenResponseDto.builder()
-                .email(createdUser.getEmail())
+                .id(createdUser.getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
@@ -87,17 +87,17 @@ public class UserService {
 
 
     public TokenResponseDto login(LoginRequestDto loginRequestDto) {
-        String email = loginRequestDto.getEmail();
+        Long userId = loginRequestDto.getUserId();
 
-        if (!userRepository.existsByEmail(email)) {
-            throw new EmailNotFoundException(email);
+        if (!userRepository.existsById(userId)) {
+            throw new UserNotFoundException(userId);
         }
 
-        String accessToken = jwtManager.generateAccessToken(email);
-        String refreshToken = jwtManager.generateRefreshToken(email);
+        String accessToken = jwtManager.generateAccessToken(userId);
+        String refreshToken = jwtManager.generateRefreshToken(userId);
 
         return TokenResponseDto.builder()
-                .email(email)
+                .id(userId)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
@@ -109,29 +109,29 @@ public class UserService {
     }
 
 
-    public TokenResponseDto refreshToken(String refreshToken, String email) {
-        jwtManager.validateToken(refreshToken, email);
+    public TokenResponseDto refreshToken(String refreshToken, Long userId) {
+        jwtManager.validateToken(refreshToken, userId);
 
-        String newAccessToken = jwtManager.generateAccessToken(email);
-        String newRefreshToken = jwtManager.generateRefreshToken(email);
+        String newAccessToken = jwtManager.generateAccessToken(userId);
+        String newRefreshToken = jwtManager.generateRefreshToken(userId);
 
         return TokenResponseDto.builder()
-                .email(email)
+                .id(userId)
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .build();
     }
 
     @Transactional
-    public void withdrawUser(String email, String accessToken) {
-        if (!userRepository.existsByEmail(email)) {
-            throw new EmailNotFoundException(email);
+    public void withdrawUser(Long userId, String accessToken) {
+        if (!userRepository.existsById(userId)) {
+            throw new UserNotFoundException(userId);
         }
 
-        jwtManager.validateToken(accessToken, email);
+        jwtManager.validateToken(accessToken, userId);
 
-        log.info("유저 탈퇴 시작 (user email: {})", email);
-        userRepository.deleteByEmail(email);
-        log.info("유저 탈퇴 성공 (user email: {})", email);
+        log.info("유저 탈퇴 시작 (user id: {})", userId);
+        userRepository.deleteById(userId);
+        log.info("유저 탈퇴 성공 (user id: {})", userId);
     }
 }

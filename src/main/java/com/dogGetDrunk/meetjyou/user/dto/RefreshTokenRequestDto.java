@@ -5,5 +5,5 @@ import lombok.Getter;
 @Getter
 public class RefreshTokenRequestDto {
 
-    private String email;
+    private Long userId;
 }

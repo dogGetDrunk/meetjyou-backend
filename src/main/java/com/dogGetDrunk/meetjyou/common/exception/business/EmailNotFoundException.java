@@ -7,6 +7,6 @@ public class EmailNotFoundException extends NotFoundException {
     private String email;
 
     public EmailNotFoundException(String email) {
-        super(email, ErrorCode.NOT_FOUND_EMAIL);
+        super(email, ErrorCode.EMAIL_NOT_FOUND);
     }
 }

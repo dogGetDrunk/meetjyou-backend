@@ -13,7 +13,8 @@ public enum ErrorCode {
 
     // User
     DUPLICATE_EMAIL("Duplicate email"),
-    NOT_FOUND_EMAIL("Email not found"),
+    EMAIL_NOT_FOUND("Email not found"),
+    USER_NOT_FOUND("User not found"),
 
     // JWT
     TOKEN_COMMON("The token has an issue."),

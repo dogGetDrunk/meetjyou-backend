@@ -10,4 +10,8 @@ public class IncorrectJwtSubjectException extends CustomJwtException {
         super(value, ErrorCode.INCORRECT_TOKEN_SUBJECT);
         this.value = value;
     }
+
+    public IncorrectJwtSubjectException(Long value) {
+        this(Long.toString(value));
+    }
 }

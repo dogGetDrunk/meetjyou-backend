@@ -7,7 +7,7 @@ import lombok.Getter;
 @Getter
 public class TokenResponseDto {
 
-    private String email;
+    private Long id;
     private String accessToken;
     private String refreshToken;
 }

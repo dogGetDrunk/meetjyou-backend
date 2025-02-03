@@ -48,7 +48,7 @@ public class UserAuthController {
     @PostMapping("/registration")
     public ResponseEntity<TokenResponseDto> register(@RequestBody RegistrationRequestDto registrationRequestDto) {
         TokenResponseDto tokenResponseDto = userService.createUser(registrationRequestDto);
-        return ResponseEntity.created(URI.create("/" + registrationRequestDto.getEmail()))
+        return ResponseEntity.created(URI.create("/" + tokenResponseDto.getId()))
                 .body(tokenResponseDto);
     }
 
@@ -71,7 +71,7 @@ public class UserAuthController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로그인 성공",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponseDto.class))),
-            @ApiResponse(responseCode = "404", description = "가입되지 않은 이메일입니다.",
+            @ApiResponse(responseCode = "404", description = "가입되지 않은 유저입니다.",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
     })
     @PostMapping("/login")
@@ -97,7 +97,7 @@ public class UserAuthController {
         }
 
         String refreshToken = authorizationHeader.substring("Bearer ".length());
-        TokenResponseDto tokenResponseDto = userService.refreshToken(refreshToken, requestDto.getEmail());
+        TokenResponseDto tokenResponseDto = userService.refreshToken(refreshToken, requestDto.getUserId());
 
         return ResponseEntity.ok(tokenResponseDto);
     }
@@ -108,13 +108,13 @@ public class UserAuthController {
             @ApiResponse(responseCode = "401", description = "유효하지 않은 액세스 토큰입니다.",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
     })
-    @DeleteMapping("/")
-    public void withdraw(@RequestHeader("Authorization") String authorizationHeader, @RequestParam String email) {
+    @DeleteMapping("/{userId}")
+    public void withdraw(@RequestHeader("Authorization") String authorizationHeader, @PathVariable Long userId) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             throw new InvalidAuthorizationHeaderException(authorizationHeader);
         }
 
         String accessToken = authorizationHeader.substring("Bearer ".length());
-        userService.withdrawUser(email, accessToken);
+        userService.withdrawUser(userId, accessToken);
     }
 }

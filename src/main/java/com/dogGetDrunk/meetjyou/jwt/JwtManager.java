@@ -24,44 +24,44 @@ public class JwtManager {
         this.secretKey = Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-    public String generateAccessToken(String email) {
+    public String generateAccessToken(Long userId) {
         Date now = new Date();
         return Jwts.builder()
                 .header()
                 .type("JWT")
                 .and()
                 .issuer(issuer)
-                .subject(email)
+                .subject(Long.toString(userId))
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + accessTokenExpiresIn))
                 .signWith(secretKey)
                 .compact();
     }
 
-    public String generateRefreshToken(String email) {
+    public String generateRefreshToken(Long userId) {
         Date now = new Date();
         return Jwts.builder()
                 .header()
                 .type("JWT")
                 .and()
                 .issuer(issuer)
-                .subject(email)
+                .subject(Long.toString(userId))
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + refreshTokenExpiresIn))
                 .signWith(secretKey)
                 .compact();
     }
 
-    public void validateToken(String token, String email) {
-        String emailInToken = Jwts.parser()
+    public void validateToken(String token, Long userId) {
+        String userIdInToken = Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload()
                 .getSubject();
 
-        if (!emailInToken.equals(email)) {
-            throw new IncorrectJwtSubjectException(email);
+        if (!userIdInToken.equals(Long.toString(userId))) {
+            throw new IncorrectJwtSubjectException(userId);
         }
     }
 }
