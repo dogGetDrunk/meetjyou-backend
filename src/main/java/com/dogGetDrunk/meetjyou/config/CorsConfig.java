@@ -17,9 +17,7 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // 리소스를 허용할 URL 지정
-        List<String> allowedOriginPatterns = new ArrayList<>();
-        allowedOriginPatterns.add("*");
-        config.setAllowedOrigins(allowedOriginPatterns);
+        config.addAllowedOriginPattern("*");
 
         // 허용할 HTTP METHOD 지정
         List<String> allowedHttpMethods = new ArrayList<>();
