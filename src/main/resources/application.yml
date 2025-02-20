@@ -1,11 +1,6 @@
 spring:
   application:
     name: meetjyou
-  profiles:
-    active: release
-    group:
-      local: local, db, secrets
-      release: release, db, secrets
   jpa:
     hibernate:
       ddl-auto: none
