@@ -158,11 +158,11 @@ CREATE TABLE user_party
 
 CREATE TABLE app_version
 (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    version VARCHAR(20) NOT NULL UNIQUE,
-    force_update TINYINT NOT NULL,
-    download_url VARCHAR(300) NOT NULL,
-    release_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    version      VARCHAR(20)  NOT NULL UNIQUE,
+    force_update TINYINT      NOT NULL DEFAULT 1,
+    download_url VARCHAR(500) NOT NULL,
+    release_date TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE post
