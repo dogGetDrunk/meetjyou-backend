@@ -20,7 +20,10 @@ public enum ErrorCode {
     TOKEN_COMMON("The token has an issue."),
     EXPIRED_TOKEN("The token has expired."),
     INCORRECT_TOKEN_SUBJECT("The subject in the token is incorrect."),
-    INVALID_AUTHORIZATION_HEADER("This authorization header is invalid");
+    INVALID_AUTHORIZATION_HEADER("This authorization header is invalid"),
+
+    // Version
+    VERSION_NOT_FOUND("Version not found");
 
 //    private final HttpStatus status;
     private final String message;

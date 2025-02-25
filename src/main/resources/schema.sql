@@ -156,6 +156,15 @@ CREATE TABLE user_party
     user_id   INT
 );
 
+CREATE TABLE app_version
+(
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    version      VARCHAR(20)  NOT NULL UNIQUE,
+    force_update TINYINT      NOT NULL DEFAULT 1,
+    download_url VARCHAR(500) NOT NULL,
+    release_date TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 ALTER TABLE post
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
 
