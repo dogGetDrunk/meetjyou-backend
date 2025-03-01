@@ -12,16 +12,19 @@ DROP TABLE IF EXISTS user_preference;
 DROP TABLE IF EXISTS comp_preference;
 DROP TABLE IF EXISTS party_application;
 DROP TABLE IF EXISTS user_party;
+DROP TABLE IF EXISTS app_version;
 SET foreign_key_checks = 1; # FK 체크 재활성화
 
 
 CREATE TABLE user
 (
     id            INT AUTO_INCREMENT PRIMARY KEY,
-    email         VARCHAR(500) NOT NULL UNIQUE,
-    nickname      VARCHAR(20)  NOT NULL UNIQUE,
+    email         VARCHAR(255) NOT NULL UNIQUE,
+    nickname      VARCHAR(10)  NOT NULL UNIQUE,
     created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    bio           VARCHAR(500),
+    birth_date    DATE         NOT NULL,
+    bio           VARCHAR(50),
+    participation INT          NOT NULL DEFAULT 0,
     img_url       VARCHAR(500),
     thumb_img_url VARCHAR(500),
     notified      TINYINT(1)   NOT NULL DEFAULT 1,
