@@ -45,7 +45,7 @@ CREATE TABLE post
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     post_status    TINYINT      NOT NULL DEFAULT 1,
-    user_id        INT,
+    author_id      INT,
     party_id       INT,
     plan_id        INT
 );
@@ -169,7 +169,7 @@ CREATE TABLE app_version
 );
 
 ALTER TABLE post
-    ADD FOREIGN KEY (user_id) REFERENCES user (id);
+    ADD FOREIGN KEY (author_id) REFERENCES user (id);
 
 ALTER TABLE post
     ADD FOREIGN KEY (party_id) REFERENCES party (id);

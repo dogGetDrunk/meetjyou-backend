@@ -10,7 +10,7 @@ import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository;
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequestDto;
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequestDto;
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponseDto;
-import com.dogGetDrunk.meetjyou.user.dto.UserResponseDto;
+import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponseDto;
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequestDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -114,7 +114,7 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponseDto updateUser(Long userId, UserUpdateRequestDto requestDto) {
+    public BasicUserResponseDto updateUser(Long userId, UserUpdateRequestDto requestDto) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
@@ -135,7 +135,7 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserResponseDto getUserProfile(Long userId) {
+    public BasicUserResponseDto getUserProfile(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
@@ -146,13 +146,13 @@ public class UserService {
         String diet = getPreferenceName(user.getId(), 4);
         List<String> etcPreferences = getPreferenceNames(user.getId(), 5);
 
-        return new UserResponseDto(user.getNickname(), user.getBio(), gender, age, personalities, travelStyles, diet, etcPreferences);
+        return new BasicUserResponseDto(user.getNickname(), user.getBio(), gender, age, personalities, travelStyles, diet, etcPreferences);
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponseDto> getAllUsersProfile() {
+    public List<BasicUserResponseDto> getAllUsersProfile() {
         List<User> users = userRepository.findAll();
-        List<UserResponseDto> result = new LinkedList<>();
+        List<BasicUserResponseDto> result = new LinkedList<>();
 
         for (User user : users) {
             String gender = getPreferenceName(user.getId(), 0);
@@ -161,7 +161,7 @@ public class UserService {
             List<String> travelStyles = getPreferenceNames(user.getId(), 3);
             String diet = getPreferenceName(user.getId(), 4);
             List<String> etcPreferences = getPreferenceNames(user.getId(), 5);
-            result.add(new UserResponseDto(user.getNickname(), user.getBio(), gender, age, personalities, travelStyles, diet, etcPreferences));
+            result.add(new BasicUserResponseDto(user.getNickname(), user.getBio(), gender, age, personalities, travelStyles, diet, etcPreferences));
         }
 
         return result;

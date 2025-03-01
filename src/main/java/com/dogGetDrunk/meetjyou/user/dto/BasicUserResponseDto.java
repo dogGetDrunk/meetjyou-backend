@@ -7,7 +7,7 @@ import java.util.List;
 
 @Getter
 @AllArgsConstructor
-public class UserResponseDto {
+public class BasicUserResponseDto {
     private String nickname;
     private String bio;
     private String gender;
