@@ -21,3 +21,6 @@ springdoc:
 logging:
   level:
     org.hibernate.orm.jdbc.bind: trace
+
+server:
+  forward-headers-strategy: native
