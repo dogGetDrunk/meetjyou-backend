@@ -1,10 +1,14 @@
-package com.dogGetDrunk.meetjyou.user;
+package com.dogGetDrunk.meetjyou.post;
 
+import com.dogGetDrunk.meetjyou.party.Party;
+import com.dogGetDrunk.meetjyou.plan.Plan;
+import com.dogGetDrunk.meetjyou.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,7 +17,6 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,31 +25,32 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class Post {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
-    private boolean notified;
-
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    private LocalDateTime lastLoginAt;
+    private LocalDateTime lastEditedAt;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
+    private int postStatus;
 
-    private String email;
-    private String nickname;
-    private String bio;
-    private LocalDate birthDate;
-    private String imgUrl;
-    private String thumbImgUrl;
-    private AuthProvider authProvider;
-    private UserStatus status;
-    private Role role;
+    private String title;
+    private String body;
+    private String preview;
+    private int views;
+
+    @ManyToOne
+    private User author;
+
+    @ManyToOne
+    private Party party;
+
+    @ManyToOne
+    private Plan plan;
 }
