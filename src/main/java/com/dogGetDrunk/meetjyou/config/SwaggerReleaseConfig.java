@@ -11,17 +11,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 @Configuration
-@Profile("release")
 public class SwaggerReleaseConfig {
 
-    @Value("${ngrok.url}")
-    private String ngrokUrl;
+    @Value("${dns.url}")
+    private String dnsUrl;
 
     // JWT를 사용하는 경우
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
-                .addServersItem(new Server().url(ngrokUrl))
+                .addServersItem(new Server().url("https://meetjyou.duckdns.org"))
                 .info(new Info()
                         .title("만나쥬 API")
                         .version("1.0.0")
