@@ -40,11 +40,10 @@ CREATE TABLE post
     id             INT AUTO_INCREMENT PRIMARY KEY,
     title          VARCHAR(50)  NOT NULL,
     body           VARCHAR(500) NOT NULL,
-    preview        VARCHAR(100) NOT NULL,
     views          INT          NOT NULL DEFAULT 0,
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    post_status    TINYINT      NOT NULL DEFAULT 1,
+    post_status    TINYINT      NOT NULL DEFAULT 1, # 0: 모집 완료, 1: 모집 중, 2: 제재됨
     author_id      INT,
     party_id       INT,
     plan_id        INT
@@ -53,16 +52,16 @@ CREATE TABLE post
 CREATE TABLE party
 (
     id             INT AUTO_INCREMENT PRIMARY KEY,
-    itin_start     TIMESTAMP   NOT NULL,
-    itin_finish    TIMESTAMP   NOT NULL,
-    destination    VARCHAR(50) NOT NULL,
-    joined         TINYINT     NOT NULL,
-    max            TINYINT     NOT NULL,
-    name           VARCHAR(50) NOT NULL,
-    img_url        VARCHAR(50) NOT NULL,
-    thumb_img_url  VARCHAR(50) NOT NULL,
-    created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_edited_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    itin_start     TIMESTAMP    NOT NULL,
+    itin_finish    TIMESTAMP    NOT NULL,
+    destination    VARCHAR(50)  NOT NULL,
+    joined         TINYINT      NOT NULL,
+    max            TINYINT      NOT NULL,
+    name           VARCHAR(50)  NOT NULL,
+    img_url        VARCHAR(500) NOT NULL,
+    thumb_img_url  VARCHAR(500) NOT NULL,
+    created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     plan_id        INT
 );
 
@@ -83,7 +82,7 @@ CREATE TABLE plan
     destination VARCHAR(50)     NOT NULL,
     center_lat  DECIMAL(13, 10) NOT NULL,
     center_lng  DECIMAL(13, 10) NOT NULL,
-    memo        VARCHAR(300),
+    memo        VARCHAR(500),
     user_id     INT
 );
 
@@ -92,7 +91,7 @@ CREATE TABLE marker
     id      INT AUTO_INCREMENT PRIMARY KEY,
     lat     DECIMAL(13, 10) NOT NULL,
     lng     DECIMAL(13, 10) NOT NULL,
-    time    TIMESTAMP       NOT NULL,
+    day     INT             NOT NULL,
     place   VARCHAR(50),
     memo    VARCHAR(500),
     plan_id INT
@@ -105,7 +104,7 @@ CREATE TABLE notification
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     message      VARCHAR(500) NOT NULL,
     reference_id INT          NOT NULL,
-    isRead       TINYINT      NOT NULL DEFAULT 0,
+    isRead       TINYINT(1)   NOT NULL DEFAULT 0, # 0: 읽지 않음, 1: 읽음
     user_id      INT
 );
 
@@ -163,9 +162,9 @@ CREATE TABLE app_version
 (
     id           INT AUTO_INCREMENT PRIMARY KEY,
     version      VARCHAR(20)  NOT NULL UNIQUE,
-    force_update TINYINT      NOT NULL DEFAULT 1,
+    force_update TINYINT(1)   NOT NULL DEFAULT 0,
     download_url VARCHAR(500) NOT NULL,
-    release_date TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    release_time TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE post
