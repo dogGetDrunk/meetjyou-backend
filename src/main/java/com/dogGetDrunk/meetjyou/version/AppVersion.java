@@ -32,10 +32,8 @@ public class AppVersion {
     private boolean forceUpdate;
 
     @CreationTimestamp
-    private LocalDateTime releaseDate;
+    private LocalDateTime releasedAt;
 
     private String version;
     private String downloadUrl;
-
-
 }
