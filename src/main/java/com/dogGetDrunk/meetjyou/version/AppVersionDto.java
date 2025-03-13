@@ -16,14 +16,14 @@ public class AppVersionDto {
     private String version;
     private boolean forceUpdate;
     private String downloadUrl;
-    private LocalDateTime releaseDate;
+    private LocalDateTime releasedAt;
 
     public static AppVersionDto fromEntity(AppVersion appVersion) {
         return AppVersionDto.builder()
                 .version(appVersion.getVersion())
                 .forceUpdate(appVersion.isForceUpdate())
                 .downloadUrl(appVersion.getDownloadUrl())
-                .releaseDate(appVersion.getReleaseDate())
+                .releasedAt(appVersion.getReleasedAt())
                 .build();
     }
 }
