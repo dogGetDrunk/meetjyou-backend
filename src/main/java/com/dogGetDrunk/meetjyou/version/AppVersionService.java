@@ -16,7 +16,7 @@ public class AppVersionService {
 
 
     public AppVersionDto getLatestVersion() {
-        return appVersionRepository.findFirstByOrderByReleaseDateDesc()
+        return appVersionRepository.findFirstByOrderByReleasedAtDesc()
                 .map(AppVersionDto::fromEntity)
                 .orElseThrow(() -> new VersionNotFoundException("latest"));
     }

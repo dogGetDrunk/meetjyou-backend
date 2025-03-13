@@ -164,7 +164,7 @@ CREATE TABLE app_version
     version      VARCHAR(20)  NOT NULL UNIQUE,
     force_update TINYINT(1)   NOT NULL DEFAULT 0,
     download_url VARCHAR(500) NOT NULL,
-    release_time TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    released_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE post
