@@ -30,9 +30,9 @@ CREATE TABLE user
     notified      TINYINT(1)   NOT NULL DEFAULT 1,
     last_login_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    auth_provider TINYINT      NOT NULL,
-    status        TINYINT               DEFAULT 0,
-    role          TINYINT               DEFAULT 0
+    auth_provider VARCHAR(10)  NOT NULL,
+    status        VARCHAR(10)           DEFAULT 'NORMAL',
+    role          VARCHAR(10)  NOT NULL
 );
 
 CREATE TABLE post
