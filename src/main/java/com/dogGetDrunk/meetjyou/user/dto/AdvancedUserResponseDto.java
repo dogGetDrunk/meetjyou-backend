@@ -9,6 +9,6 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 public class AdvancedUserResponseDto {
-    private BasicUserResponseDto basicUserInfo;
+    private BasicUserResponse basicUserInfo;
     private List<PostResponseDto> posts;
 }

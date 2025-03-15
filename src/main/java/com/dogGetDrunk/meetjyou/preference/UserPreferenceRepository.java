@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface UserPreferenceRepository extends JpaRepository<UserPreference, Long> {
 
@@ -15,7 +14,7 @@ public interface UserPreferenceRepository extends JpaRepository<UserPreference, 
     void deleteByUserIdAndType(@Param("userId") Long userId, @Param("type") int type);
 
     @Query("SELECT up.preference FROM UserPreference up WHERE up.user.id = :userId AND up.preference.type = :type")
-    Optional<Preference> findPreferenceByUserIdAndType(@Param("userId") Long userId, @Param("type") int type);
+    Preference findPreferenceByUserIdAndType(@Param("userId") Long userId, @Param("type") int type);
 
     @Query("SELECT up.preference FROM UserPreference up WHERE up.user.id = :userId AND up.preference.type = :type")
     List<Preference> findPreferencesByUserIdAndType(@Param("userId") Long userId, @Param("type") int type);

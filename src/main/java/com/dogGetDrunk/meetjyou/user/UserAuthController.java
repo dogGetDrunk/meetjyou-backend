@@ -2,10 +2,10 @@ package com.dogGetDrunk.meetjyou.user;
 
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse;
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidAuthorizationHeaderException;
-import com.dogGetDrunk.meetjyou.user.dto.LoginRequestDto;
+import com.dogGetDrunk.meetjyou.user.dto.LoginRequest;
 import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequestDto;
-import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequestDto;
-import com.dogGetDrunk.meetjyou.user.dto.TokenResponseDto;
+import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest;
+import com.dogGetDrunk.meetjyou.user.dto.TokenResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -41,13 +41,13 @@ public class UserAuthController {
     @Operation(summary = "유저 회원가입", description = "이메일로 회원 가입한다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "회원가입이 완료되었습니다.",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponseDto.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))),
             @ApiResponse(responseCode = "409", description = "이미 가입한 이메일입니다.",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
     })
     @PostMapping("/registration")
-    public ResponseEntity<TokenResponseDto> register(@RequestBody RegistrationRequestDto registrationRequestDto) {
-        TokenResponseDto tokenResponseDto = userService.createUser(registrationRequestDto);
+    public ResponseEntity<TokenResponse> register(@RequestBody RegistrationRequest registrationRequestA) {
+        TokenResponse tokenResponseDto = userService.createUser(registrationRequestA);
         return ResponseEntity.created(URI.create("/" + tokenResponseDto.getId()))
                 .body(tokenResponseDto);
     }
@@ -70,25 +70,25 @@ public class UserAuthController {
     @Operation(summary = "유저 로그인", description = "이메일로 로그인한다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로그인 성공",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponseDto.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))),
             @ApiResponse(responseCode = "404", description = "가입되지 않은 유저입니다.",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
     })
     @PostMapping("/login")
-    public ResponseEntity<TokenResponseDto> login(@RequestBody LoginRequestDto loginRequestDto) {
-        TokenResponseDto tokenResponseDto = userService.login(loginRequestDto);
+    public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest loginRequestA) {
+        TokenResponse tokenResponseDto = userService.login(loginRequestA);
         return ResponseEntity.ok(tokenResponseDto);
     }
 
     @Operation(summary = "토큰 갱신", description = "리프레시 토큰을 이용해 새로운 액세스 토큰 및 리프레시 토큰을 발급한다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponseDto.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))),
             @ApiResponse(responseCode = "401", description = "유효하지 않은 토큰",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
     })
     @PostMapping("/refresh")
-    public ResponseEntity<TokenResponseDto> refreshToken(
+    public ResponseEntity<TokenResponse> refreshToken(
             @RequestHeader("Authorization") String authorizationHeader,
             @RequestBody RefreshTokenRequestDto requestDto
     ) {
@@ -97,7 +97,7 @@ public class UserAuthController {
         }
 
         String refreshToken = authorizationHeader.substring("Bearer ".length());
-        TokenResponseDto tokenResponseDto = userService.refreshToken(refreshToken, requestDto.getUserId());
+        TokenResponse tokenResponseDto = userService.refreshToken(refreshToken, requestDto.getUserId());
 
         return ResponseEntity.ok(tokenResponseDto);
     }

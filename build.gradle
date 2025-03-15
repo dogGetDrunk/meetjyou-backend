@@ -2,7 +2,9 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.1'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'org.jetbrains.kotlin.jvm'
+    id 'org.jetbrains.kotlin.jvm' version '2.1.10'
+    id 'org.jetbrains.kotlin.plugin.spring' version '2.1.10'
+    id 'org.jetbrains.kotlin.plugin.jpa' version '2.1.10'
 }
 
 group = 'com.example'
@@ -31,12 +33,26 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    implementation 'org.jetbrains.kotlin:kotlin-reflect'
+
+
+    implementation 'com.oracle.oci.sdk:oci-java-sdk:3.38.0'
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-common:3.38.0'
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-objectstorage:3.38.0'
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-common-httpclient:3.38.0'
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-common-httpclient-choices:3.38.0'
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3:3.38.0'
+    implementation 'net.coobird:thumbnailator:0.4.20'
+
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
-    compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
+//    compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
