@@ -24,14 +24,10 @@ class OracleObjectStorageService : CloudImageService {
     @Value("\${oracle.oci.bucketName}")
     private lateinit var bucketName: String
 
-    private val objectStorageClient: ObjectStorageClient
     private val homeDir = System.getProperty("user.home") // 홈 디렉토리 가져오기
     private val configPath = Paths.get(homeDir, ".oci", "config").toString()
     private val provider = ConfigFileAuthenticationDetailsProvider(configPath, "DEFAULT")
-
-    init {
-        objectStorageClient = ObjectStorageClient.builder().build(provider)
-    }
+    private val objectStorageClient: ObjectStorageClient = ObjectStorageClient.builder().build(provider)
 
     override fun uploadImage(userId: String, file: ByteArray, fileType: String): String {
         val finalFileType = "jpg"

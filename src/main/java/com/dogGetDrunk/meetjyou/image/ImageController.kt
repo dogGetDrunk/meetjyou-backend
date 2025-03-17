@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.image
 
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile
 
 @RestController
 @RequestMapping("/api/v1/images")
+@Tag(name = "이미지 API", description = "이미지 업로드, 다운로드, 삭제 API")
 class ImageController(private val imageService: ImageService) {
 
     @PostMapping("/upload")
