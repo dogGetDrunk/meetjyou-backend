@@ -1,6 +1,7 @@
 services:
   spring_boot:
     container_name: spring_boot
+    restart: always
     image: ssove/meetjyou
     ports:
       - "8080:8080"
