@@ -14,8 +14,9 @@ import org.springframework.web.multipart.MultipartFile
 @RestController
 @RequestMapping("/api/v1/images")
 @Tag(name = "이미지 API", description = "이미지 업로드, 다운로드, 삭제 API")
-class ImageController(private val imageService: ImageService) {
-
+class ImageController(
+    private val imageService: ImageService
+) {
     @PostMapping("/upload")
     fun uploadImage(@RequestParam userId: String, @RequestParam file: MultipartFile): ResponseEntity<String> {
         val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"

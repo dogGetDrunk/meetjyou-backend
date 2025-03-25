@@ -15,5 +15,5 @@ data class UserUpdateRequest(
     val personalities: List<Personality>,
     val travelStyles: List<TravelStyle>,
     val diet: Diet,
-    val etc: List<Etc>,
+    val etc: List<Etc>
 )

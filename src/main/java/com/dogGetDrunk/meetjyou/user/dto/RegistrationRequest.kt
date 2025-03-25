@@ -19,5 +19,5 @@ data class RegistrationRequest(
     val travelStyles: List<Personality>,
     val diet: Diet,
     val etc: List<Etc>,
-    val authProvider: AuthProvider,
+    val authProvider: AuthProvider
 )

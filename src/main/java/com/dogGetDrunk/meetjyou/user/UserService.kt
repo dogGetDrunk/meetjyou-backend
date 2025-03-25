@@ -22,7 +22,6 @@ class UserService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val jwtManager: JwtManager,
 ) {
-
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
     @Transactional
@@ -177,7 +176,8 @@ class UserService(
     }
 
     private fun getPreferenceName(userId: Long, type: Int): String {
-        return userPreferenceRepository.findPreferenceByUserIdAndType(userId, type).name
+        return userPreferenceRepository.findPreferenceByUserIdAndType(userId, type)?.name
+            ?: throw Exception("Preference not found") // TODO: 적절한 예외 만들기
     }
 
     private fun getPreferenceNames(userId: Long, type: Int): List<String> {
