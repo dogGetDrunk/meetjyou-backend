@@ -39,11 +39,11 @@ class User(
     val id: Long = 0
 
     @CreationTimestamp
-    val createdAt: LocalDateTime? = null
+    val createdAt: LocalDateTime = LocalDateTime.now()
 
     @UpdateTimestamp
-    val lastLoginAt: LocalDateTime? = null
+    val lastLoginAt: LocalDateTime = LocalDateTime.now()
 
     @UpdateTimestamp
-    val updatedAt: LocalDateTime? = null
+    val updatedAt: LocalDateTime = LocalDateTime.now()
 }

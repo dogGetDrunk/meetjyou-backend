@@ -11,5 +11,5 @@ data class BasicUserResponse(
     val travelStyles: List<String>,
     val diet: String,
     val etc: List<String>,
-    val authProvider: AuthProvider,
+    val authProvider: AuthProvider
 )

@@ -17,13 +17,13 @@ import java.nio.file.Paths
 import javax.imageio.ImageIO
 
 @Service
-class OracleObjectStorageService : CloudImageService {
+class OracleObjectStorageService(
     @Value("\${oracle.oci.namespace}")
-    private lateinit var namespace: String
+    val namespace: String,
 
     @Value("\${oracle.oci.bucketName}")
-    private lateinit var bucketName: String
-
+    val bucketName: String
+) : CloudImageService {
     private val homeDir = System.getProperty("user.home") // 홈 디렉토리 가져오기
     private val configPath = Paths.get(homeDir, ".oci", "config").toString()
     private val provider = ConfigFileAuthenticationDetailsProvider(configPath, "DEFAULT")
@@ -51,7 +51,8 @@ class OracleObjectStorageService : CloudImageService {
         val thumbnail = createThumbnail(convertedFile)
         uploadToObjectStorage(thumbnailPath, thumbnail)
 
-        return "https://objectstorage.${provider.region.regionId}.oraclecloud.com/n/$namespace/b/$bucketName/o/$originalPath"
+        return "https://objectstorage.${provider.region.regionId}.oraclecloud.com" +
+                "/n/$namespace/b/$bucketName/o/$originalPath"
     }
 
     override fun downloadImage(userId: String, isThumbnail: Boolean): ByteArray? {
