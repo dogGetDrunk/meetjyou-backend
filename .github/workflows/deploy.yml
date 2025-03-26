@@ -27,7 +27,7 @@ jobs:
 
       - name: Docker 이미지 빌드 & 푸시
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest .
+          docker buildx build --platform linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest
 
       - name: SSH를 통한 오라클 클라우드 인스턴스 배포
