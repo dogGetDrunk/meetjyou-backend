@@ -6,12 +6,26 @@ import com.dogGetDrunk.meetjyou.common.exception.business.NotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 
 @ControllerAdvice
 class GlobalExceptionHandler {
     private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
+
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    fun handleValidationException(e: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
+        log.info("Handle MethodArgumentNotValidException", e)
+
+        val values = e.bindingResult.fieldErrors.map { error ->
+            "[${error.field}] ${error.defaultMessage}"
+        }
+
+        val status = HttpStatus.BAD_REQUEST
+        val errorResponse = ErrorResponse(status.value(), ErrorCode.INVALID_INPUT_VALUE, values)
+        return ResponseEntity(errorResponse, status)
+    }
 
     @ExceptionHandler(DuplicateException::class)
     fun handleDuplicateException(e: DuplicateException): ResponseEntity<ErrorResponse> {

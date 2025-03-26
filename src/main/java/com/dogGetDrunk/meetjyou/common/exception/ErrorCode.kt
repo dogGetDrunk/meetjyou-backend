@@ -6,6 +6,7 @@ enum class ErrorCode(
     // Business
     DUPLICATE("Duplicate value"),
     NOT_FOUND("Value not found"),
+    INVALID_INPUT_VALUE("Invalid input value"),
 
     // User
     DUPLICATE_EMAIL("Duplicate email"),
@@ -19,5 +20,8 @@ enum class ErrorCode(
     INVALID_AUTHORIZATION_HEADER("This authorization header is invalid"),
 
     // Version
-    VERSION_NOT_FOUND("Version not found");
+    VERSION_NOT_FOUND("Version not found"),
+
+    // Notice
+    NOTICE_NOT_FOUND("Notice not found"),
 }
