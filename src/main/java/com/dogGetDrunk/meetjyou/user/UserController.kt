@@ -1,6 +1,6 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.post.PostResponse
+import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.user.dto.AdvancedUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
@@ -12,6 +12,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.web.ErrorResponse
 import org.springframework.web.bind.annotation.GetMapping
@@ -82,9 +86,12 @@ class UserController(
         )]
     )
     @GetMapping("/{id}/advanced-info")
-    fun getAdvancedUserProfile(@PathVariable id: Long): ResponseEntity<AdvancedUserResponse> {
+    fun getAdvancedUserProfile(
+        @PathVariable id: Long,
+        @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable
+    ): ResponseEntity<AdvancedUserResponse> {
         val basicUserResponseDto: BasicUserResponse = userService.getUserProfile(id)
-        val posts: List<PostResponse> = postService.getPostsByAuthorId(id)
+        val posts: Page<GetPostResponse> = postService.getPostsByAuthorId(id, pageable)
         return ResponseEntity.ok(AdvancedUserResponse(basicUserResponseDto, posts))
     }
 

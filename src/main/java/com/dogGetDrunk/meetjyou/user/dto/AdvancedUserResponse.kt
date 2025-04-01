@@ -1,9 +1,9 @@
 package com.dogGetDrunk.meetjyou.user.dto
 
-import com.dogGetDrunk.meetjyou.post.PostResponse
-
+import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
+import org.springframework.data.domain.Page
 
 data class AdvancedUserResponse(
     val basicUserInfo: BasicUserResponse,
-    val posts: List<PostResponse>
+    val posts: Page<GetPostResponse>
 )

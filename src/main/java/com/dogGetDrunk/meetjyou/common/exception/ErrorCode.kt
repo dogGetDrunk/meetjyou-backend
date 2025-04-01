@@ -24,4 +24,7 @@ enum class ErrorCode(
 
     // Notice
     NOTICE_NOT_FOUND("Notice not found"),
+
+    // Post
+    POST_NOT_FOUND("Post not found"),
 }

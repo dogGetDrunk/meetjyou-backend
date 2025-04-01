@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository
 @Repository
 interface PreferenceRepository : JpaRepository<Preference, Long> {
     fun findByName(name: String): Preference?
+    fun findByNameAndType(name: String, type: Int): Preference?
 }
