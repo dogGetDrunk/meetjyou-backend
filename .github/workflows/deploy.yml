@@ -30,6 +30,28 @@ jobs:
           docker buildx build --platform linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest
 
+      - name: 서버에 application-db.yml 생성
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ORACLE_CLOUD_HOST }}
+          username: ${{ secrets.ORACLE_CLOUD_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cat <<EOF > ~/meetjyou/application-db.yml
+${{ secrets.APP_DB_YML }}
+EOF
+
+      - name: 서버에 application-secrets.yml 생성
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ORACLE_CLOUD_HOST }}
+          username: ${{ secrets.ORACLE_CLOUD_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cat <<EOF > ~/meetjyou/application-secrets.yml
+${{ secrets.APP_SECRETS_YML }}
+EOF
+
       - name: SSH를 통한 오라클 클라우드 인스턴스 배포
         uses: appleboy/ssh-action@master
         with:
