@@ -8,6 +8,20 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 20MB
+  security:
+    user:
+      name: ${SPRING_SECURITY_USER_NAME}
+      password: ${SPRING_SECURITY_USER_PASSWORD}
 
 springdoc:
   swagger-ui:
@@ -24,3 +38,17 @@ logging:
 
 server:
   forward-headers-strategy: native
+
+jwt:
+  issuer: ${JWT_ISSUER}
+  access-expiration: ${JWT_AT_EXP} # 30분
+  refresh-expiration: ${JWT_RT_EXP} # 30일
+  secret-key: ${JWT_SECRET_KEY} # 512 bits for HS512
+
+dns:
+  url: ${DNS_URL}
+
+oracle:
+  oci:
+    bucketName: ${OCI_BUCKET_NAME}
+    namespace: ${OCI_NAMESPACE}

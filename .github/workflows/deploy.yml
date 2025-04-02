@@ -30,23 +30,27 @@ jobs:
           docker buildx build --platform linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest
 
-      - name: 서버에 application-db.yml 생성 (base64 디코딩)
+      - name: 서버에 .env 업로드
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ORACLE_CLOUD_HOST }}
           username: ${{ secrets.ORACLE_CLOUD_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "${{ secrets.APP_DB_YML_BASE64 }}" | base64 -d > ~/meetjyou/application-db.yml
-
-      - name: 서버에 application-secrets.yml 생성 (base64 디코딩)
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.ORACLE_CLOUD_HOST }}
-          username: ${{ secrets.ORACLE_CLOUD_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "${{ secrets.APP_SECRETS_YML_BASE64 }}" | base64 -d > ~/meetjyou/application-secrets.yml
+            cat <<EOF > ~/meetjyou/.env
+            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+            SPRING_SECURITY_USER_NAME=${{ secrets.SPRING_SECURITY_USER_NAME }}
+            SPRING_SECURITY_USER_PASSWORD=${{ secrets.SPRING_SECURITY_USER_PASSWORD }}
+            JWT_ISSUER=${{ secrets.JWT_ISSUER }}
+            JWT_AT_EXP=${{ secrets.JWT_AT_EXP }}
+            JWT_RT_EXP=${{ secrets.JWT_RT_EXP }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            DNS_URL=${{ secrets.DNS_URL }}
+            OCI_BUCKET_NAME=${{ secrets.OCI_BUCKET_NAME }}
+            OCI_NAMESPACE=${{ secrets.OCI_NAMESPACE }}
+            EOF
 
       - name: SSH를 통한 오라클 클라우드 인스턴스 배포
         uses: appleboy/ssh-action@master
