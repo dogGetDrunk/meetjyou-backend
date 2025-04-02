@@ -7,8 +7,10 @@ import com.oracle.bmc.objectstorage.requests.DeleteObjectRequest
 import com.oracle.bmc.objectstorage.requests.GetObjectRequest
 import com.oracle.bmc.objectstorage.requests.PutObjectRequest
 import com.oracle.bmc.objectstorage.responses.GetObjectResponse
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.awt.Color
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
@@ -31,6 +33,8 @@ class OracleObjectStorageService(
     private val objectStorageClient: ObjectStorageClient = ObjectStorageClient.builder().build(provider)
     private val FINAL_FILE_TYPE = "jpg"
     private val THUMBNAIL_WIDTH = 150
+
+    private val log = LoggerFactory.getLogger(OracleObjectStorageService::class.java)
 
     override fun uploadUserProfileImage(userId: String, file: ByteArray, fileType: String): Boolean {
         val (originalPath, thumbnailPath) = generateUserProfileImagePath(userId)
@@ -159,12 +163,28 @@ class OracleObjectStorageService(
         val inputStream = ByteArrayInputStream(imageBytes)
         val originalImage = ImageIO.read(inputStream)
 
+        // JPG는 투명도(알파 채널)를 지원하지 않기 때문에 RGB 타입으로 새 이미지 생성
+        val jpgImage = BufferedImage(
+            originalImage.width,
+            originalImage.height,
+            BufferedImage.TYPE_INT_RGB
+        )
+
+        // 배경을 흰색으로 채우고, PNG를 JPG 이미지로 변환
+        val graphics = jpgImage.createGraphics()
+        graphics.color = Color.WHITE
+        graphics.fillRect(0, 0, jpgImage.width, jpgImage.height)
+        graphics.drawImage(originalImage, 0, 0, null)
+        graphics.dispose()
+
+        // 결과를 ByteArray로 출력
         val outputStream = ByteArrayOutputStream()
-        ImageIO.write(originalImage, "jpg", outputStream)
+        ImageIO.write(jpgImage, "jpg", outputStream)
         return outputStream.toByteArray()
     }
 
     private fun createThumbnail(imageBytes: ByteArray): ByteArray {
+        log.info("Creating thumbnail for image of size: ${imageBytes.size} bytes")
         val inputStream = ByteArrayInputStream(imageBytes)
         val originalImage = ImageIO.read(inputStream)
 
