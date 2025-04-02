@@ -7,8 +7,10 @@ import com.oracle.bmc.objectstorage.requests.DeleteObjectRequest
 import com.oracle.bmc.objectstorage.requests.GetObjectRequest
 import com.oracle.bmc.objectstorage.requests.PutObjectRequest
 import com.oracle.bmc.objectstorage.responses.GetObjectResponse
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.awt.Color
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
@@ -22,46 +24,40 @@ class OracleObjectStorageService(
     val namespace: String,
 
     @Value("\${oracle.oci.bucketName}")
-    val bucketName: String
+    val bucketName: String,
 ) : CloudImageService {
-    private val homeDir = System.getProperty("user.home") // 홈 디렉토리 가져오기
+
+    private val homeDir = System.getProperty("user.home")
     private val configPath = Paths.get(homeDir, ".oci", "config").toString()
     private val provider = ConfigFileAuthenticationDetailsProvider(configPath, "DEFAULT")
     private val objectStorageClient: ObjectStorageClient = ObjectStorageClient.builder().build(provider)
+    private val FINAL_FILE_TYPE = "jpg"
+    private val THUMBNAIL_WIDTH = 150
 
-    override fun uploadImage(userId: String, file: ByteArray, fileType: String): String {
-        val finalFileType = "jpg"
-        val originalPath = "$userId/profile.$finalFileType"
-        val thumbnailPath = "$userId/thumbnail.$finalFileType"
+    private val log = LoggerFactory.getLogger(OracleObjectStorageService::class.java)
 
-        // 기존 이미지 삭제
-        deleteImage(userId)
+    override fun uploadUserProfileImage(userId: String, file: ByteArray, fileType: String): Boolean {
+        val (originalPath, thumbnailPath) = generateUserProfileImagePath(userId)
 
-        // JPG가 아닌 경우 변환
         val convertedFile = if (fileType.lowercase() in listOf("jpg", "jpeg")) {
             file
         } else {
             convertToJpg(file)
         }
 
-        // 원본 이미지 업로드
         uploadToObjectStorage(originalPath, convertedFile)
+        uploadToObjectStorage(thumbnailPath, createThumbnail(convertedFile))
 
-        // 썸네일 생성 및 업로드
-        val thumbnail = createThumbnail(convertedFile)
-        uploadToObjectStorage(thumbnailPath, thumbnail)
-
-        return "https://objectstorage.${provider.region.regionId}.oraclecloud.com" +
-                "/n/$namespace/b/$bucketName/o/$originalPath"
+        return true
     }
 
-    override fun downloadImage(userId: String, isThumbnail: Boolean): ByteArray? {
-        val fileName = if (isThumbnail) {
-            "thumbnail.jpg"
+    override fun downloadUserProfileImage(userId: String, isThumbnail: Boolean): ByteArray? {
+        val (originalPath, thumbnailPath) = generateUserProfileImagePath(userId)
+        val objectPath = if (isThumbnail) {
+            thumbnailPath
         } else {
-            "profile.jpg"
+            originalPath
         }
-        val objectPath = "$userId/$fileName"
 
         val request = GetObjectRequest.builder()
             .namespaceName(namespace)
@@ -69,27 +65,86 @@ class OracleObjectStorageService(
             .objectName(objectPath)
             .build()
 
-        val response: GetObjectResponse = objectStorageClient.getObject(request)
-        return response.inputStream.readBytes()
+        return try {
+            val response: GetObjectResponse = objectStorageClient.getObject(request)
+            response.inputStream.readBytes()
+        } catch (e: Exception) {
+            null
+        }
     }
 
-    override fun deleteImage(userId: String): Boolean {
-        val originalPath = "$userId/profile.jpg"
-        val thumbnailPath = "$userId/thumbnail.jpg"
+    override fun deleteUserProfileImage(userId: String): Boolean {
+        val originalPath = "user/${userId}-profile.jpg"
+        val thumbnailPath = "user/${userId}-thumbnail.jpg"
 
-        listOf(originalPath, thumbnailPath).forEach { path ->
-            try {
-                val request = DeleteObjectRequest.builder()
-                    .namespaceName(namespace)
-                    .bucketName(bucketName)
-                    .objectName(path)
-                    .build()
-                objectStorageClient.deleteObject(request)
-            } catch (e: Exception) {
-                println("Error deleting $path: ${e.message}")
-            }
+        return try {
+            val originalRequest = DeleteObjectRequest.builder()
+                .namespaceName(namespace)
+                .bucketName(bucketName)
+                .objectName(originalPath)
+                .build()
+            objectStorageClient.deleteObject(originalRequest)
+
+            val thumbnailRequest = DeleteObjectRequest.builder()
+                .namespaceName(namespace)
+                .bucketName(bucketName)
+                .objectName(thumbnailPath)
+                .build()
+            objectStorageClient.deleteObject(thumbnailRequest)
+
+            true
+        } catch (e: Exception) {
+            println("Error deleting user profile image: ${e.message}")
+            false
         }
+    }
+
+    override fun uploadPostImage(postId: Long, file: ByteArray, fileType: String): Boolean {
+        val objectPath = generatePostImagePath(postId)
+
+        val convertedFile = if (fileType.lowercase() in listOf("jpg", "jpeg")) {
+            file
+        } else {
+            convertToJpg(file)
+        }
+
+        uploadToObjectStorage(objectPath, convertedFile)
+
         return true
+    }
+
+    override fun downloadPostImage(postId: Long): ByteArray? {
+        val objectPath = generatePostImagePath(postId)
+
+        val request = GetObjectRequest.builder()
+            .namespaceName(namespace)
+            .bucketName(bucketName)
+            .objectName(objectPath)
+            .build()
+
+        return try {
+            val response: GetObjectResponse = objectStorageClient.getObject(request)
+            response.inputStream.readBytes()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override fun deletePostImage(postId: Long): Boolean {
+        val objectPath = "post/$postId.jpg"
+
+        return try {
+            val request = DeleteObjectRequest.builder()
+                .namespaceName(namespace)
+                .bucketName(bucketName)
+                .objectName(objectPath)
+                .build()
+            objectStorageClient.deleteObject(request)
+            true
+        } catch (e: Exception) {
+            println("Error deleting post image $objectPath: ${e.message}")
+            false
+        }
     }
 
     private fun uploadToObjectStorage(objectPath: String, file: ByteArray) {
@@ -104,30 +159,39 @@ class OracleObjectStorageService(
         objectStorageClient.putObject(request)
     }
 
-    /**
-     * JPG가 아닌 경우 JPG로 변환하는 함수
-     */
     private fun convertToJpg(imageBytes: ByteArray): ByteArray {
         val inputStream = ByteArrayInputStream(imageBytes)
         val originalImage = ImageIO.read(inputStream)
 
+        // JPG는 투명도(알파 채널)를 지원하지 않기 때문에 RGB 타입으로 새 이미지 생성
+        val jpgImage = BufferedImage(
+            originalImage.width,
+            originalImage.height,
+            BufferedImage.TYPE_INT_RGB
+        )
+
+        // 배경을 흰색으로 채우고, PNG를 JPG 이미지로 변환
+        val graphics = jpgImage.createGraphics()
+        graphics.color = Color.WHITE
+        graphics.fillRect(0, 0, jpgImage.width, jpgImage.height)
+        graphics.drawImage(originalImage, 0, 0, null)
+        graphics.dispose()
+
+        // 결과를 ByteArray로 출력
         val outputStream = ByteArrayOutputStream()
-        ImageIO.write(originalImage, "jpg", outputStream)
+        ImageIO.write(jpgImage, "jpg", outputStream)
         return outputStream.toByteArray()
     }
 
-    /**
-     * 썸네일 생성 함수 (150px 너비로 리사이징)
-     */
     private fun createThumbnail(imageBytes: ByteArray): ByteArray {
+        log.info("Creating thumbnail for image of size: ${imageBytes.size} bytes")
         val inputStream = ByteArrayInputStream(imageBytes)
         val originalImage = ImageIO.read(inputStream)
 
-        val width = 150
-        val height = (originalImage.height * width) / originalImage.width
-        val resizedImage = originalImage.getScaledInstance(width, height, Image.SCALE_SMOOTH)
+        val height = (originalImage.height * THUMBNAIL_WIDTH) / originalImage.width
+        val resizedImage = originalImage.getScaledInstance(THUMBNAIL_WIDTH, height, Image.SCALE_SMOOTH)
 
-        val thumbnail = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+        val thumbnail = BufferedImage(THUMBNAIL_WIDTH, height, BufferedImage.TYPE_INT_RGB)
         val graphics = thumbnail.createGraphics()
         graphics.drawImage(resizedImage, 0, 0, null)
         graphics.dispose()
@@ -135,5 +199,15 @@ class OracleObjectStorageService(
         val outputStream = ByteArrayOutputStream()
         ImageIO.write(thumbnail, "jpg", outputStream)
         return outputStream.toByteArray()
+    }
+
+    private fun generateUserProfileImagePath(userId: String): Pair<String, String> {
+        val originalPath = "user/${userId}-profile.$FINAL_FILE_TYPE"
+        val thumbnailPath = "user/${userId}-thumbnail.$FINAL_FILE_TYPE"
+        return Pair(originalPath, thumbnailPath)
+    }
+
+    private fun generatePostImagePath(postId: Long): String {
+        return "post/$postId.$FINAL_FILE_TYPE"
     }
 }

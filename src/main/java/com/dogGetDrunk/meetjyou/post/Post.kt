@@ -11,16 +11,20 @@ import jakarta.persistence.Id
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity
 class Post(
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
-    var postStatus: Int = 0,
+    var isInstant: Boolean,
 
     var title: String,
-    var body: String,
-    var views: Int,
+    var content: String,
+    var itinStart: LocalDate,
+    var itinFinish: LocalDate,
+    var location: String,
+    var capacity: Int,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,11 +37,16 @@ class Post(
     val lastEditedAt: LocalDateTime = LocalDateTime.now()
 
     @ManyToOne
-    var author: User? = null
+    lateinit var author: User
 
     @ManyToOne
     var party: Party? = null
 
     @ManyToOne
     var plan: Plan? = null
+
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
+    var postStatus: Int = 0
+
+    var views: Int = 0
 }

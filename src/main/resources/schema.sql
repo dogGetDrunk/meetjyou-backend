@@ -39,7 +39,7 @@ CREATE TABLE post
 (
     id             INT AUTO_INCREMENT PRIMARY KEY,
     title          VARCHAR(50)  NOT NULL,
-    body           VARCHAR(500) NOT NULL,
+    content        VARCHAR(500) NOT NULL,
     views          INT          NOT NULL DEFAULT 0,
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
