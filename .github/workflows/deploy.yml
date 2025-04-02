@@ -46,7 +46,7 @@ jobs:
             JWT_ISSUER=${{ secrets.JWT_ISSUER }}
             JWT_AT_EXP=${{ secrets.JWT_AT_EXP }}
             JWT_RT_EXP=${{ secrets.JWT_RT_EXP }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
             DNS_URL=${{ secrets.DNS_URL }}
             OCI_BUCKET_NAME=${{ secrets.OCI_BUCKET_NAME }}
             OCI_NAMESPACE=${{ secrets.OCI_NAMESPACE }}
