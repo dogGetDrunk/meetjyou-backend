@@ -1,6 +1,6 @@
 package com.dogGetDrunk.meetjyou.notice
 
-import com.dogGetDrunk.meetjyou.common.exception.business.NoticeNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NoticeNotFoundException
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeRequest
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeResponse
 import org.slf4j.LoggerFactory
