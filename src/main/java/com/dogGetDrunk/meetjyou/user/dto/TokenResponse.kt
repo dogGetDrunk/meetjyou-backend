@@ -1,7 +1,9 @@
 package com.dogGetDrunk.meetjyou.user.dto
 
+import java.util.UUID
+
 data class TokenResponse(
-    val id: Long,
+    val uuid: String,
     val accessToken: String,
     val refreshToken: String
 )

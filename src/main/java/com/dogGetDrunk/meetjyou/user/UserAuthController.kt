@@ -2,7 +2,7 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
-import com.dogGetDrunk.meetjyou.common.exception.business.InvalidAuthorizationHeaderException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidAuthorizationHeaderException
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.net.URI
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -56,7 +57,7 @@ class UserAuthController(
     @PostMapping("/registration")
     fun register(@RequestBody registrationRequestA: RegistrationRequest): ResponseEntity<TokenResponse> {
         val tokenResponseDto = userService.createUser(registrationRequestA)
-        return ResponseEntity.created(URI.create("/" + tokenResponseDto.id))
+        return ResponseEntity.created(URI.create("/" + tokenResponseDto.uuid))
             .body(tokenResponseDto)
     }
 
@@ -138,7 +139,7 @@ class UserAuthController(
         }
 
         val refreshToken = authorizationHeader.substring("Bearer ".length)
-        val tokenResponseDto = userService.refreshToken(refreshToken, requestDto.userId)
+        val tokenResponseDto = userService.refreshToken(refreshToken, requestDto.uuid)
 
         return ResponseEntity.ok(tokenResponseDto)
     }
@@ -160,13 +161,13 @@ class UserAuthController(
                 )
             )]
     )
-    @DeleteMapping("/{userId}")
-    fun withdraw(@RequestHeader("Authorization") authorizationHeader: String, @PathVariable userId: Long) {
+    @DeleteMapping("/{uuid}")
+    fun withdraw(@RequestHeader("Authorization") authorizationHeader: String, @PathVariable uuid: UUID) {
         if (!authorizationHeader.startsWith("Bearer ")) {
             throw InvalidAuthorizationHeaderException(authorizationHeader, ErrorCode.INVALID_AUTHORIZATION_HEADER)
         }
 
         val accessToken = authorizationHeader.substring("Bearer ".length)
-        userService.withdrawUser(userId, accessToken)
+        userService.withdrawUser(uuid, accessToken)
     }
 }

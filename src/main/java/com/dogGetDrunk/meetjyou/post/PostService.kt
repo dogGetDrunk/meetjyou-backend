@@ -1,8 +1,8 @@
 package com.dogGetDrunk.meetjyou.post
 
-import com.dogGetDrunk.meetjyou.common.exception.business.PostNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.PreferenceNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Service
 class PostService(
@@ -31,8 +32,8 @@ class PostService(
 
     @Transactional
     fun createPost(request: CreatePostRequest): CreatePostResponse {
-        val author = userRepository.findById(request.authorId)
-            .orElseThrow { UserNotFoundException(request.authorId) }
+        val author = userRepository.findByUuid(request.authorUuid)
+            ?: throw UserNotFoundException(request.authorUuid)
 
         val newPost = Post(
             title = request.title,
@@ -90,11 +91,11 @@ class PostService(
     }
 
     @Transactional(readOnly = true)
-    fun getPostsByAuthorId(authorId: Long, pageable: Pageable): Page<GetPostResponse> {
-        userRepository.findById(authorId)
-            .orElseThrow { UserNotFoundException(authorId) }
+    fun getPostsByAuthorId(authorUuid: UUID, pageable: Pageable): Page<GetPostResponse> {
+        userRepository.findByUuid(authorUuid)
+            ?: throw UserNotFoundException(authorUuid)
 
-        return postRepository.findAllByAuthor_Id(authorId, pageable)
+        return postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
             .map {
                 GetPostResponse(
                     createdAt = it.createdAt,
@@ -201,7 +202,7 @@ class PostService(
             CreatePostRequest(
                 title = request.title,
                 content = request.content,
-                authorId = request.authorId,
+                authorUuidString = request.authorUuid.toString(),
                 isInstant = request.isInstant,
                 itinStart = request.itinStart,
                 itinFinish = request.itinFinish,
