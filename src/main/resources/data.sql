@@ -153,25 +153,28 @@ VALUES
     (10, 36);
 -- DRINK
 
--- post
-INSERT INTO post (uuid, title, content, views, created_at, last_edited_at, post_status, author_id, party_id, plan_id)
-VALUES ('5fd1c71b-d189-420a-a071-3bd3654c928f', '첫 번째 여행 모집', '함께 여행 가실 분 모집합니다!', 23, NOW(), NOW(), 1, 1, NULL, NULL),
-       ('d08cc69f-4608-4f9f-9b7b-02e328cf04e2', '서울 맛집 탐방', '서울에서 가장 맛있는 음식점을 공유해요.', 45, NOW(), NOW(), 1, 2, NULL,
-        NULL),
-       ('dd93f292-0cc4-4a49-a821-2b10d13b252f', '배낭여행 정보 공유', '배낭여행 팁과 노하우를 공유합니다.', 67, NOW(), NOW(), 1, 3, NULL,
-        NULL),
-       ('0c4b1403-1c4e-4e83-b85c-2e92dc90bc0a', '혼자 여행 꿀팁', '혼자 여행할 때 유용한 정보를 제공합니다.', 12, NOW(), NOW(), 1, 4, NULL,
-        NULL),
-       ('ab6a40be-51c3-4a4f-8324-3bbd365b1c8f', '새로운 여행 동반자 구함', '여행을 함께할 친구를 찾아요.', 34, NOW(), NOW(), 1, 5, NULL,
-        NULL),
-       ('04276a3d-12cb-40aa-b7cc-309e6f3d87e1', '유럽 여행 후기', '유럽 여행에서 가장 좋았던 경험을 공유합니다.', 89, NOW(), NOW(), 1, 6, NULL,
-        NULL),
-       ('1639b51d-7e6d-430f-b394-f6b67c914a47', '국내 여행 추천', '국내에서 꼭 가봐야 할 곳을 추천합니다.', 78, NOW(), NOW(), 1, 7, NULL,
-        NULL),
-       ('7d6f6e82-65c3-4a17-a9f4-84df83c999a4', '여행 사진 공유', '여행 중 찍은 사진을 공유해요.', 56, NOW(), NOW(), 1, 8, NULL, NULL),
-       ('5090610f-b9f9-4934-a6f3-6b92d28ab140', '여행 비용 절약 팁', '여행 경비를 아끼는 다양한 방법!', 34, NOW(), NOW(), 1, 9, NULL, NULL),
-       ('07b60b2b-02e0-4e0d-9f3f-001157d226e4', '일본 여행 계획', '일본 여행 일정과 계획을 공유합니다.', 22, NOW(), NOW(), 1, 10, NULL,
-        NULL);
+INSERT INTO post (uuid, title, content, views, capacity, itin_start, itin_finish, location, created_at, last_edited_at,
+                  post_status, author_id, party_id, plan_id)
+VALUES ('5fd1c71b-d189-420a-a071-3bd3654c928f', '첫 번째 여행 모집', '함께 여행 가실 분 모집합니다!', 23, 3, NOW(),
+        DATE_ADD(NOW(), INTERVAL 3 DAY), '서울', NOW(), NOW(), 1, 1, NULL, NULL),
+       ('d08cc69f-4608-4f9f-9b7b-02e328cf04e2', '서울 맛집 탐방', '서울에서 가장 맛있는 음식점을 공유해요.', 45, 2, NOW(),
+        DATE_ADD(NOW(), INTERVAL 1 DAY), '서울', NOW(), NOW(), 1, 2, NULL, NULL),
+       ('dd93f292-0cc4-4a49-a821-2b10d13b252f', '배낭여행 정보 공유', '배낭여행 팁과 노하우를 공유합니다.', 67, 5, NOW(),
+        DATE_ADD(NOW(), INTERVAL 5 DAY), '유럽', NOW(), NOW(), 1, 3, NULL, NULL),
+       ('0c4b1403-1c4e-4e83-b85c-2e92dc90bc0a', '혼자 여행 꿀팁', '혼자 여행할 때 유용한 정보를 제공합니다.', 12, 1, NOW(),
+        DATE_ADD(NOW(), INTERVAL 1 DAY), '전국', NOW(), NOW(), 1, 4, NULL, NULL),
+       ('ab6a40be-51c3-4a4f-8324-3bbd365b1c8f', '새로운 여행 동반자 구함', '여행을 함께할 친구를 찾아요.', 34, 4, NOW(),
+        DATE_ADD(NOW(), INTERVAL 2 DAY), '부산', NOW(), NOW(), 1, 5, NULL, NULL),
+       ('04276a3d-12cb-40aa-b7cc-309e6f3d87e1', '유럽 여행 후기', '유럽 여행에서 가장 좋았던 경험을 공유합니다.', 89, 6, NOW(),
+        DATE_ADD(NOW(), INTERVAL 10 DAY), '프랑스', NOW(), NOW(), 1, 6, NULL, NULL),
+       ('1639b51d-7e6d-430f-b394-f6b67c914a47', '국내 여행 추천', '국내에서 꼭 가봐야 할 곳을 추천합니다.', 78, 3, NOW(),
+        DATE_ADD(NOW(), INTERVAL 3 DAY), '제주도', NOW(), NOW(), 1, 7, NULL, NULL),
+       ('7d6f6e82-65c3-4a17-a9f4-84df83c999a4', '여행 사진 공유', '여행 중 찍은 사진을 공유해요.', 56, 2, NOW(),
+        DATE_ADD(NOW(), INTERVAL 2 DAY), '전국', NOW(), NOW(), 1, 8, NULL, NULL),
+       ('5090610f-b9f9-4934-a6f3-6b92d28ab140', '여행 비용 절약 팁', '여행 경비를 아끼는 다양한 방법!', 34, 1, NOW(),
+        DATE_ADD(NOW(), INTERVAL 1 DAY), '일본', NOW(), NOW(), 1, 9, NULL, NULL),
+       ('07b60b2b-02e0-4e0d-9f3f-001157d226e4', '일본 여행 계획', '일본 여행 일정과 계획을 공유합니다.', 22, 3, NOW(),
+        DATE_ADD(NOW(), INTERVAL 4 DAY), '일본', NOW(), NOW(), 1, 10, NULL, NULL);
 
 -- party
 INSERT INTO party (uuid, itin_start, itin_finish, destination, joined, max, name, img_url, thumb_img_url, created_at,

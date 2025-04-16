@@ -41,7 +41,12 @@ CREATE TABLE post
     uuid           CHAR(36)     NOT NULL UNIQUE,
     title          VARCHAR(50)  NOT NULL,
     content        VARCHAR(500) NOT NULL,
+    is_instant     TINYINT(1)   NOT NULL DEFAULT 0,
     views          INT          NOT NULL DEFAULT 0,
+    capacity       INT          NOT NULL DEFAULT 1,
+    itin_start     TIMESTAMP    NOT NULL,
+    itin_finish    TIMESTAMP    NOT NULL,
+    location       VARCHAR(50),
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     post_status    TINYINT      NOT NULL DEFAULT 1,
@@ -208,6 +213,3 @@ ALTER TABLE user_party
     ADD FOREIGN KEY (party_id) REFERENCES party (id);
 ALTER TABLE user_party
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
-
-
-select * from preference;
