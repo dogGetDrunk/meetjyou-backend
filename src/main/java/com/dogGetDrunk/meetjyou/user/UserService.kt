@@ -27,13 +27,12 @@ class UserService(
 
     @Transactional
     fun createUser(request: RegistrationRequest): TokenResponse {
-        if (userRepository.existsByUuid(request.uuid)) {
-            throw UserAlreadyExistsException(request.uuid)
+        if (userRepository.existsByEmail(request.email)) {
+            throw UserAlreadyExistsException(request.email)
         }
 
         val createdUser = userRepository.save(
             User(
-                uuid = request.uuid,
                 email = request.email,
                 nickname = request.nickname,
                 bio = request.bio,
