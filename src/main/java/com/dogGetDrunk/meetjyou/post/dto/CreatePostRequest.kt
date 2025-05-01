@@ -12,7 +12,7 @@ import java.util.UUID
 data class CreatePostRequest(
     val title: String,
     val content: String,
-    @field:JsonProperty("author_uuid") private val authorUuidString: String,
+    @field:JsonProperty("authorUuid") private val authorUuidString: String,
     val isInstant: Boolean,
     val itinStart: LocalDate,
     val itinFinish: LocalDate,
