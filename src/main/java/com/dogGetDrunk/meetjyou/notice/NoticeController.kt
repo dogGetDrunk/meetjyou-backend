@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/notices")
@@ -46,7 +47,7 @@ class NoticeController(
         return ResponseEntity.ok(result)
     }
 
-    @Operation(summary = "공지사항 단건 조회", description = "공지사항 ID로 공지사항을 조회합니다.")
+    @Operation(summary = "공지사항 단건 조회", description = "공지사항 UUID로 공지사항을 조회합니다.")
     @ApiResponses(
         value = [
             ApiResponse(
@@ -67,9 +68,9 @@ class NoticeController(
             )
         ]
     )
-    @GetMapping("/{id}")
-    fun getNoticeById(@PathVariable id: Long): ResponseEntity<NoticeResponse> {
-        val notice = noticeService.getNoticeById(id)
+    @GetMapping("/{uuid}")
+    fun getNoticeByUuid(@PathVariable uuid: UUID): ResponseEntity<NoticeResponse> {
+        val notice = noticeService.getNoticeByUuid(uuid)
         return ResponseEntity.ok(notice)
     }
 
@@ -129,12 +130,12 @@ class NoticeController(
             )
         ]
     )
-    @PutMapping("/{id}")
+    @PutMapping("/{uuid}")
     fun updateNotice(
-        @PathVariable id: Long,
+        @PathVariable uuid: UUID,
         @RequestBody @Valid request: NoticeRequest,
     ): ResponseEntity<NoticeResponse> {
-        val updated = noticeService.updateNotice(id, request)
+        val updated = noticeService.updateNotice(uuid, request)
         return ResponseEntity.ok(updated)
     }
 
@@ -152,8 +153,8 @@ class NoticeController(
             )
         ]
     )
-    @DeleteMapping("/{id}")
-    fun deleteNotice(@PathVariable id: Long) {
-        noticeService.deleteNotice(id)
+    @DeleteMapping("/{uuid}")
+    fun deleteNotice(@PathVariable uuid: UUID) {
+        noticeService.deleteNotice(uuid)
     }
 }

@@ -4,9 +4,9 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NoticeNotFoun
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeRequest
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeResponse
 import org.slf4j.LoggerFactory
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Service
 class NoticeService(
@@ -18,9 +18,9 @@ class NoticeService(
         return noticeRepository.findAll().map { NoticeResponse.from(it) }
     }
 
-    fun getNoticeById(id: Long): NoticeResponse {
-        return noticeRepository.findByIdOrNull(id)?.let { NoticeResponse.from(it) }
-            ?: throw NoticeNotFoundException(id)
+    fun getNoticeByUuid(uuid: UUID): NoticeResponse {
+        return noticeRepository.findByUuid(uuid)?.let { NoticeResponse.from(it) }
+            ?: throw NoticeNotFoundException(uuid)
     }
 
     @Transactional
@@ -31,8 +31,8 @@ class NoticeService(
     }
 
     @Transactional
-    fun updateNotice(id: Long, request: NoticeRequest): NoticeResponse {
-        val existing = noticeRepository.findByIdOrNull(id) ?: throw NoticeNotFoundException(id)
+    fun updateNotice(uuid: UUID, request: NoticeRequest): NoticeResponse {
+        val existing = noticeRepository.findByUuid(uuid) ?: throw NoticeNotFoundException(uuid)
         val updated = existing.apply {
             title = request.title
             body = request.body
@@ -44,11 +44,11 @@ class NoticeService(
     }
 
     @Transactional
-    fun deleteNotice(id: Long) {
-        if (!noticeRepository.existsById(id)) {
-            throw NoticeNotFoundException(id)
+    fun deleteNotice(uuid: UUID) {
+        if (!noticeRepository.existsByUuid(uuid)) {
+            throw NoticeNotFoundException(uuid)
         }
-        noticeRepository.deleteById(id)
-        log.info("공지사항 삭제: {}", id)
+        noticeRepository.deleteByUuid(uuid)
+        log.info("공지사항 삭제: {}", uuid)
     }
 }
