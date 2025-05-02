@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.user.dto
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 
 data class BasicUserResponse(
+    val uuid: String,
     val nickname: String,
     val bio: String?,
     val gender: String,

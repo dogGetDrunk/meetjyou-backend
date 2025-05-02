@@ -1,4 +1,4 @@
-package com.dogGetDrunk.meetjyou.common.exception.business
+package com.dogGetDrunk.meetjyou.common.exception.business.jwt
 
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 

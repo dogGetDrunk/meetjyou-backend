@@ -1,6 +1,6 @@
 package com.dogGetDrunk.meetjyou.version
 
-import com.dogGetDrunk.meetjyou.common.exception.business.VersionNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.VersionNotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 

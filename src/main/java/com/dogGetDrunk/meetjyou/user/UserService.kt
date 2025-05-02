@@ -1,7 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.common.exception.business.DuplicateEmailException
-import com.dogGetDrunk.meetjyou.common.exception.business.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.jwt.JwtManager
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreference
@@ -14,6 +14,7 @@ import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Service
 class UserService(
@@ -27,7 +28,7 @@ class UserService(
     @Transactional
     fun createUser(request: RegistrationRequest): TokenResponse {
         if (userRepository.existsByEmail(request.email)) {
-            throw DuplicateEmailException(request.email)
+            throw UserAlreadyExistsException(request.email)
         }
 
         val createdUser = userRepository.save(
@@ -48,56 +49,54 @@ class UserService(
         saveUserPreference(createdUser, request.diet.name)
         request.etc.forEach { saveUserPreference(createdUser, it.name) }
 
-        val accessToken = jwtManager.generateAccessToken(createdUser.id)
-        val refreshToken = jwtManager.generateRefreshToken(createdUser.id)
+        val accessToken = jwtManager.generateAccessToken(createdUser.uuid)
+        val refreshToken = jwtManager.generateRefreshToken(createdUser.uuid)
 
-        return TokenResponse(createdUser.id, accessToken, refreshToken)
+        return TokenResponse(createdUser.uuid.toString(), accessToken, refreshToken)
     }
 
-    fun login(loginRequestA: LoginRequest): TokenResponse {
-        val userId = loginRequestA.userId
-
-        if (!userRepository.existsById(userId)) {
-            throw UserNotFoundException(userId)
+    fun login(request: LoginRequest): TokenResponse {
+        // TODO: Email 검증 추가
+        if (!userRepository.existsByUuid(request.uuid)) {
+            throw UserNotFoundException(request.uuid)
         }
 
-        val accessToken = jwtManager.generateAccessToken(userId)
-        val refreshToken = jwtManager.generateRefreshToken(userId)
+        val accessToken = jwtManager.generateAccessToken(request.uuid)
+        val refreshToken = jwtManager.generateRefreshToken(request.uuid)
 
-        return TokenResponse(userId, accessToken, refreshToken)
+        return TokenResponse(request.uuid.toString(), accessToken, refreshToken)
     }
 
     fun isDuplicateNickname(nickname: String): Boolean {
         return userRepository.existsByNickname(nickname)
     }
 
-    fun refreshToken(refreshToken: String, userId: Long): TokenResponse {
-        jwtManager.validateToken(refreshToken, userId)
+    fun refreshToken(refreshToken: String, uuid: UUID): TokenResponse {
+        jwtManager.validateToken(refreshToken, uuid)
 
-        val newAccessToken = jwtManager.generateAccessToken(userId)
-        val newRefreshToken = jwtManager.generateRefreshToken(userId)
+        val newAccessToken = jwtManager.generateAccessToken(uuid)
+        val newRefreshToken = jwtManager.generateRefreshToken(uuid)
 
-        return TokenResponse(userId, newAccessToken, newRefreshToken)
+        return TokenResponse(uuid.toString(), newAccessToken, newRefreshToken)
     }
 
     @Transactional
-    fun withdrawUser(userId: Long, accessToken: String) {
-        if (!userRepository.existsById(userId)) {
-            throw UserNotFoundException(userId)
+    fun withdrawUser(uuid: UUID, accessToken: String) {
+        if (!userRepository.existsByUuid(uuid)) {
+            throw UserNotFoundException(uuid)
         }
 
-        jwtManager.validateToken(accessToken, userId)
+        jwtManager.validateToken(accessToken, uuid)
 
-        log.info("유저 탈퇴 시작 (user id: {})", userId)
-        userRepository.deleteById(userId)
-        log.info("유저 탈퇴 성공 (user id: {})", userId)
+        log.info("유저 탈퇴 시작 (user uuid: {})", uuid.toString())
+        userRepository.deleteByUuid(uuid)
+        log.info("유저 탈퇴 성공 (user uuid: {})", uuid.toString())
     }
 
     @Transactional
-    fun updateUser(userId: Long, requestDto: UserUpdateRequest): BasicUserResponse {
-        val user = userRepository.findById(userId)
-            .orElseThrow { UserNotFoundException(userId) }
-
+    fun updateUser(uuid: UUID, requestDto: UserUpdateRequest): BasicUserResponse {
+        val user = userRepository.findByUuid(uuid)
+            ?: throw UserNotFoundException(uuid)
         user.apply {
             nickname = requestDto.nickname
             bio = requestDto.bio
@@ -112,16 +111,17 @@ class UserService(
         updateUserPreferences(user, requestDto.etc.map { it.name }, 5)
 
         userRepository.save(user)
-        log.info("유저 정보 수정 완료: id {}", user.id)
-        return getUserProfile(userId)
+        log.info("유저 정보 수정 완료: uuid {}", user.uuid)
+        return getUserProfile(uuid)
     }
 
     @Transactional(readOnly = true)
-    fun getUserProfile(userId: Long): BasicUserResponse {
-        val user = userRepository.findById(userId)
-            .orElseThrow { UserNotFoundException(userId) }
+    fun getUserProfile(uuid: UUID): BasicUserResponse {
+        val user = userRepository.findByUuid(uuid)
+            ?: throw UserNotFoundException(uuid)
 
         return BasicUserResponse(
+            uuid = user.uuid.toString(),
             nickname = user.nickname,
             bio = user.bio,
             gender = getPreferenceName(user.id, 0),
@@ -138,6 +138,7 @@ class UserService(
     fun getAllUsersProfile(): List<BasicUserResponse> {
         return userRepository.findAll().map { user ->
             BasicUserResponse(
+                uuid = user.uuid.toString(),
                 nickname = user.nickname,
                 bio = user.bio,
                 gender = getPreferenceName(user.id, 0),

@@ -1,7 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.post.PostService
+import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.user.dto.AdvancedUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -57,9 +58,9 @@ class UserController(
             )
         )]
     )
-    @GetMapping("/{id}/basic-info")
-    fun getBasicUserProfile(@PathVariable id: Long): ResponseEntity<BasicUserResponse> {
-        val response: BasicUserResponse = userService.getUserProfile(id)
+    @GetMapping("/{uuid}/basic-info")
+    fun getBasicUserProfile(@PathVariable uuid: UUID): ResponseEntity<BasicUserResponse> {
+        val response = userService.getUserProfile(uuid)
         return ResponseEntity.ok(response)
     }
 
@@ -85,13 +86,13 @@ class UserController(
             )
         )]
     )
-    @GetMapping("/{id}/advanced-info")
+    @GetMapping("/{uuid}/advanced-info")
     fun getAdvancedUserProfile(
-        @PathVariable id: Long,
-        @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable
+        @PathVariable uuid: UUID,
+        @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable,
     ): ResponseEntity<AdvancedUserResponse> {
-        val basicUserResponseDto: BasicUserResponse = userService.getUserProfile(id)
-        val posts: Page<GetPostResponse> = postService.getPostsByAuthorId(id, pageable)
+        val basicUserResponseDto: BasicUserResponse = userService.getUserProfile(uuid)
+        val posts: Page<GetPostResponse> = postService.getPostByAuthorUuid(uuid, pageable)
         return ResponseEntity.ok(AdvancedUserResponse(basicUserResponseDto, posts))
     }
 
@@ -126,17 +127,17 @@ class UserController(
             )
         )]
     )
-    @PatchMapping("/{id}")
+    @PatchMapping("/{uuid}")
     fun updateUser(
-        @PathVariable id: Long,
+        @PathVariable uuid: UUID,
         @RequestBody requestDto: @Valid UserUpdateRequest,
     ): ResponseEntity<BasicUserResponse> {
-        val updatedUser: BasicUserResponse = userService.updateUser(id, requestDto)
+        val updatedUser: BasicUserResponse = userService.updateUser(uuid, requestDto)
         return ResponseEntity.ok(updatedUser)
     }
 
-    @get:GetMapping
-    @get:ApiResponses(
+    @GetMapping
+    @ApiResponses(
         value = [ApiResponse(
             responseCode = "200",
             description = "조회 성공",
@@ -151,7 +152,8 @@ class UserController(
             )
         )]
     )
-    @get:Operation(summary = "[admin] 모든 유저 프로필 조회")
-    val allUsersProfile: ResponseEntity<List<BasicUserResponse>>
-        get() = ResponseEntity.ok(userService.getAllUsersProfile())
+    @Operation(summary = "[admin] 모든 유저 프로필 조회")
+    fun allUsersProfile(): ResponseEntity<List<BasicUserResponse>> {
+        return ResponseEntity.ok(userService.getAllUsersProfile())
+    }
 }

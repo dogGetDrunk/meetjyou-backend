@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/posts")
@@ -92,17 +93,17 @@ class PostController(
             )
         ]
     )
-    @GetMapping("/author/{authorId}")
+    @GetMapping("/author/{authorUuid}")
     fun getPostsByAuthorId(
-        @PathVariable authorId: Long,
+        @PathVariable authorUuid: String,
         @ParameterObject
         @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable
     ): Page<GetPostResponse> {
-        return postService.getPostsByAuthorId(authorId, pageable)
+        return postService.getPostByAuthorUuid(UUID.fromString(authorUuid), pageable)
     }
 
-    @Operation(summary = "모집글 단건 조회", description = "postId를 통해 특정 모집글을 조회합니다.")
+    @Operation(summary = "모집글 단건 조회", description = "uuid를 통해 특정 모집글을 조회합니다.")
     @ApiResponses(
         value = [
             ApiResponse(
@@ -117,9 +118,9 @@ class PostController(
             )
         ]
     )
-    @GetMapping("/{postId}")
-    fun getPostById(@PathVariable postId: Long): GetPostResponse {
-        return postService.getPostById(postId)
+    @GetMapping("/{postUuid}")
+    fun getPostByUuid(@PathVariable postUuid: UUID): GetPostResponse {
+        return postService.getPostByUuid(postUuid)
     }
 
     @Operation(summary = "모집글 수정", description = "기존 모집글을 수정합니다.")
@@ -142,15 +143,15 @@ class PostController(
             )
         ]
     )
-    @PutMapping("/{postId}")
+    @PutMapping("/{postUuid}")
     fun updatePost(
-        @PathVariable postId: Long,
+        @PathVariable postUuid: UUID,
         @RequestBody updatePostRequest: UpdatePostRequest
     ): UpdatePostResponse {
-        return postService.updatePost(postId, updatePostRequest)
+        return postService.updatePost(postUuid, updatePostRequest)
     }
 
-    @Operation(summary = "모집글 삭제", description = "postId를 통해 모집글을 삭제합니다.")
+    @Operation(summary = "모집글 삭제", description = "uuid를 통해 모집글을 삭제합니다.")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "204", description = "모집글 삭제 성공"),
@@ -161,8 +162,8 @@ class PostController(
             )
         ]
     )
-    @DeleteMapping("/{postId}")
-    fun deletePost(@PathVariable postId: Long) {
-        postService.deletePost(postId)
+    @DeleteMapping("/{postUuid}")
+    fun deletePost(@PathVariable postUuid: UUID) {
+        postService.deletePost(postUuid)
     }
 }

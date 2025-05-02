@@ -1,4 +1,4 @@
-SET foreign_key_checks = 0; # FK 체크를 무시함으로써 테이블을 바로 삭제할 수 있음
+SET foreign_key_checks = 0;
 DROP TABLE IF EXISTS user;
 DROP TABLE IF EXISTS post;
 DROP TABLE IF EXISTS party;
@@ -13,12 +13,12 @@ DROP TABLE IF EXISTS comp_preference;
 DROP TABLE IF EXISTS party_application;
 DROP TABLE IF EXISTS user_party;
 DROP TABLE IF EXISTS app_version;
-SET foreign_key_checks = 1; # FK 체크 재활성화
-
+SET foreign_key_checks = 1;
 
 CREATE TABLE user
 (
     id            INT AUTO_INCREMENT PRIMARY KEY,
+    uuid          CHAR(36)     NOT NULL UNIQUE,
     email         VARCHAR(255) NOT NULL UNIQUE,
     nickname      VARCHAR(10)  NOT NULL UNIQUE,
     created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,12 +38,18 @@ CREATE TABLE user
 CREATE TABLE post
 (
     id             INT AUTO_INCREMENT PRIMARY KEY,
+    uuid           CHAR(36)     NOT NULL UNIQUE,
     title          VARCHAR(50)  NOT NULL,
     content        VARCHAR(500) NOT NULL,
+    is_instant     TINYINT(1)   NOT NULL DEFAULT 0,
     views          INT          NOT NULL DEFAULT 0,
+    capacity       INT          NOT NULL DEFAULT 1,
+    itin_start     TIMESTAMP    NOT NULL,
+    itin_finish    TIMESTAMP    NOT NULL,
+    location       VARCHAR(50),
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    post_status    TINYINT      NOT NULL DEFAULT 1, # 0: 모집 완료, 1: 모집 중, 2: 제재됨
+    post_status    TINYINT      NOT NULL DEFAULT 1,
     author_id      INT,
     party_id       INT,
     plan_id        INT
@@ -52,6 +58,7 @@ CREATE TABLE post
 CREATE TABLE party
 (
     id             INT AUTO_INCREMENT PRIMARY KEY,
+    uuid           CHAR(36)     NOT NULL UNIQUE,
     itin_start     TIMESTAMP    NOT NULL,
     itin_finish    TIMESTAMP    NOT NULL,
     destination    VARCHAR(50)  NOT NULL,
@@ -77,6 +84,7 @@ CREATE TABLE chat_message
 CREATE TABLE plan
 (
     id          INT AUTO_INCREMENT PRIMARY KEY,
+    uuid        CHAR(36)        NOT NULL UNIQUE,
     itin_start  TIMESTAMP       NOT NULL,
     itin_finish TIMESTAMP       NOT NULL,
     destination VARCHAR(50)     NOT NULL,
@@ -89,6 +97,7 @@ CREATE TABLE plan
 CREATE TABLE marker
 (
     id      INT AUTO_INCREMENT PRIMARY KEY,
+    uuid    CHAR(36)        NOT NULL UNIQUE,
     lat     DECIMAL(13, 10) NOT NULL,
     lng     DECIMAL(13, 10) NOT NULL,
     day     INT             NOT NULL,
@@ -100,17 +109,19 @@ CREATE TABLE marker
 CREATE TABLE notification
 (
     id           INT AUTO_INCREMENT PRIMARY KEY,
+    uuid         CHAR(36)     NOT NULL UNIQUE,
     type         TINYINT      NOT NULL,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     message      VARCHAR(500) NOT NULL,
     reference_id INT          NOT NULL,
-    isRead       TINYINT(1)   NOT NULL DEFAULT 0, # 0: 읽지 않음, 1: 읽음
+    isRead       TINYINT(1)   NOT NULL DEFAULT 0,
     user_id      INT
 );
 
 CREATE TABLE notice
 (
     id             INT AUTO_INCREMENT PRIMARY KEY,
+    uuid           CHAR(36)      NOT NULL UNIQUE,
     title          VARCHAR(50)   NOT NULL,
     body           VARCHAR(1000) NOT NULL,
     created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -167,53 +178,38 @@ CREATE TABLE app_version
     released_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Foreign key 설정은 동일하게 유지
 ALTER TABLE post
     ADD FOREIGN KEY (author_id) REFERENCES user (id);
-
 ALTER TABLE post
     ADD FOREIGN KEY (party_id) REFERENCES party (id);
-
 ALTER TABLE post
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
-
 ALTER TABLE party
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
-
 ALTER TABLE chat_message
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
-
 ALTER TABLE chat_message
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
-
 ALTER TABLE plan
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
-
 ALTER TABLE marker
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
-
 ALTER TABLE notification
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
-
 ALTER TABLE user_preference
     ADD FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE;
-
 ALTER TABLE user_preference
     ADD FOREIGN KEY (preference_id) REFERENCES preference (id);
-
 ALTER TABLE comp_preference
     ADD FOREIGN KEY (post_id) REFERENCES post (id);
-
 ALTER TABLE comp_preference
     ADD FOREIGN KEY (preference_id) REFERENCES preference (id);
-
 ALTER TABLE party_application
     ADD FOREIGN KEY (party_id) REFERENCES party (id);
-
 ALTER TABLE party_application
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
-
 ALTER TABLE user_party
     ADD FOREIGN KEY (party_id) REFERENCES party (id);
-
 ALTER TABLE user_party
     ADD FOREIGN KEY (user_id) REFERENCES user (id);

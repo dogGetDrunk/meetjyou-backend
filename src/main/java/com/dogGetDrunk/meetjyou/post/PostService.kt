@@ -1,8 +1,8 @@
 package com.dogGetDrunk.meetjyou.post
 
-import com.dogGetDrunk.meetjyou.common.exception.business.PostNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.PreferenceNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Service
 class PostService(
@@ -31,8 +32,8 @@ class PostService(
 
     @Transactional
     fun createPost(request: CreatePostRequest): CreatePostResponse {
-        val author = userRepository.findById(request.authorId)
-            .orElseThrow { UserNotFoundException(request.authorId) }
+        val author = userRepository.findByUuid(request.authorUuid)
+            ?: throw UserNotFoundException(request.authorUuid)
 
         val newPost = Post(
             title = request.title,
@@ -52,58 +53,102 @@ class PostService(
         log.info("New post created: $newPost")
 
         return CreatePostResponse(
+            uuid = newPost.uuid.toString(),
             title = newPost.title,
             content = newPost.content,
             postStatus = newPost.postStatus,
             createdAt = newPost.createdAt,
             lastEditedAt = newPost.lastEditedAt,
-            authorId = newPost.author.id,
+            authorUuid = newPost.author.uuid.toString(),
             isInstant = newPost.isInstant,
             itinStart = newPost.itinStart,
             itinFinish = newPost.itinFinish,
             location = newPost.location,
             capacity = newPost.capacity,
             planId = newPost.plan?.id,
-            compGender = request.compGender,
-            compAge = request.compAge,
-            compPersonalities = request.compPersonalities,
-            compTravelStyles = request.compTravelStyles,
-            compDiet = request.compDiet,
-            compEtc = request.compEtc,
+            compGender = request.compGender.name,
+            compAge = request.compAge.name,
+            compPersonalities = request.compPersonalities.map { it.name },
+            compTravelStyles = request.compTravelStyles.map { it.name },
+            compDiet = request.compDiet.name,
+            compEtc = request.compEtc.map { it.name },
         )
     }
 
     @Transactional(readOnly = true)
-    fun getPostById(postId: Long): GetPostResponse {
-        val post = postRepository.findById(postId)
-            .orElseThrow { PostNotFoundException(postId) }
+    fun getPostByUuid(postUuid: UUID): GetPostResponse {
+        val post = postRepository.findByUuid(postUuid)
+            ?: throw PostNotFoundException(postUuid)
+
+        val compPreferences = compPreferenceRepository.findAllByPost(post)
+        val compGender = compPreferences.find { it.preference.type == 0 }?.preference?.name
+        val compAge = compPreferences.find { it.preference.type == 1 }?.preference?.name
+        val compPersonalities = compPreferences.filter { it.preference.type == 2 }.map { it.preference.name }
+        val compTravelStyles = compPreferences.filter { it.preference.type == 3 }.map { it.preference.name }
+        val compDiet = compPreferences.filter { it.preference.type == 4 }.map { it.preference.name }
+        val compEtc = compPreferences.filter { it.preference.type == 5 }.map { it.preference.name }
 
         return GetPostResponse(
-            createdAt = post.createdAt,
-            lastEditedAt = post.lastEditedAt,
-            postStatus = post.postStatus,
+            uuid = post.uuid.toString(),
             title = post.title,
             content = post.content,
+            postStatus = post.postStatus,
             views = post.views,
-            authorId = post.author.id,
+            createdAt = post.createdAt,
+            lastEditedAt = post.lastEditedAt,
+            authorUuid = post.author.uuid.toString(),
+            isInstant = post.isInstant,
+            itinStart = post.itinStart,
+            itinFinish = post.itinFinish,
+            location = post.location,
+            capacity = post.capacity,
+            planId = post.plan?.id,
+            compGender = compGender,
+            compAge = compAge,
+            compPersonalities = compPersonalities,
+            compTravelStyles = compTravelStyles,
+            compDiet = compDiet,
+            compEtc = compEtc,
         )
     }
 
     @Transactional(readOnly = true)
-    fun getPostsByAuthorId(authorId: Long, pageable: Pageable): Page<GetPostResponse> {
-        userRepository.findById(authorId)
-            .orElseThrow { UserNotFoundException(authorId) }
+    fun getPostByAuthorUuid(authorUuid: UUID, pageable: Pageable): Page<GetPostResponse> {
+        if (!userRepository.existsByUuid(authorUuid)) {
+            throw UserNotFoundException(authorUuid)
+        }
 
-        return postRepository.findAllByAuthor_Id(authorId, pageable)
-            .map {
+        return postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
+            .map { post ->
+                val compPreferences = compPreferenceRepository.findAllByPost(post)
+                val compGender = compPreferences.find { it.preference.type == 0 }?.preference?.name
+                val compAge = compPreferences.find { it.preference.type == 1 }?.preference?.name
+                val compPersonalities = compPreferences.filter { it.preference.type == 2 }.map { it.preference.name }
+                val compTravelStyles = compPreferences.filter { it.preference.type == 3 }.map { it.preference.name }
+                val compDiet = compPreferences.filter { it.preference.type == 4 }.map { it.preference.name }
+                val compEtc = compPreferences.filter { it.preference.type == 5 }.map { it.preference.name }
+
                 GetPostResponse(
-                    createdAt = it.createdAt,
-                    lastEditedAt = it.lastEditedAt,
-                    postStatus = it.postStatus,
-                    title = it.title,
-                    content = it.content,
-                    views = it.views,
-                    authorId = it.author.id,
+                    uuid = post.uuid.toString(),
+                    title = post.title,
+                    content = post.content,
+                    postStatus = post.postStatus,
+                    views = post.views,
+                    createdAt = post.createdAt,
+                    lastEditedAt = post.lastEditedAt,
+                    authorUuid = post.author.uuid.toString(),
+                    isInstant = post.isInstant,
+                    itinStart = post.itinStart,
+                    itinFinish = post.itinFinish,
+                    location = post.location,
+                    capacity = post.capacity,
+                    planId = post.plan?.id,
+                    compGender = compGender,
+                    compAge = compAge,
+                    compPersonalities = compPersonalities,
+                    compTravelStyles = compTravelStyles,
+                    compDiet = compDiet,
+                    compEtc = compEtc,
                 )
             }
     }
@@ -111,31 +156,54 @@ class PostService(
     @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<GetPostResponse> {
         return postRepository.findAll(pageable)
-            .map {
+            .map { post ->
+                val compPreferences = compPreferenceRepository.findAllByPost(post)
+                val compGender = compPreferences.find { it.preference.type == 0 }?.preference?.name
+                val compAge = compPreferences.find { it.preference.type == 1 }?.preference?.name
+                val compPersonalities = compPreferences.filter { it.preference.type == 2 }.map { it.preference.name }
+                val compTravelStyles = compPreferences.filter { it.preference.type == 3 }.map { it.preference.name }
+                val compDiet = compPreferences.filter { it.preference.type == 4 }.map { it.preference.name }
+                val compEtc = compPreferences.filter { it.preference.type == 5 }.map { it.preference.name }
+
                 GetPostResponse(
-                    createdAt = it.createdAt,
-                    lastEditedAt = it.lastEditedAt,
-                    postStatus = it.postStatus,
-                    title = it.title,
-                    content = it.content,
-                    views = it.views,
-                    authorId = it.author.id,
+                    uuid = post.uuid.toString(),
+                    title = post.title,
+                    content = post.content,
+                    postStatus = post.postStatus,
+                    views = post.views,
+                    createdAt = post.createdAt,
+                    lastEditedAt = post.lastEditedAt,
+                    authorUuid = post.author.uuid.toString(),
+                    isInstant = post.isInstant,
+                    itinStart = post.itinStart,
+                    itinFinish = post.itinFinish,
+                    location = post.location,
+                    capacity = post.capacity,
+                    planId = post.plan?.id,
+                    compGender = compGender,
+                    compAge = compAge,
+                    compPersonalities = compPersonalities,
+                    compTravelStyles = compTravelStyles,
+                    compDiet = compDiet,
+                    compEtc = compEtc,
                 )
             }
     }
 
     @Transactional
-    fun updatePost(postId: Long, request: UpdatePostRequest): UpdatePostResponse {
-        val post = postRepository.findById(postId)
-            .orElseThrow { PostNotFoundException(postId) }
+    fun updatePost(postUuid: UUID, request: UpdatePostRequest): UpdatePostResponse {
+        val post = postRepository.findByUuid(postUuid)
+            ?: throw PostNotFoundException(postUuid)
 
-        post.title = request.title
-        post.content = request.content
-        post.isInstant = request.isInstant
-        post.itinStart = request.itinStart
-        post.itinFinish = request.itinFinish
-        post.location = request.location
-        post.capacity = request.capacity
+        post.apply {
+            title = request.title
+            content = request.content
+            isInstant = request.isInstant
+            itinStart = request.itinStart
+            itinFinish = request.itinFinish
+            location = request.location
+            capacity = request.capacity
+        }
 
         compPreferenceRepository.deleteAllByPost(post)
         saveCompPreference(post, request)
@@ -143,18 +211,19 @@ class PostService(
         log.info("Post updated: $post")
 
         return UpdatePostResponse(
+            uuid = post.uuid.toString(),
             title = post.title,
             content = post.content,
             postStatus = post.postStatus,
             createdAt = post.createdAt,
             lastEditedAt = post.lastEditedAt,
-            authorId = post.author.id,
+            authorUuid = post.author.uuid.toString(),
             isInstant = post.isInstant,
             itinStart = post.itinStart,
             itinFinish = post.itinFinish,
             location = post.location,
             capacity = post.capacity,
-            planId = post.plan?.id,
+            planUuid = post.plan?.uuid.toString(),
             compGender = request.compGender,
             compAge = request.compAge,
             compPersonalities = request.compPersonalities,
@@ -165,14 +234,14 @@ class PostService(
     }
 
     @Transactional
-    fun deletePost(postId: Long) {
-        val post = postRepository.findById(postId)
-            .orElseThrow { PostNotFoundException(postId) }
+    fun deletePost(postUuid: UUID) {
+        val post = postRepository.findByUuid(postUuid)
+            ?: throw PostNotFoundException(postUuid)
 
         compPreferenceRepository.deleteAllByPost(post)
         postRepository.delete(post)
 
-        log.info("Post deleted: id=$postId")
+        log.info("Post deleted: uuid=$postUuid")
     }
 
     private fun saveCompPreference(post: Post, request: CreatePostRequest) {
@@ -201,7 +270,7 @@ class PostService(
             CreatePostRequest(
                 title = request.title,
                 content = request.content,
-                authorId = request.authorId,
+                authorUuidString = request.authorUuid.toString(),
                 isInstant = request.isInstant,
                 itinStart = request.itinStart,
                 itinFinish = request.itinFinish,

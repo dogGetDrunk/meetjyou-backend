@@ -8,9 +8,12 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
+import java.sql.Types
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Entity
 class User(
@@ -37,6 +40,10 @@ class User(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     val id: Long = 0
+
+    @Column(nullable = false, unique = true)
+    @JdbcTypeCode(Types.VARCHAR)
+    val uuid: UUID = UUID.randomUUID()
 
     @CreationTimestamp
     val createdAt: LocalDateTime = LocalDateTime.now()

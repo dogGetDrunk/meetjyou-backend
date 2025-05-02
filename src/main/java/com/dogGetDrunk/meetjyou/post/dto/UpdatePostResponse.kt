@@ -9,12 +9,13 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 data class UpdatePostResponse(
+    val uuid: String,
     val title: String,
     val content: String,
     val createdAt: LocalDateTime,
     val lastEditedAt: LocalDateTime,
     val postStatus: Int,
-    val authorId: Long,
+    val authorUuid: String,
     val isInstant: Boolean,
     val itinStart: LocalDate,
     val itinFinish: LocalDate,
@@ -26,5 +27,5 @@ data class UpdatePostResponse(
     val compTravelStyles: List<Personality>,
     val compDiet: Diet,
     val compEtc: List<Etc>,
-    val planId: Long?,
+    val planUuid: String?,
 )
