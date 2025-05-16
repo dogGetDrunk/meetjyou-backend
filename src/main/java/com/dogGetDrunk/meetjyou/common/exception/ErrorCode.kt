@@ -14,10 +14,11 @@ enum class ErrorCode(
     USER_NOT_FOUND("User not found"),
 
     // JWT
-    TOKEN_COMMON("The token has an issue."),
-    EXPIRED_TOKEN("The token has expired."),
-    INCORRECT_TOKEN_SUBJECT("The subject in the token is incorrect."),
-    INVALID_AUTHORIZATION_HEADER("This authorization header is invalid"),
+    TOKEN_COMMON("The token has an issue"),
+    EXPIRED_TOKEN("The token has expired"),
+    INCORRECT_TOKEN_SUBJECT("The subject in the token is incorrect"),
+    MISSING_AUTHORIZATION_HEADER("This authorization header is invalid"),
+    INVALID_ACCESS_TOKEN("The access token is invalid"),
 
     // Version
     VERSION_NOT_FOUND("Version not found"),

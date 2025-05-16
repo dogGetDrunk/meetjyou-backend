@@ -1,8 +1,6 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
-import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidAuthorizationHeaderException
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
@@ -27,7 +25,7 @@ import java.net.URI
 import java.util.UUID
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/v1/auth")
 @Tag(name = "User authentication controller", description = "유저 인증 관련 API")
 class UserAuthController(
     private val userService: UserService
@@ -134,10 +132,6 @@ class UserAuthController(
         @RequestHeader("Authorization") authorizationHeader: String,
         @RequestBody requestDto: RefreshTokenRequest,
     ): ResponseEntity<TokenResponse> {
-        if (!authorizationHeader.startsWith("Bearer ")) {
-            throw InvalidAuthorizationHeaderException(authorizationHeader, ErrorCode.INVALID_AUTHORIZATION_HEADER)
-        }
-
         val refreshToken = authorizationHeader.substring("Bearer ".length)
         val tokenResponseDto = userService.refreshToken(refreshToken, requestDto.uuid)
 
@@ -163,10 +157,6 @@ class UserAuthController(
     )
     @DeleteMapping("/{uuid}")
     fun withdraw(@RequestHeader("Authorization") authorizationHeader: String, @PathVariable uuid: UUID) {
-        if (!authorizationHeader.startsWith("Bearer ")) {
-            throw InvalidAuthorizationHeaderException(authorizationHeader, ErrorCode.INVALID_AUTHORIZATION_HEADER)
-        }
-
         val accessToken = authorizationHeader.substring("Bearer ".length)
         userService.withdrawUser(uuid, accessToken)
     }

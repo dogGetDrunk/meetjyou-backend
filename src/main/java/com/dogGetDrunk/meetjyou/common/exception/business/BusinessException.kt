@@ -3,8 +3,8 @@ package com.dogGetDrunk.meetjyou.common.exception.business
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 
 open class BusinessException(
-    override val message: String,
+    open val value: String?,
     val errorCode: ErrorCode
-) : RuntimeException(message) {
+) : RuntimeException("Business Exception: ${errorCode.message} - $value") {
     override fun fillInStackTrace(): Throwable = this
 }

@@ -4,6 +4,6 @@ import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 
 open class DuplicateException(
-    val value: String,
+    value: String,
     errorCode: ErrorCode = ErrorCode.DUPLICATE
 ) : BusinessException(value, errorCode)
