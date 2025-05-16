@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.jwt
 
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidAccessTokenException
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import org.springframework.beans.factory.annotation.Value
@@ -21,7 +22,7 @@ class JwtManager(
     private val accessTokenExpiresIn: Long,
 
     @Value("\${jwt.refresh-expiration}")
-    private val refreshTokenExpiresIn: Long
+    private val refreshTokenExpiresIn: Long,
 ) {
     private val secretKey: SecretKey = Keys.hmacShaKeyFor(secretKey.toByteArray())
 
@@ -54,15 +55,25 @@ class JwtManager(
     }
 
     fun validateToken(token: String?, uuid: UUID) {
-        val userIdInToken = Jwts.parser()
-            .verifyWith(secretKey)
-            .build()
-            .parseSignedClaims(token)
-            .payload
-            .subject
+        val uuidInToken = extractUuid(token)
 
-        if (userIdInToken != uuid.toString()) {
-            throw IncorrectJwtSubjectException(uuid)
+        if (uuidInToken != uuid) {
+            throw IncorrectJwtSubjectException(uuidInToken)
+        }
+    }
+
+    fun extractUuid(token: String?): UUID {
+        try {
+            val subject = Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .payload
+                .subject
+
+            return UUID.fromString(subject)
+        } catch (e: Exception) {
+            throw InvalidAccessTokenException(token)
         }
     }
 }
