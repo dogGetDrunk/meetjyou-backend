@@ -28,4 +28,7 @@ enum class ErrorCode(
 
     // Post
     POST_NOT_FOUND("Post not found"),
+
+    // Plan
+    PLAN_NOT_FOUND("Plan not found"),
 }
