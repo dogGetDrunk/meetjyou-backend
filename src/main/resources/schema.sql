@@ -50,7 +50,7 @@ CREATE TABLE post
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     post_status    TINYINT      NOT NULL DEFAULT 1,
-    author_id      INT,
+    author_id      INT          NOT NULL,
     party_id       INT,
     plan_id        INT
 );
@@ -69,7 +69,7 @@ CREATE TABLE party
     thumb_img_url  VARCHAR(500) NOT NULL,
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    plan_id        INT
+    plan_id        INT          NOT NULL
 );
 
 CREATE TABLE chat_message
@@ -77,8 +77,8 @@ CREATE TABLE chat_message
     id         INT AUTO_INCREMENT PRIMARY KEY,
     body       VARCHAR(1000) NOT NULL,
     created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    user_id    INT,
-    plan_id    INT
+    user_id    INT           NOT NULL,
+    plan_id    INT           NOT NULL
 );
 
 CREATE TABLE plan
@@ -91,7 +91,7 @@ CREATE TABLE plan
     center_lat  DECIMAL(13, 10) NOT NULL,
     center_lng  DECIMAL(13, 10) NOT NULL,
     memo        VARCHAR(500),
-    user_id     INT
+    user_id     INT             NOT NULL
 );
 
 CREATE TABLE marker
@@ -100,10 +100,11 @@ CREATE TABLE marker
     uuid    CHAR(36)        NOT NULL UNIQUE,
     lat     DECIMAL(13, 10) NOT NULL,
     lng     DECIMAL(13, 10) NOT NULL,
-    day     INT             NOT NULL,
+    date    TIMESTAMP       NOT NULL,
+    idx     INT             NOT NULL,
     place   VARCHAR(50),
     memo    VARCHAR(500),
-    plan_id INT
+    plan_id INT             NOT NULL
 );
 
 CREATE TABLE notification
@@ -115,7 +116,7 @@ CREATE TABLE notification
     message      VARCHAR(500) NOT NULL,
     reference_id INT          NOT NULL,
     isRead       TINYINT(1)   NOT NULL DEFAULT 0,
-    user_id      INT
+    user_id      INT          NOT NULL
 );
 
 CREATE TABLE notice
@@ -138,15 +139,15 @@ CREATE TABLE preference
 CREATE TABLE user_preference
 (
     id            INT AUTO_INCREMENT PRIMARY KEY,
-    user_id       INT,
-    preference_id INT
+    user_id       INT NOT NULL,
+    preference_id INT NOT NULL
 );
 
 CREATE TABLE comp_preference
 (
     id            INT AUTO_INCREMENT PRIMARY KEY,
-    post_id       INT,
-    preference_id INT
+    post_id       INT NOT NULL,
+    preference_id INT NOT NULL
 );
 
 CREATE TABLE party_application
@@ -156,8 +157,8 @@ CREATE TABLE party_application
     body       VARCHAR(500),
     status     TINYINT     NOT NULL DEFAULT 0,
     created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    party_id   INT,
-    user_id    INT
+    party_id   INT         NOT NULL,
+    user_id    INT         NOT NULL
 );
 
 CREATE TABLE user_party
@@ -165,8 +166,8 @@ CREATE TABLE user_party
     id        INT AUTO_INCREMENT PRIMARY KEY,
     role      TINYINT   NOT NULL,
     joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    party_id  INT,
-    user_id   INT
+    party_id  INT       NOT NULL,
+    user_id   INT       NOT NULL
 );
 
 CREATE TABLE app_version
