@@ -164,7 +164,7 @@ CREATE TABLE party_application
 CREATE TABLE user_party
 (
     id        INT AUTO_INCREMENT PRIMARY KEY,
-    role      TINYINT   NOT NULL,
+    role      CHAR(10)  NOT NULL,
     joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     party_id  INT       NOT NULL,
     user_id   INT       NOT NULL
