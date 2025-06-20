@@ -21,6 +21,7 @@ data class UpdatePostResponse(
     val itinFinish: LocalDate,
     val location: String,
     val capacity: Int,
+    val joined: Int,
     val compGender: Gender,
     val compAge: Age,
     val compPersonalities: List<Personality>,

@@ -16,7 +16,7 @@ import java.util.UUID
 class Plan(
     var itinStart: LocalDateTime,
     var itinFinish: LocalDateTime,
-    var destination: String,
+    var location: String,
     var centerLat: Double,
     var centerLng: Double,
 

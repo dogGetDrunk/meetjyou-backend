@@ -34,4 +34,7 @@ enum class ErrorCode(
 
     // Party
     PARTY_NOT_FOUND("Party not found"),
+
+    // Image
+    IMAGE_UPLOAD_FAILED("Image upload failed"),
 }

@@ -36,26 +36,26 @@ class PartyController(
     private val partyService: PartyService,
 ) {
 
-    @Operation(summary = "파티 생성", description = "새로운 파티를 생성합니다.")
-    @ApiResponses(
-        value = [
-            ApiResponse(
-                responseCode = "201",
-                description = "파티 생성 성공",
-                content = [Content(schema = Schema(implementation = CreatePartyResponse::class))]
-            ),
-            ApiResponse(
-                responseCode = "400",
-                description = "잘못된 요청 형식",
-                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
-            )
-        ]
-    )
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    fun createParty(@RequestBody request: CreatePartyRequest): CreatePartyResponse {
-        return partyService.createParty(request)
-    }
+//    @Operation(summary = "파티 생성", description = "새로운 파티를 생성합니다.")
+//    @ApiResponses(
+//        value = [
+//            ApiResponse(
+//                responseCode = "201",
+//                description = "파티 생성 성공",
+//                content = [Content(schema = Schema(implementation = CreatePartyResponse::class))]
+//            ),
+//            ApiResponse(
+//                responseCode = "400",
+//                description = "잘못된 요청 형식",
+//                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+//            )
+//        ]
+//    )
+//    @PostMapping
+//    @ResponseStatus(HttpStatus.CREATED)
+//    fun createParty(@RequestBody request: CreatePartyRequest): CreatePartyResponse {
+//        return partyService.createParty(request)
+//    }
 
     @Operation(summary = "파티 단건 조회", description = "UUID로 특정 파티를 조회합니다.")
     @ApiResponse(

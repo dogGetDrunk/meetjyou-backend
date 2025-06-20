@@ -18,14 +18,18 @@ data class UpdatePostRequest(
     val itinFinish: LocalDate,
     val location: String,
     val capacity: Int,
+    val joined: Int,
     val compGender: Gender,
     val compAge: Age,
     val compPersonalities: List<Personality>,
     val compTravelStyles: List<Personality>,
     val compDiet: Diet,
     val compEtc: List<Etc>,
-    val planId: Long?,
+    @field:JsonProperty("plan_uuid") private val planUuidString: String?,
 ) {
     val authorUuid: UUID
         get() = UUID.fromString(authorUuidString)
+
+    val planUuid: UUID?
+        get() = UUID.fromString(planUuidString)
 }

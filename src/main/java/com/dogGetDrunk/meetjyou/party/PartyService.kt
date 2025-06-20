@@ -1,6 +1,8 @@
 package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PartyNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
+import com.dogGetDrunk.meetjyou.image.ImageService
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
@@ -19,29 +21,32 @@ import java.util.UUID
 class PartyService(
     private val partyRepository: PartyRepository,
     private val planRepository: PlanRepository,
-    private val userPartyRepository: UserPartyRepository
+    private val userPartyRepository: UserPartyRepository,
+    private val imageService: ImageService,
 ) {
     private val log = LoggerFactory.getLogger(PartyService::class.java)
 
     @Transactional
     fun createParty(request: CreatePartyRequest): CreatePartyResponse {
         val plan = planRepository.findByUuid(request.planUuid)
-            ?: throw IllegalArgumentException("해당 Plan이 존재하지 않습니다.")
+            ?: throw PlanNotFoundException(request.planUuid)
 
         val party = Party(
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
-            destination = request.destination,
+            location = request.destination,
             joined = request.joined,
-            max = request.max,
+            capacity = request.capacity,
             name = request.name,
-            imgUrl = request.imgUrl,
-            thumbImgUrl = request.thumbImgUrl,
         ).apply {
             this.plan = plan
         }
+
         partyRepository.save(party)
+
         log.info("Party created: uuid=${'$'}{party.uuid}")
+
+        imageService.setDefaultPartyImage(party.uuid, request.postUuid)
 
         return CreatePartyResponse.of(party)
     }
@@ -76,13 +81,11 @@ class PartyService(
             ?: throw PartyNotFoundException(uuid)
 
         request.name?.let { party.name = it }
-        request.destination?.let { party.destination = it }
+        request.location?.let { party.location = it }
         request.joined?.let { party.joined = it }
-        request.max?.let { party.max = it }
+        request.capacity?.let { party.capacity = it }
         request.itinStart?.let { party.itinStart = it }
         request.itinFinish?.let { party.itinFinish = it }
-        request.imgUrl?.let { party.imgUrl = it }
-        request.thumbImgUrl?.let { party.thumbImgUrl = it }
 
         log.info("Party updated: uuid=${'$'}uuid")
         return UpdatePartyResponse.of(party)

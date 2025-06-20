@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/images")
@@ -98,9 +99,8 @@ class ImageController(
         ]
     )
     @PostMapping("/post/upload")
-    fun uploadPostImage(@RequestParam postId: Long, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
-        val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
-        return if (imageService.uploadPostImage(postId, file.bytes, fileType)) {
+    fun uploadPostImage(@RequestParam postUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+        return if (imageService.uploadPostImage(postUuid, file)) {
             ResponseEntity.ok().build()
         } else {
             ResponseEntity.badRequest().build()
@@ -119,8 +119,8 @@ class ImageController(
         ]
     )
     @GetMapping("/post/download")
-    fun downloadPostImage(@RequestParam postId: Long): ResponseEntity<ByteArray> {
-        val image = imageService.downloadPostImage(postId)
+    fun downloadPostImage(@RequestParam postUuid: UUID): ResponseEntity<ByteArray> {
+        val image = imageService.downloadPostImage(postUuid)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
     }
@@ -137,8 +137,8 @@ class ImageController(
         ]
     )
     @DeleteMapping("/post")
-    fun deletePostImage(@RequestParam postId: Long): ResponseEntity<Unit> {
-        return if (imageService.deletePostImage(postId)) {
+    fun deletePostImage(@RequestParam postUuid: UUID): ResponseEntity<Unit> {
+        return if (imageService.deletePostImage(postUuid)) {
             ResponseEntity.noContent().build()
         } else {
             ResponseEntity.notFound().build()

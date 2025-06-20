@@ -13,19 +13,18 @@ import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
 class Party(
-    var itinStart: LocalDateTime,
-    var itinFinish: LocalDateTime,
-    var destination: String,
+    var itinStart: LocalDate,
+    var itinFinish: LocalDate,
+    var location: String,
     var joined: Int,
-    var max: Int,
+    var capacity: Int,
     var name: String,
-    var imgUrl: String,
-    var thumbImgUrl: String,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

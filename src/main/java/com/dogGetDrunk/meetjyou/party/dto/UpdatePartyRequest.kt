@@ -1,19 +1,19 @@
 package com.dogGetDrunk.meetjyou.party.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.LocalDateTime
+import java.time.LocalDate
 
 data class UpdatePartyRequest(
     val name: String? = null,
-    val destination: String? = null,
+    val location: String? = null,
     val joined: Int? = null,
-    val max: Int? = null,
+    val capacity: Int? = null,
 
     @field:JsonProperty("itin_start")
-    val itinStart: LocalDateTime? = null,
+    val itinStart: LocalDate? = null,
 
     @field:JsonProperty("itin_finish")
-    val itinFinish: LocalDateTime? = null,
+    val itinFinish: LocalDate? = null,
 
     @field:JsonProperty("img_url")
     val imgUrl: String? = null,
