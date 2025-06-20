@@ -144,4 +144,80 @@ class ImageController(
             ResponseEntity.notFound().build()
         }
     }
+
+    @Operation(summary = "파티 이미지 업로드")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "업로드 성공"),
+            ApiResponse(
+                responseCode = "400",
+                description = "업로드 실패",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            )
+        ]
+    )
+    @PostMapping("/party")
+    fun uploadPartyImage(@RequestParam partyUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+        return if (imageService.uploadPartyImage(partyUuid, file)) {
+            ResponseEntity.ok().build()
+        } else {
+            ResponseEntity.badRequest().build()
+        }
+    }
+
+    @Operation(summary = "파티 이미지 원본 다운로드")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "다운로드 성공", content = [Content(mediaType = "image/jpeg")]),
+            ApiResponse(
+                responseCode = "404",
+                description = "이미지 없음",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            )
+        ]
+    )
+    @GetMapping("/party")
+    fun downloadOriginalPartyImage(@RequestParam partyUuid: UUID): ResponseEntity<ByteArray> {
+        val image = imageService.downloadOriginalPartyImage(partyUuid)
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
+    }
+
+    @Operation(summary = "파티 이미지 썸네일 다운로드")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "다운로드 성공", content = [Content(mediaType = "image/jpeg")]),
+            ApiResponse(
+                responseCode = "404",
+                description = "이미지 없음",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            )
+        ]
+    )
+    @GetMapping("/party/thumbnail")
+    fun downloadThumbnailPartyImage(@RequestParam partyUuid: UUID): ResponseEntity<ByteArray> {
+        val image = imageService.downloadThumbnailPartyImage(partyUuid)
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
+    }
+
+    @Operation(summary = "파티 이미지 삭제")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "204", description = "삭제 성공"),
+            ApiResponse(
+                responseCode = "404",
+                description = "이미지 없음",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            )
+        ]
+    )
+    @DeleteMapping("/party")
+    fun deletePartyImage(@RequestParam partyUuid: UUID): ResponseEntity<Unit> {
+        return if (imageService.deletePartyImage(partyUuid)) {
+            ResponseEntity.noContent().build()
+        } else {
+            ResponseEntity.notFound().build()
+        }
+    }
 }

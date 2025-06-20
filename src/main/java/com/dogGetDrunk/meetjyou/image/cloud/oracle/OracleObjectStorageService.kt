@@ -35,6 +35,7 @@ class OracleObjectStorageService(
     private val objectStorageClient: ObjectStorageClient,
     private val workRequestClient: WorkRequestClient,
 ) : CloudImageService {
+    // TODO: return try가 아닌 throw로 GlobalExceptionHandler에서 처리하도록 변경
     private val FINAL_FILE_TYPE = "jpg"
     private val THUMBNAIL_WIDTH = 150
 
@@ -149,6 +150,76 @@ class OracleObjectStorageService(
             true
         } catch (e: Exception) {
             println("Error deleting post image $objectPath: ${e.message}")
+            false
+        }
+    }
+
+    override fun uploadPartyImage(
+        uuid: UUID,
+        file: MultipartFile,
+    ): Boolean {
+        val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
+        val (originalPath, thumbnailPath) = generatePartyImagePath(uuid.toString())
+
+        val convertedFile = if (fileType.lowercase() in listOf("jpg", "jpeg")) {
+            file.bytes
+        } else {
+            convertToJpg(file.bytes)
+        }
+
+        uploadToObjectStorage(originalPath, convertedFile)
+        uploadToObjectStorage(thumbnailPath, createThumbnail(file.bytes))
+
+        return true
+    }
+
+    override fun downloadOriginalPartyImage(uuid: UUID): ByteArray? {
+        val (originalPath, thumbnailPath) = generatePartyImagePath(uuid.toString())
+
+        val originalImgRequest = GetObjectRequest.builder()
+            .namespaceName(namespace)
+            .bucketName(bucketName)
+            .objectName(originalPath)
+            .build()
+
+        return try {
+            val response: GetObjectResponse = objectStorageClient.getObject(originalImgRequest)
+            response.inputStream.readBytes()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override fun downloadThumbnailPartyImage(uuid: UUID): ByteArray? {
+        val (_, thumbnailPath) = generatePartyImagePath(uuid.toString())
+
+        val thumbnailImgRequest = GetObjectRequest.builder()
+            .namespaceName(namespace)
+            .bucketName(bucketName)
+            .objectName(thumbnailPath)
+            .build()
+
+        return try {
+            val response: GetObjectResponse = objectStorageClient.getObject(thumbnailImgRequest)
+            response.inputStream.readBytes()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override fun deletePartyImage(uuid: UUID): Boolean {
+        val (originalPath, thumbnailPath) = generatePartyImagePath(uuid.toString())
+
+        return try {
+            val request = DeleteObjectRequest.builder()
+                .namespaceName(namespace)
+                .bucketName(bucketName)
+                .objectName(originalPath)
+                .build()
+            objectStorageClient.deleteObject(request)
+            true
+        } catch (e: Exception) {
+            println("Error deleting party image $originalPath: ${e.message}")
             false
         }
     }
