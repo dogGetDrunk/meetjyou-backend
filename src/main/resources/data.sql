@@ -153,7 +153,7 @@ VALUES
     (10, 36);
 -- DRINK
 
-INSERT INTO plan (uuid, itin_start, itin_finish, destination, center_lat, center_lng, memo, user_id)
+INSERT INTO plan (uuid, itin_start, itin_finish, location, center_lat, center_lng, memo, user_id)
 VALUES ('a4eec2ab-072c-4555-a00e-c0059cd2407a', NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), '서울', 37.5665, 126.9780,
         '서울 여행 계획 1', 1),
        ('1327959b-174e-4a29-81d6-0818aa3c1c96', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '서울', 37.5651, 126.9895,
@@ -176,52 +176,53 @@ VALUES ('a4eec2ab-072c-4555-a00e-c0059cd2407a', NOW(), DATE_ADD(NOW(), INTERVAL 
         '일본 여행 계획 2', 10);
 
 
-INSERT INTO post (uuid, title, content, views, capacity, itin_start, itin_finish, location, created_at, last_edited_at,
+INSERT INTO post (uuid, title, content, views, capacity, joined, itin_start, itin_finish, location, created_at,
+                  last_edited_at,
                   post_status, author_id, party_id, plan_id)
-VALUES ('0f6e967f-2608-46aa-89e9-b867dcfb2a87', '첫 번째 여행 모집', '함께 여행 가실 분 모집합니다!', 23, 3, NOW(),
+VALUES ('0f6e967f-2608-46aa-89e9-b867dcfb2a87', '첫 번째 여행 모집', '함께 여행 가실 분 모집합니다!', 23, 3, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 3 DAY), '서울', NOW(), NOW(), 1, 1, NULL, NULL),
-       ('7dc58749-aa1b-468b-b811-1d1afa644da5', '서울 맛집 탐방', '서울에서 가장 맛있는 음식점을 공유해요.', 45, 2, NOW(),
+       ('7dc58749-aa1b-468b-b811-1d1afa644da5', '서울 맛집 탐방', '서울에서 가장 맛있는 음식점을 공유해요.', 45, 2, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 2 DAY), '서울', NOW(), NOW(), 1, 2, NULL, NULL),
-       ('b32416ea-2e3c-40eb-addf-0145dac51762', '배낭여행 정보 공유', '배낭여행 팁과 노하우를 공유합니다.', 67, 5, NOW(),
+       ('b32416ea-2e3c-40eb-addf-0145dac51762', '배낭여행 정보 공유', '배낭여행 팁과 노하우를 공유합니다.', 67, 5, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 5 DAY), '유럽', NOW(), NOW(), 1, 3, NULL, NULL),
-       ('cbb9a7e6-87da-4272-b85b-6323aaac2e5f', '혼자 여행 꿀팁', '혼자 여행할 때 유용한 정보를 제공합니다.', 12, 1, NOW(),
+       ('cbb9a7e6-87da-4272-b85b-6323aaac2e5f', '혼자 여행 꿀팁', '혼자 여행할 때 유용한 정보를 제공합니다.', 12, 1, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 1 DAY), '전국', NOW(), NOW(), 1, 4, NULL, 4),
-       ('0f682e11-ad70-43f8-b258-9ddb5b8f8654', '새로운 여행 동반자 구함', '여행을 함께할 친구를 찾아요.', 34, 4, NOW(),
+       ('0f682e11-ad70-43f8-b258-9ddb5b8f8654', '새로운 여행 동반자 구함', '여행을 함께할 친구를 찾아요.', 34, 4, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 2 DAY), '부산', NOW(), NOW(), 1, 5, NULL, 5),
-       ('403e6193-e564-4700-8de9-dde08f5abef1', '유럽 여행 후기', '유럽 여행에서 가장 좋았던 경험을 공유합니다.', 89, 6, NOW(),
+       ('403e6193-e564-4700-8de9-dde08f5abef1', '유럽 여행 후기', '유럽 여행에서 가장 좋았던 경험을 공유합니다.', 89, 6, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 10 DAY), '프랑스', NOW(), NOW(), 1, 6, NULL, 6),
-       ('ec87d3d8-e2f3-4e2e-83f3-145ddf49c922', '국내 여행 추천', '국내에서 꼭 가봐야 할 곳을 추천합니다.', 78, 3, NOW(),
+       ('ec87d3d8-e2f3-4e2e-83f3-145ddf49c922', '국내 여행 추천', '국내에서 꼭 가봐야 할 곳을 추천합니다.', 78, 3, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 3 DAY), '제주도', NOW(), NOW(), 1, 7, NULL, 7),
-       ('14346672-7785-43f5-9d0c-9f946ea0c7b0', '여행 사진 공유', '여행 중 찍은 사진을 공유해요.', 56, 2, NOW(),
+       ('14346672-7785-43f5-9d0c-9f946ea0c7b0', '여행 사진 공유', '여행 중 찍은 사진을 공유해요.', 56, 2, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 2 DAY), '전국', NOW(), NOW(), 1, 8, NULL, 8),
-       ('0e171266-4ff0-40f9-a9f5-5c4ceaccff41', '여행 비용 절약 팁', '여행 경비를 아끼는 다양한 방법!', 34, 1, NOW(),
+       ('0e171266-4ff0-40f9-a9f5-5c4ceaccff41', '여행 비용 절약 팁', '여행 경비를 아끼는 다양한 방법!', 34, 1, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 1 DAY), '일본', NOW(), NOW(), 1, 9, NULL, 9),
-       ('6162ea57-899d-4e3e-b8db-552d575909b2', '일본 여행 계획', '일본 여행 일정과 계획을 공유합니다.', 22, 3, NOW(),
+       ('6162ea57-899d-4e3e-b8db-552d575909b2', '일본 여행 계획', '일본 여행 일정과 계획을 공유합니다.', 22, 3, 1, NOW(),
         DATE_ADD(NOW(), INTERVAL 4 DAY), '일본', NOW(), NOW(), 1, 10, NULL, 10);
 
 
-INSERT INTO party (uuid, itin_start, itin_finish, destination, joined, max, name, img_url, thumb_img_url, created_at,
+INSERT INTO party (uuid, itin_start, itin_finish, location, joined, capacity, name, created_at,
                    last_edited_at, plan_id)
-VALUES ('88d98b41-c34b-42ea-9f0f-07440e02478f', NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), '서울', 1, 3, '서울모임1',
-        'https://example.com/party1.jpg', 'https://example.com/party1_thumb.jpg', NOW(), NOW(), 1),
-       ('f86abba4-3fbd-43d3-b3d3-48932cfa4ef7', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '서울', 1, 2, '서울모임2',
-        'https://example.com/party2.jpg', 'https://example.com/party2_thumb.jpg', NOW(), NOW(), 2),
-       ('3f56afea-d0cd-4f95-abad-188654680349', NOW(), DATE_ADD(NOW(), INTERVAL 5 DAY), '유럽', 1, 5, '유럽모임',
-        'https://example.com/party3.jpg', 'https://example.com/party3_thumb.jpg', NOW(), NOW(), 3),
-       ('916780cc-abc1-40d2-8b2d-cb8feb1ca171', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), '전국', 1, 1, '국내모임',
-        'https://example.com/party4.jpg', 'https://example.com/party4_thumb.jpg', NOW(), NOW(), 4),
-       ('570dc0df-ba7b-448b-96c4-b73df5fe53ec', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '부산', 1, 4, '부산모임',
-        'https://example.com/party5.jpg', 'https://example.com/party5_thumb.jpg', NOW(), NOW(), 5),
-       ('2b6b7cbc-1e77-42ea-845d-f2c70423d43d', NOW(), DATE_ADD(NOW(), INTERVAL 10 DAY), '프랑스', 1, 6, '프랑스모임',
-        'https://example.com/party6.jpg', 'https://example.com/party6_thumb.jpg', NOW(), NOW(), 6),
-       ('b7df7b84-fabb-4875-b167-e3b5af23e919', NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), '제주도', 1, 3, '제주모임',
-        'https://example.com/party7.jpg', 'https://example.com/party7_thumb.jpg', NOW(), NOW(), 7),
-       ('26d16d83-13ca-495c-aac4-9a84bdcd068a', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '전국', 1, 2, '사진모임',
-        'https://example.com/party8.jpg', 'https://example.com/party8_thumb.jpg', NOW(), NOW(), 8),
-       ('c7e98d3b-b468-498c-a02a-c9dee2c5de7a', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), '일본', 1, 1, '일본모임1',
-        'https://example.com/party9.jpg', 'https://example.com/party9_thumb.jpg', NOW(), NOW(), 9),
-       ('0b12d1db-80ae-4ad3-8f66-670f7cb95c5d', NOW(), DATE_ADD(NOW(), INTERVAL 4 DAY), '일본', 1, 3, '일본모임2',
-        'https://example.com/party10.jpg', 'https://example.com/party10_thumb.jpg', NOW(), NOW(), 10);
+VALUES ('88d98b41-c34b-42ea-9f0f-07440e02478f', NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), '서울', 1, 3, '서울모임1', NOW(),
+        NOW(), 1),
+       ('f86abba4-3fbd-43d3-b3d3-48932cfa4ef7', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '서울', 1, 2, '서울모임2', NOW(),
+        NOW(), 2),
+       ('3f56afea-d0cd-4f95-abad-188654680349', NOW(), DATE_ADD(NOW(), INTERVAL 5 DAY), '유럽', 1, 5, '유럽모임', NOW(),
+        NOW(), 3),
+       ('916780cc-abc1-40d2-8b2d-cb8feb1ca171', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), '전국', 1, 1, '국내모임', NOW(),
+        NOW(), 4),
+       ('570dc0df-ba7b-448b-96c4-b73df5fe53ec', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '부산', 1, 4, '부산모임', NOW(),
+        NOW(), 5),
+       ('2b6b7cbc-1e77-42ea-845d-f2c70423d43d', NOW(), DATE_ADD(NOW(), INTERVAL 10 DAY), '프랑스', 1, 6, '프랑스모임', NOW(),
+        NOW(), 6),
+       ('b7df7b84-fabb-4875-b167-e3b5af23e919', NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), '제주도', 1, 3, '제주모임', NOW(),
+        NOW(), 7),
+       ('26d16d83-13ca-495c-aac4-9a84bdcd068a', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '전국', 1, 2, '사진모임', NOW(),
+        NOW(), 8),
+       ('c7e98d3b-b468-498c-a02a-c9dee2c5de7a', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), '일본', 1, 1, '일본모임1', NOW(),
+        NOW(), 9),
+       ('0b12d1db-80ae-4ad3-8f66-670f7cb95c5d', NOW(), DATE_ADD(NOW(), INTERVAL 4 DAY), '일본', 1, 3, '일본모임2', NOW(),
+        NOW(), 10);
 
 
 -- marker 더미 데이터
