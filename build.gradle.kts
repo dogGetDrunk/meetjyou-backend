@@ -50,6 +50,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
+    implementation("com.oracle.oci.sdk:oci-java-sdk-workrequests:3.38.0")
     implementation("com.oracle.oci.sdk:oci-java-sdk:3.38.0")
     implementation("com.oracle.oci.sdk:oci-java-sdk-common:3.38.0")
     implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage:3.38.0")

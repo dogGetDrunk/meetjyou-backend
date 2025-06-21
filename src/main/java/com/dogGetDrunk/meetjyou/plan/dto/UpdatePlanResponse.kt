@@ -18,7 +18,7 @@ data class UpdatePlanResponse(
             uuid = plan.uuid.toString(),
             itinStart = plan.itinStart,
             itinFinish = plan.itinFinish,
-            destination = plan.destination,
+            destination = plan.location,
             centerLat = plan.centerLat,
             centerLng = plan.centerLng,
             memo = plan.memo,

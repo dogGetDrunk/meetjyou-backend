@@ -3,6 +3,8 @@ package com.dogGetDrunk.meetjyou.post
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.party.PartyService
+import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
@@ -27,6 +29,7 @@ class PostService(
     private val userRepository: UserRepository,
     private val compPreferenceRepository: CompPreferenceRepository,
     private val preferenceRepository: PreferenceRepository,
+    private val partyService: PartyService,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
 
@@ -43,6 +46,7 @@ class PostService(
             itinFinish = request.itinFinish,
             location = request.location,
             capacity = request.capacity,
+            joined = request.joined,
         ).apply {
             this.author = author
         }
@@ -51,6 +55,8 @@ class PostService(
         saveCompPreference(newPost, request)
 
         log.info("New post created: $newPost")
+
+        partyService.createParty(CreatePartyRequest.from(newPost))
 
         return CreatePostResponse(
             uuid = newPost.uuid.toString(),
@@ -65,7 +71,8 @@ class PostService(
             itinFinish = newPost.itinFinish,
             location = newPost.location,
             capacity = newPost.capacity,
-            planId = newPost.plan?.id,
+            joined = newPost.joined,
+            planUuid = newPost.plan?.uuid.toString(),
             compGender = request.compGender.name,
             compAge = request.compAge.name,
             compPersonalities = request.compPersonalities.map { it.name },
@@ -102,7 +109,8 @@ class PostService(
             itinFinish = post.itinFinish,
             location = post.location,
             capacity = post.capacity,
-            planId = post.plan?.id,
+            joined = post.joined,
+            planUuid = post.plan?.uuid.toString(),
             compGender = compGender,
             compAge = compAge,
             compPersonalities = compPersonalities,
@@ -142,7 +150,8 @@ class PostService(
                     itinFinish = post.itinFinish,
                     location = post.location,
                     capacity = post.capacity,
-                    planId = post.plan?.id,
+                    joined = post.joined,
+                    planUuid = post.plan?.uuid.toString(),
                     compGender = compGender,
                     compAge = compAge,
                     compPersonalities = compPersonalities,
@@ -179,7 +188,8 @@ class PostService(
                     itinFinish = post.itinFinish,
                     location = post.location,
                     capacity = post.capacity,
-                    planId = post.plan?.id,
+                    joined = post.joined,
+                    planUuid = post.plan?.uuid.toString(),
                     compGender = compGender,
                     compAge = compAge,
                     compPersonalities = compPersonalities,
@@ -223,6 +233,7 @@ class PostService(
             itinFinish = post.itinFinish,
             location = post.location,
             capacity = post.capacity,
+            joined = post.joined,
             planUuid = post.plan?.uuid.toString(),
             compGender = request.compGender,
             compAge = request.compAge,
@@ -276,13 +287,14 @@ class PostService(
                 itinFinish = request.itinFinish,
                 location = request.location,
                 capacity = request.capacity,
+                joined = request.joined,
                 compGender = request.compGender,
                 compAge = request.compAge,
                 compPersonalities = request.compPersonalities,
                 compTravelStyles = request.compTravelStyles,
                 compDiet = request.compDiet,
                 compEtc = request.compEtc,
-                planId = request.planId
+                planUuidString = request.planUuid?.toString(),
             )
         )
     }

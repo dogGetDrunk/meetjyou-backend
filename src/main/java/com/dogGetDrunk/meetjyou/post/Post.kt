@@ -28,6 +28,7 @@ class Post(
     var itinFinish: LocalDate,
     var location: String,
     var capacity: Int,
+    var joined: Int,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

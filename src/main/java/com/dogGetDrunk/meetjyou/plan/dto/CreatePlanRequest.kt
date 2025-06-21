@@ -7,7 +7,7 @@ import java.util.UUID
 data class CreatePlanRequest(
     val itinStart: LocalDateTime,
     val itinFinish: LocalDateTime,
-    val destination: String,
+    val location: String,
     val centerLat: Double,
     val centerLng: Double,
     val memo: String? = null,

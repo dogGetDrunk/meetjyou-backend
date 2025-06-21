@@ -17,11 +17,12 @@ data class GetPostResponse(
     val itinFinish: LocalDate,
     val location: String,
     val capacity: Int,
+    val joined: Int,
     val compGender: String?,
     val compAge: String?,
     val compPersonalities: List<String>,
     val compTravelStyles: List<String>,
     val compDiet: List<String>,
     val compEtc: List<String>,
-    val planId: Long?,
+    val planUuid: String?,
 )

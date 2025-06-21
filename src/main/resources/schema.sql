@@ -44,6 +44,7 @@ CREATE TABLE post
     is_instant     TINYINT(1)   NOT NULL DEFAULT 0,
     views          INT          NOT NULL DEFAULT 0,
     capacity       INT          NOT NULL DEFAULT 1,
+    joined         INT          NOT NULL DEFAULT 1,
     itin_start     TIMESTAMP    NOT NULL,
     itin_finish    TIMESTAMP    NOT NULL,
     location       VARCHAR(50),
@@ -61,12 +62,10 @@ CREATE TABLE party
     uuid           CHAR(36)     NOT NULL UNIQUE,
     itin_start     TIMESTAMP    NOT NULL,
     itin_finish    TIMESTAMP    NOT NULL,
-    destination    VARCHAR(50)  NOT NULL,
+    location       VARCHAR(50)  NOT NULL,
     joined         TINYINT      NOT NULL,
-    max            TINYINT      NOT NULL,
+    capacity       TINYINT      NOT NULL,
     name           VARCHAR(50)  NOT NULL,
-    img_url        VARCHAR(500) NOT NULL,
-    thumb_img_url  VARCHAR(500) NOT NULL,
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     plan_id        INT          NOT NULL
@@ -87,7 +86,7 @@ CREATE TABLE plan
     uuid        CHAR(36)        NOT NULL UNIQUE,
     itin_start  TIMESTAMP       NOT NULL,
     itin_finish TIMESTAMP       NOT NULL,
-    destination VARCHAR(50)     NOT NULL,
+    location    VARCHAR(50)     NOT NULL,
     center_lat  DECIMAL(13, 10) NOT NULL,
     center_lng  DECIMAL(13, 10) NOT NULL,
     memo        VARCHAR(500),
@@ -164,7 +163,7 @@ CREATE TABLE party_application
 CREATE TABLE user_party
 (
     id        INT AUTO_INCREMENT PRIMARY KEY,
-    role      TINYINT   NOT NULL,
+    role      CHAR(10)  NOT NULL,
     joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     party_id  INT       NOT NULL,
     user_id   INT       NOT NULL
