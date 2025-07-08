@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.plan
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.jwt.UserContext
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
@@ -24,8 +25,7 @@ class PlanService(
 
     @Transactional
     fun createPlan(request: CreatePlanRequest): CreatePlanResponse {
-        val user = userRepository.findByUuid(request.userUuid)
-            ?: throw UserNotFoundException(request.userUuid)
+        val user = UserContext.getUser()
 
         val plan = Plan(
             itinStart = request.itinStart,
@@ -34,7 +34,7 @@ class PlanService(
             centerLat = request.centerLat,
             centerLng = request.centerLng,
             memo = request.memo,
-            user = user
+            owner = user
         )
 
         planRepository.save(plan)
@@ -57,7 +57,7 @@ class PlanService(
             throw UserNotFoundException(userUuid)
         }
 
-        return planRepository.findAllByUser_Uuid(userUuid, pageable)
+        return planRepository.findAllByOwner_Uuid(userUuid, pageable)
             .map { GetPlanResponse.of(it) }
     }
 

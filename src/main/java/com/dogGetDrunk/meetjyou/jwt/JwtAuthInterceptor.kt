@@ -1,9 +1,7 @@
 package com.dogGetDrunk.meetjyou.jwt
 
-import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidAccessTokenException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.MissingAuthorizationHeaderException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -29,8 +27,17 @@ class JwtAuthInterceptor(
         val user = userRepository.findByUuid(uuid)
             ?: throw UserNotFoundException(uuid)
 
-        request.setAttribute("authenticatedUser", user)
+        UserContext.setUser(user) // ✅ UserContext에 저장
         return true
+    }
+
+    override fun afterCompletion(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        handler: Any,
+        ex: Exception?,
+    ) {
+        UserContext.clear() // ✅ 요청 종료 시 반드시 정리
     }
 
     private fun resolveToken(request: HttpServletRequest): String? {

@@ -28,8 +28,10 @@ class PartyService(
 
     @Transactional
     fun createParty(request: CreatePartyRequest): CreatePartyResponse {
-        val plan = planRepository.findByUuid(request.planUuid)
-            ?: throw PlanNotFoundException(request.planUuid)
+        val plan = request.planUuid?.let { planUuid ->
+            planRepository.findByUuid(planUuid)
+                ?: throw PlanNotFoundException(planUuid)
+        }
 
         val party = Party(
             itinStart = request.itinStart,
@@ -80,15 +82,18 @@ class PartyService(
         val party = partyRepository.findByUuid(uuid)
             ?: throw PartyNotFoundException(uuid)
 
-        request.name?.let { party.name = it }
-        request.location?.let { party.location = it }
-        request.joined?.let { party.joined = it }
-        request.capacity?.let { party.capacity = it }
-        request.itinStart?.let { party.itinStart = it }
-        request.itinFinish?.let { party.itinFinish = it }
-
-        log.info("Party updated: uuid=${'$'}uuid")
-        return UpdatePartyResponse.of(party)
+        return party.apply {
+            name = request.name
+            location = request.location
+            joined = request.joined
+            capacity = request.capacity
+            itinStart = request.itinStart
+            itinFinish = request.itinFinish
+        }.also {
+            log.info("Party updated: uuid=$uuid")
+        }.let {
+            UpdatePartyResponse.of(it)
+        }
     }
 
     @Transactional

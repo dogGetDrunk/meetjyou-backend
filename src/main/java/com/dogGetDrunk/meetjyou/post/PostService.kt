@@ -55,31 +55,9 @@ class PostService(
         saveCompPreference(newPost, request)
 
         log.info("New post created: $newPost")
-
         partyService.createParty(CreatePartyRequest.from(newPost))
 
-        return CreatePostResponse(
-            uuid = newPost.uuid.toString(),
-            title = newPost.title,
-            content = newPost.content,
-            postStatus = newPost.postStatus,
-            createdAt = newPost.createdAt,
-            lastEditedAt = newPost.lastEditedAt,
-            authorUuid = newPost.author.uuid.toString(),
-            isInstant = newPost.isInstant,
-            itinStart = newPost.itinStart,
-            itinFinish = newPost.itinFinish,
-            location = newPost.location,
-            capacity = newPost.capacity,
-            joined = newPost.joined,
-            planUuid = newPost.plan?.uuid.toString(),
-            compGender = request.compGender.name,
-            compAge = request.compAge.name,
-            compPersonalities = request.compPersonalities.map { it.name },
-            compTravelStyles = request.compTravelStyles.map { it.name },
-            compDiet = request.compDiet.name,
-            compEtc = request.compEtc.map { it.name },
-        )
+        return CreatePostResponse.of(newPost, compPreferenceRepository.findAllByPost(newPost))
     }
 
     @Transactional(readOnly = true)
@@ -87,37 +65,7 @@ class PostService(
         val post = postRepository.findByUuid(postUuid)
             ?: throw PostNotFoundException(postUuid)
 
-        val compPreferences = compPreferenceRepository.findAllByPost(post)
-        val compGender = compPreferences.find { it.preference.type == 0 }?.preference?.name
-        val compAge = compPreferences.find { it.preference.type == 1 }?.preference?.name
-        val compPersonalities = compPreferences.filter { it.preference.type == 2 }.map { it.preference.name }
-        val compTravelStyles = compPreferences.filter { it.preference.type == 3 }.map { it.preference.name }
-        val compDiet = compPreferences.filter { it.preference.type == 4 }.map { it.preference.name }
-        val compEtc = compPreferences.filter { it.preference.type == 5 }.map { it.preference.name }
-
-        return GetPostResponse(
-            uuid = post.uuid.toString(),
-            title = post.title,
-            content = post.content,
-            postStatus = post.postStatus,
-            views = post.views,
-            createdAt = post.createdAt,
-            lastEditedAt = post.lastEditedAt,
-            authorUuid = post.author.uuid.toString(),
-            isInstant = post.isInstant,
-            itinStart = post.itinStart,
-            itinFinish = post.itinFinish,
-            location = post.location,
-            capacity = post.capacity,
-            joined = post.joined,
-            planUuid = post.plan?.uuid.toString(),
-            compGender = compGender,
-            compAge = compAge,
-            compPersonalities = compPersonalities,
-            compTravelStyles = compTravelStyles,
-            compDiet = compDiet,
-            compEtc = compEtc,
-        )
+        return GetPostResponse.of(post, compPreferenceRepository.findAllByPost(post))
     }
 
     @Transactional(readOnly = true)
@@ -128,37 +76,7 @@ class PostService(
 
         return postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
             .map { post ->
-                val compPreferences = compPreferenceRepository.findAllByPost(post)
-                val compGender = compPreferences.find { it.preference.type == 0 }?.preference?.name
-                val compAge = compPreferences.find { it.preference.type == 1 }?.preference?.name
-                val compPersonalities = compPreferences.filter { it.preference.type == 2 }.map { it.preference.name }
-                val compTravelStyles = compPreferences.filter { it.preference.type == 3 }.map { it.preference.name }
-                val compDiet = compPreferences.filter { it.preference.type == 4 }.map { it.preference.name }
-                val compEtc = compPreferences.filter { it.preference.type == 5 }.map { it.preference.name }
-
-                GetPostResponse(
-                    uuid = post.uuid.toString(),
-                    title = post.title,
-                    content = post.content,
-                    postStatus = post.postStatus,
-                    views = post.views,
-                    createdAt = post.createdAt,
-                    lastEditedAt = post.lastEditedAt,
-                    authorUuid = post.author.uuid.toString(),
-                    isInstant = post.isInstant,
-                    itinStart = post.itinStart,
-                    itinFinish = post.itinFinish,
-                    location = post.location,
-                    capacity = post.capacity,
-                    joined = post.joined,
-                    planUuid = post.plan?.uuid.toString(),
-                    compGender = compGender,
-                    compAge = compAge,
-                    compPersonalities = compPersonalities,
-                    compTravelStyles = compTravelStyles,
-                    compDiet = compDiet,
-                    compEtc = compEtc,
-                )
+                GetPostResponse.of(post, compPreferenceRepository.findAllByPost(post))
             }
     }
 
@@ -166,37 +84,7 @@ class PostService(
     fun getAllPosts(pageable: Pageable): Page<GetPostResponse> {
         return postRepository.findAll(pageable)
             .map { post ->
-                val compPreferences = compPreferenceRepository.findAllByPost(post)
-                val compGender = compPreferences.find { it.preference.type == 0 }?.preference?.name
-                val compAge = compPreferences.find { it.preference.type == 1 }?.preference?.name
-                val compPersonalities = compPreferences.filter { it.preference.type == 2 }.map { it.preference.name }
-                val compTravelStyles = compPreferences.filter { it.preference.type == 3 }.map { it.preference.name }
-                val compDiet = compPreferences.filter { it.preference.type == 4 }.map { it.preference.name }
-                val compEtc = compPreferences.filter { it.preference.type == 5 }.map { it.preference.name }
-
-                GetPostResponse(
-                    uuid = post.uuid.toString(),
-                    title = post.title,
-                    content = post.content,
-                    postStatus = post.postStatus,
-                    views = post.views,
-                    createdAt = post.createdAt,
-                    lastEditedAt = post.lastEditedAt,
-                    authorUuid = post.author.uuid.toString(),
-                    isInstant = post.isInstant,
-                    itinStart = post.itinStart,
-                    itinFinish = post.itinFinish,
-                    location = post.location,
-                    capacity = post.capacity,
-                    joined = post.joined,
-                    planUuid = post.plan?.uuid.toString(),
-                    compGender = compGender,
-                    compAge = compAge,
-                    compPersonalities = compPersonalities,
-                    compTravelStyles = compTravelStyles,
-                    compDiet = compDiet,
-                    compEtc = compEtc,
-                )
+                GetPostResponse.of(post, compPreferenceRepository.findAllByPost(post))
             }
     }
 
@@ -219,29 +107,7 @@ class PostService(
         saveCompPreference(post, request)
 
         log.info("Post updated: $post")
-
-        return UpdatePostResponse(
-            uuid = post.uuid.toString(),
-            title = post.title,
-            content = post.content,
-            postStatus = post.postStatus,
-            createdAt = post.createdAt,
-            lastEditedAt = post.lastEditedAt,
-            authorUuid = post.author.uuid.toString(),
-            isInstant = post.isInstant,
-            itinStart = post.itinStart,
-            itinFinish = post.itinFinish,
-            location = post.location,
-            capacity = post.capacity,
-            joined = post.joined,
-            planUuid = post.plan?.uuid.toString(),
-            compGender = request.compGender,
-            compAge = request.compAge,
-            compPersonalities = request.compPersonalities,
-            compTravelStyles = request.compTravelStyles,
-            compDiet = request.compDiet,
-            compEtc = request.compEtc,
-        )
+        return UpdatePostResponse.of(post, compPreferenceRepository.findAllByPost(post))
     }
 
     @Transactional
@@ -266,7 +132,9 @@ class PostService(
         preferences += request.compTravelStyles.map {
             CompPreference(post, findOrThrow(it.name, PreferenceType.TRAVEL_STYLE))
         }
-        preferences += CompPreference(post, findOrThrow(request.compDiet.name, PreferenceType.DIET))
+        preferences += request.compDiet.map {
+            CompPreference(post, findOrThrow(it.name, PreferenceType.DIET))
+        }
         preferences += request.compEtc.map {
             CompPreference(post, findOrThrow(it.name, PreferenceType.ETC))
         }

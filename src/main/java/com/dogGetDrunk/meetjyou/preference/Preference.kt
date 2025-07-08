@@ -7,7 +7,7 @@ import jakarta.persistence.Id
 
 @Entity
 class Preference(
-    var type: Int,
+    var type: PreferenceType,
     var name: String,
 ) {
     @Id

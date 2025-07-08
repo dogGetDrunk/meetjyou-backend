@@ -1,10 +1,16 @@
 package com.dogGetDrunk.meetjyou.preference
 
 enum class PreferenceType(val type: Int) {
-    GENDER(1),
-    AGE(2),
-    PERSONALITY(3),
-    TRAVEL_STYLE(4),
-    DIET(5),
-    ETC(6)
+    GENDER(0),
+    AGE(1),
+    PERSONALITY(2),
+    TRAVEL_STYLE(3),
+    DIET(4),
+    ETC(5);
+
+    companion object {
+        private val typeMap = entries.associateBy { it.type }
+
+        fun fromInt(type: Int): PreferenceType? = typeMap[type]
+    }
 }

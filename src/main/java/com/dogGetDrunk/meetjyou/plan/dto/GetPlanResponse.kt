@@ -22,7 +22,7 @@ data class GetPlanResponse(
             centerLat = plan.centerLat,
             centerLng = plan.centerLng,
             memo = plan.memo,
-            userUuid = plan.user.uuid.toString()
+            userUuid = plan.owner.uuid.toString()
         )
     }
 }

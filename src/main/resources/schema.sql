@@ -59,16 +59,16 @@ CREATE TABLE post
 CREATE TABLE party
 (
     id             INT AUTO_INCREMENT PRIMARY KEY,
-    uuid           CHAR(36)     NOT NULL UNIQUE,
-    itin_start     TIMESTAMP    NOT NULL,
-    itin_finish    TIMESTAMP    NOT NULL,
-    location       VARCHAR(50)  NOT NULL,
-    joined         TINYINT      NOT NULL,
-    capacity       TINYINT      NOT NULL,
-    name           VARCHAR(50)  NOT NULL,
-    created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    plan_id        INT          NOT NULL
+    uuid           CHAR(36)    NOT NULL UNIQUE,
+    itin_start     TIMESTAMP   NOT NULL,
+    itin_finish    TIMESTAMP   NOT NULL,
+    location       VARCHAR(50) NOT NULL,
+    joined         TINYINT     NOT NULL,
+    capacity       TINYINT     NOT NULL,
+    name           VARCHAR(50) NOT NULL,
+    created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_edited_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    plan_id        INT         NOT NULL
 );
 
 CREATE TABLE chat_message
@@ -90,7 +90,7 @@ CREATE TABLE plan
     center_lat  DECIMAL(13, 10) NOT NULL,
     center_lng  DECIMAL(13, 10) NOT NULL,
     memo        VARCHAR(500),
-    user_id     INT             NOT NULL
+    owner       INT             NOT NULL
 );
 
 CREATE TABLE marker
@@ -131,7 +131,7 @@ CREATE TABLE notice
 CREATE TABLE preference
 (
     id   INT AUTO_INCREMENT PRIMARY KEY,
-    type TINYINT     NOT NULL,
+    type VARCHAR(50) NOT NULL,
     name VARCHAR(20) NOT NULL
 );
 
@@ -192,7 +192,7 @@ ALTER TABLE chat_message
 ALTER TABLE chat_message
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 ALTER TABLE plan
-    ADD FOREIGN KEY (user_id) REFERENCES user (id);
+    ADD FOREIGN KEY (owner) REFERENCES user (id);
 ALTER TABLE marker
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 ALTER TABLE notification

@@ -12,8 +12,8 @@ data class GetPartyResponse(
     val joined: Int,
     val capacity: Int,
     val name: String,
-    val createdAt: LocalDateTime?,
-    val lastEditedAt: LocalDateTime?,
+    val createdAt: LocalDateTime,
+    val lastEditedAt: LocalDateTime,
     val planUuid: String?
 ) {
     companion object {

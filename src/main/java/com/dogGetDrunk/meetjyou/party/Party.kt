@@ -35,10 +35,10 @@ class Party(
     val uuid: UUID = UUID.randomUUID()
 
     @CreationTimestamp
-    var createdAt: LocalDateTime? = null
+    var createdAt: LocalDateTime = LocalDateTime.now()
 
     @UpdateTimestamp
-    var lastEditedAt: LocalDateTime? = null
+    var lastEditedAt: LocalDateTime = LocalDateTime.now()
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)

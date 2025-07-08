@@ -12,7 +12,6 @@ import java.util.UUID
 data class CreatePostRequest(
     val title: String,
     val content: String,
-    @field:JsonProperty("author_uuid") private val authorUuidString: String,
     val isInstant: Boolean,
     val itinStart: LocalDate,
     val itinFinish: LocalDate,
@@ -23,13 +22,14 @@ data class CreatePostRequest(
     val compAge: Age,
     val compPersonalities: List<Personality>,
     val compTravelStyles: List<Personality>,
-    val compDiet: Diet,
+    val compDiet: List<Diet>,
     val compEtc: List<Etc>,
+    @field:JsonProperty("author_uuid") private val authorUuidString: String,
     @field:JsonProperty("plan_uuid") private val planUuidString: String?,
 ) {
     val authorUuid: UUID
         get() = UUID.fromString(authorUuidString)
 
     val planUuid: UUID?
-        get() = UUID.fromString(planUuidString)
+        get() = planUuidString?.let { UUID.fromString(it) }
 }
