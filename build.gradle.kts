@@ -69,6 +69,9 @@ dependencies {
 //    runtimeOnly("com.mysql:mysql-connector-j")
     implementation("com.mysql:mysql-connector-j")
 
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
