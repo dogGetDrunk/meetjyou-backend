@@ -7,5 +7,5 @@ import java.util.UUID
 
 interface PlanRepository : JpaRepository<Plan, Long> {
     fun findByUuid(uuid: UUID): Plan?
-    fun findAllByUser_Uuid(userUuid: UUID, pageable: Pageable): Page<Plan>
+    fun findAllByOwner_Uuid(OwnerUuid: UUID, pageable: Pageable): Page<Plan>
 }

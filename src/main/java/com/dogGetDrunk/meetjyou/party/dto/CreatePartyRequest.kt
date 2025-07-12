@@ -22,8 +22,8 @@ data class CreatePartyRequest(
     val postUuid: UUID
         get() = UUID.fromString(postUuidString)
 
-    val planUuid: UUID
-        get() = UUID.fromString(planUuidString)
+    val planUuid: UUID?
+        get() = planUuidString?.let { UUID.fromString(it) }
 
     companion object {
         fun from(post: Post): CreatePartyRequest {

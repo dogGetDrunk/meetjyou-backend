@@ -14,7 +14,7 @@ data class CreatePartyResponse(
             uuid = party.uuid.toString(),
             name = party.name,
             location = party.location,
-            createdAt = party.createdAt!!
+            createdAt = party.createdAt
         )
     }
 }

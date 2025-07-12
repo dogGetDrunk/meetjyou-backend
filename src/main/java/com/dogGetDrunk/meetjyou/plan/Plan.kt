@@ -24,7 +24,7 @@ class Plan(
     var memo: String? = null,
 
     @ManyToOne
-    var user: User
+    var owner: User
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

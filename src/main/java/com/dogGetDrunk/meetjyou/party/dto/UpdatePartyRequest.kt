@@ -4,20 +4,20 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.LocalDate
 
 data class UpdatePartyRequest(
-    val name: String? = null,
-    val location: String? = null,
-    val joined: Int? = null,
-    val capacity: Int? = null,
+    val name: String,
+    val location: String,
+    val joined: Int,
+    val capacity: Int,
 
     @field:JsonProperty("itin_start")
-    val itinStart: LocalDate? = null,
+    val itinStart: LocalDate,
 
     @field:JsonProperty("itin_finish")
-    val itinFinish: LocalDate? = null,
+    val itinFinish: LocalDate,
 
     @field:JsonProperty("img_url")
-    val imgUrl: String? = null,
+    val imgUrl: String,
 
     @field:JsonProperty("thumb_img_url")
-    val thumbImgUrl: String? = null
+    val thumbImgUrl: String,
 )
