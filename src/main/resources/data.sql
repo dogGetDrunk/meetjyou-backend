@@ -340,3 +340,18 @@ VALUES ('LEADER', 1, 1),
        ('LEADER', 10, 10),
        ('MEMBER', 10, 1),
        ('MEMBER', 10, 2);
+
+-- chat
+INSERT INTO chat_room (room_id, uuid)
+VALUES (1, 'd29a07aa-9c30-4a1a-865b-7ff36e6f4c6b'),
+       (2, 'a3ec98cf-5a9e-4724-94bb-d312ff73bcd1');
+
+INSERT INTO chat_message (uuid, room_id, sender_id, body, created_at)
+VALUES ('1c824c2e-f558-4065-b7b6-4a2d73b9f2cd', 1, 1, '안녕하세요! 파티 1입니다.', NOW()),
+       ('95b3584e-3c42-4a99-9b44-f4a0bc58e24c', 1, 2, '반갑습니다! 잘 부탁드려요.', NOW()),
+       ('2a0f37d3-4b2a-42d4-bc30-1b6cfddf56f4', 2, 3, '파티 2 채팅 시작합니다.', NOW());
+
+INSERT INTO chat_participant (user_id, room_id, last_read_at)
+VALUES (1, 1, '2025-07-08 00:00:00'),
+       (2, 1, '2000-01-01 00:00:00'),
+       (3, 2, '2025-07-08 00:00:00');
