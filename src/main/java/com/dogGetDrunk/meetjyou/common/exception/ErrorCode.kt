@@ -37,4 +37,7 @@ enum class ErrorCode(
 
     // Image
     IMAGE_UPLOAD_FAILED("Image upload failed"),
+
+    // ChatRoom
+    CHAT_ROOM_NOT_FOUND("Chat room not found"),
 }

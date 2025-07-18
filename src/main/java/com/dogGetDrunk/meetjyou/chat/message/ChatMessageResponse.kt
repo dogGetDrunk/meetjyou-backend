@@ -9,5 +9,17 @@ data class ChatMessageResponse(
     val senderNickname: String,
     val body: String,
     val createdAt: LocalDateTime,
-    val isMine: Boolean
-)
+) {
+    companion object {
+        fun of(chatMessage: ChatMessage): ChatMessageResponse {
+            return ChatMessageResponse(
+                uuid = chatMessage.uuid.toString(),
+                roomUuid = chatMessage.room.uuid.toString(),
+                senderUuid = chatMessage.sender.uuid.toString(),
+                senderNickname = chatMessage.sender.nickname,
+                body = chatMessage.body,
+                createdAt = chatMessage.createdAt,
+            )
+        }
+    }
+}

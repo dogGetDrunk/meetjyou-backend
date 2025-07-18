@@ -11,6 +11,8 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.JdbcTypeCode
+import java.sql.Types
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -21,6 +23,7 @@ class ChatMessage(
     val id: Long = 0,
 
     @Column(nullable = false, unique = true)
+    @JdbcTypeCode(Types.VARCHAR)
     val uuid: UUID = UUID.randomUUID(),
 
     @ManyToOne(fetch = FetchType.LAZY)
