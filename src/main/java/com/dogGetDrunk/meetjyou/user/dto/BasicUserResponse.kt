@@ -1,9 +1,10 @@
 package com.dogGetDrunk.meetjyou.user.dto
 
 import com.dogGetDrunk.meetjyou.user.AuthProvider
+import java.util.UUID
 
 data class BasicUserResponse(
-    val uuid: String,
+    val uuid: UUID,
     val nickname: String,
     val bio: String?,
     val gender: String,

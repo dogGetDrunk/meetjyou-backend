@@ -52,7 +52,7 @@ class UserService(
         val accessToken = jwtManager.generateAccessToken(createdUser.uuid)
         val refreshToken = jwtManager.generateRefreshToken(createdUser.uuid)
 
-        return TokenResponse(createdUser.uuid.toString(), accessToken, refreshToken)
+        return TokenResponse(createdUser.uuid, accessToken, refreshToken)
     }
 
     fun login(request: LoginRequest): TokenResponse {
@@ -64,7 +64,7 @@ class UserService(
         val accessToken = jwtManager.generateAccessToken(request.uuid)
         val refreshToken = jwtManager.generateRefreshToken(request.uuid)
 
-        return TokenResponse(request.uuid.toString(), accessToken, refreshToken)
+        return TokenResponse(request.uuid, accessToken, refreshToken)
     }
 
     fun isDuplicateNickname(nickname: String): Boolean {
@@ -77,7 +77,7 @@ class UserService(
         val newAccessToken = jwtManager.generateAccessToken(uuid)
         val newRefreshToken = jwtManager.generateRefreshToken(uuid)
 
-        return TokenResponse(uuid.toString(), newAccessToken, newRefreshToken)
+        return TokenResponse(uuid, newAccessToken, newRefreshToken)
     }
 
     @Transactional
@@ -121,7 +121,7 @@ class UserService(
             ?: throw UserNotFoundException(uuid)
 
         return BasicUserResponse(
-            uuid = user.uuid.toString(),
+            uuid = user.uuid,
             nickname = user.nickname,
             bio = user.bio,
             gender = getPreferenceName(user.id, 0),
@@ -138,7 +138,7 @@ class UserService(
     fun getAllUsersProfile(): List<BasicUserResponse> {
         return userRepository.findAll().map { user ->
             BasicUserResponse(
-                uuid = user.uuid.toString(),
+                uuid = user.uuid,
                 nickname = user.nickname,
                 bio = user.bio,
                 gender = getPreferenceName(user.id, 0),
