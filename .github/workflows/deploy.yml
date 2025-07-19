@@ -50,7 +50,18 @@ jobs:
             DNS_URL=${{ secrets.DNS_URL }}
             OCI_BUCKET_NAME=${{ secrets.OCI_BUCKET_NAME }}
             OCI_NAMESPACE=${{ secrets.OCI_NAMESPACE }}
+            COMPOSE_PROJECT_NAME=meetjyou
             EOF
+
+      - name: 기존 컨테이너 정리
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ORACLE_CLOUD_HOST }}
+          username: ${{ secrets.ORACLE_CLOUD_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/meetjyou
+            docker-compose down || true
 
       - name: SSH를 통한 오라클 클라우드 인스턴스 배포
         uses: appleboy/ssh-action@master
