@@ -5,15 +5,16 @@ import com.dogGetDrunk.meetjyou.preference.CompPreference
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.UUID
 
 data class UpdatePostResponse(
-    val uuid: String,
+    val uuid: UUID,
     val title: String,
     val content: String,
     val createdAt: LocalDateTime,
     val lastEditedAt: LocalDateTime,
     val postStatus: Int,
-    val authorUuid: String,
+    val authorUuid: UUID,
     val isInstant: Boolean,
     val itinStart: LocalDate,
     val itinFinish: LocalDate,
@@ -26,25 +27,25 @@ data class UpdatePostResponse(
     val compTravelStyles: List<String>,
     val compDiet: List<String>,
     val compEtc: List<String>,
-    val planUuid: String?
+    val planUuid: UUID?
 ) {
     companion object {
         fun of(post: Post, compPreferences: List<CompPreference>): UpdatePostResponse {
             return UpdatePostResponse(
-                uuid = post.uuid.toString(),
+                uuid = post.uuid,
                 title = post.title,
                 content = post.content,
                 createdAt = post.createdAt,
                 lastEditedAt = post.lastEditedAt,
                 postStatus = post.postStatus,
-                authorUuid = post.author.uuid.toString(),
+                authorUuid = post.author.uuid,
                 isInstant = post.isInstant,
                 itinStart = post.itinStart,
                 itinFinish = post.itinFinish,
                 location = post.location,
                 capacity = post.capacity,
                 joined = post.joined,
-                planUuid = post.plan?.uuid?.toString(),
+                planUuid = post.plan?.uuid,
                 compGender = compPreferences.find { it.preference.type == PreferenceType.GENDER }?.preference?.name.orEmpty(),
                 compAge = compPreferences.find { it.preference.type == PreferenceType.AGE }?.preference?.name.orEmpty(),
                 compPersonalities = compPreferences.filter { it.preference.type == PreferenceType.PERSONALITY }.map { it.preference.name },

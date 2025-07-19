@@ -5,7 +5,6 @@ import com.dogGetDrunk.meetjyou.preference.Diet
 import com.dogGetDrunk.meetjyou.preference.Etc
 import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.preference.Personality
-import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.LocalDate
 import java.util.UUID
 
@@ -24,12 +23,6 @@ data class UpdatePostRequest(
     val compTravelStyles: List<Personality>,
     val compDiet: List<Diet>,
     val compEtc: List<Etc>,
-    @field:JsonProperty("author_uuid") private val authorUuidString: String,
-    @field:JsonProperty("plan_uuid") private val planUuidString: String?,
-) {
-    val authorUuid: UUID
-        get() = UUID.fromString(authorUuidString)
-
-    val planUuid: UUID?
-        get() = planUuidString?.let { UUID.fromString(it) }
-}
+    val authorUuid: UUID,
+    val planUuid: UUID?,
+)

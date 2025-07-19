@@ -149,7 +149,7 @@ class PostService(
             CreatePostRequest(
                 title = request.title,
                 content = request.content,
-                authorUuidString = request.authorUuid.toString(),
+                authorUuid = request.authorUuid,
                 isInstant = request.isInstant,
                 itinStart = request.itinStart,
                 itinFinish = request.itinFinish,
@@ -162,7 +162,7 @@ class PostService(
                 compTravelStyles = request.compTravelStyles,
                 compDiet = request.compDiet,
                 compEtc = request.compEtc,
-                planUuidString = request.planUuid?.toString(),
+                planUuid = request.planUuid,
             )
         )
     }
