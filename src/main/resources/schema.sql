@@ -2,7 +2,9 @@ SET foreign_key_checks = 0;
 DROP TABLE IF EXISTS user;
 DROP TABLE IF EXISTS post;
 DROP TABLE IF EXISTS party;
+DROP TABLE IF EXISTS chat_room;
 DROP TABLE IF EXISTS chat_message;
+DROP TABLE IF EXISTS chat_participant;
 DROP TABLE IF EXISTS plan;
 DROP TABLE IF EXISTS marker;
 DROP TABLE IF EXISTS notification;
@@ -71,13 +73,30 @@ CREATE TABLE party
     plan_id        INT         NOT NULL
 );
 
+CREATE TABLE chat_room
+(
+    room_id INT PRIMARY KEY,
+    uuid    CHAR(36) NOT NULL UNIQUE
+);
+
 CREATE TABLE chat_message
 (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    uuid       CHAR(36)      NOT NULL UNIQUE,
+    room_id    INT           NOT NULL,
+    sender_id  INT           NOT NULL,
     body       VARCHAR(1000) NOT NULL,
-    created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    user_id    INT           NOT NULL,
-    plan_id    INT           NOT NULL
+    created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE chat_participant
+(
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id      INT       NOT NULL,
+    room_id      INT       NOT NULL,
+    last_read_at TIMESTAMP NOT NULL DEFAULT '2000-01-01 00:00:00',
+
+    UNIQUE (user_id, room_id)
 );
 
 CREATE TABLE plan
@@ -187,10 +206,16 @@ ALTER TABLE post
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 ALTER TABLE party
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
+ALTER TABLE chat_room
+    ADD FOREIGN KEY (room_id) REFERENCES party (id);
 ALTER TABLE chat_message
+    ADD FOREIGN KEY (room_id) REFERENCES chat_room (room_id);
+ALTER TABLE chat_message
+    ADD FOREIGN KEY (sender_id) REFERENCES user (id);
+ALTER TABLE chat_participant
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
-ALTER TABLE chat_message
-    ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
+ALTER TABLE chat_participant
+    ADD FOREIGN KEY (room_id) REFERENCES chat_room (room_id);
 ALTER TABLE plan
     ADD FOREIGN KEY (owner) REFERENCES user (id);
 ALTER TABLE marker
