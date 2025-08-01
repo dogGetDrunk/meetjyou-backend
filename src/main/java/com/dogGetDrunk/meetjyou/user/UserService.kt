@@ -2,12 +2,13 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.jwt.JwtManager
+import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
+import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
@@ -21,7 +22,7 @@ class UserService(
     private val userRepository: UserRepository,
     private val preferenceRepository: PreferenceRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
-    private val jwtManager: JwtManager,
+    private val jwtProvider: JwtProvider,
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
@@ -49,10 +50,10 @@ class UserService(
         saveUserPreference(createdUser, request.diet.name)
         request.etc.forEach { saveUserPreference(createdUser, it.name) }
 
-        val accessToken = jwtManager.generateAccessToken(createdUser.uuid)
-        val refreshToken = jwtManager.generateRefreshToken(createdUser.uuid)
+        val accessToken = jwtProvider.generateAccessToken(createdUser.uuid, createdUser.email)
+        val refreshToken = jwtProvider.generateRefreshToken(createdUser.uuid, createdUser.email)
 
-        return TokenResponse(createdUser.uuid, accessToken, refreshToken)
+        return TokenResponse(createdUser.uuid, request.email, accessToken, refreshToken)
     }
 
     fun login(request: LoginRequest): TokenResponse {
@@ -61,23 +62,23 @@ class UserService(
             throw UserNotFoundException(request.uuid)
         }
 
-        val accessToken = jwtManager.generateAccessToken(request.uuid)
-        val refreshToken = jwtManager.generateRefreshToken(request.uuid)
+        val accessToken = jwtProvider.generateAccessToken(request.uuid, request.email)
+        val refreshToken = jwtProvider.generateRefreshToken(request.uuid, request.email)
 
-        return TokenResponse(request.uuid, accessToken, refreshToken)
+        return TokenResponse(request.uuid, request.email, accessToken, refreshToken)
     }
 
     fun isDuplicateNickname(nickname: String): Boolean {
         return userRepository.existsByNickname(nickname)
     }
 
-    fun refreshToken(refreshToken: String, uuid: UUID): TokenResponse {
-        jwtManager.validateToken(refreshToken, uuid)
+    fun refreshToken(refreshToken: String, request: RefreshTokenRequest): TokenResponse {
+        jwtProvider.validateToken(refreshToken)
 
-        val newAccessToken = jwtManager.generateAccessToken(uuid)
-        val newRefreshToken = jwtManager.generateRefreshToken(uuid)
+        val newAccessToken = jwtProvider.generateAccessToken(request.uuid, request.email)
+        val newRefreshToken = jwtProvider.generateRefreshToken(request.uuid, request.email)
 
-        return TokenResponse(uuid, newAccessToken, newRefreshToken)
+        return TokenResponse(request.uuid, request.email, newAccessToken, newRefreshToken)
     }
 
     @Transactional
@@ -86,7 +87,7 @@ class UserService(
             throw UserNotFoundException(uuid)
         }
 
-        jwtManager.validateToken(accessToken, uuid)
+        jwtProvider.validateToken(accessToken)
 
         log.info("유저 탈퇴 시작 (user uuid: {})", uuid.toString())
         userRepository.deleteByUuid(uuid)
