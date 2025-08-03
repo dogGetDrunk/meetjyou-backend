@@ -43,7 +43,7 @@ jwt:
   issuer: ${JWT_ISSUER}
   access-expiration: ${JWT_AT_EXP} # 30분
   refresh-expiration: ${JWT_RT_EXP} # 30일
-  secret-key: ${JWT_SECRET_KEY} # 512 bits for HS512
+  secret-key: ${JWT_SECRET_KEY} # 256 bits for HS256
 
 dns:
   url: ${DNS_URL}

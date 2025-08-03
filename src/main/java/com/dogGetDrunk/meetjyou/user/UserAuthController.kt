@@ -133,7 +133,7 @@ class UserAuthController(
         @RequestBody requestDto: RefreshTokenRequest,
     ): ResponseEntity<TokenResponse> {
         val refreshToken = authorizationHeader.substring("Bearer ".length)
-        val tokenResponseDto = userService.refreshToken(refreshToken, requestDto.uuid)
+        val tokenResponseDto = userService.refreshToken(refreshToken, requestDto)
 
         return ResponseEntity.ok(tokenResponseDto)
     }

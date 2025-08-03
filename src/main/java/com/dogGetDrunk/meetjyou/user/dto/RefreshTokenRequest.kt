@@ -3,5 +3,6 @@ package com.dogGetDrunk.meetjyou.user.dto
 import java.util.UUID
 
 data class RefreshTokenRequest(
-    val uuid: UUID
+    val uuid: UUID,
+    val email: String,
 )

@@ -2,7 +2,7 @@ package com.dogGetDrunk.meetjyou.plan
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.jwt.UserContext
+import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
@@ -19,13 +19,14 @@ import java.util.UUID
 @Service
 class PlanService(
     private val planRepository: PlanRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
 ) {
     private val log = LoggerFactory.getLogger(PlanService::class.java)
 
     @Transactional
     fun createPlan(request: CreatePlanRequest): CreatePlanResponse {
-        val user = UserContext.getUser()
+        val user = userRepository.findByUuid(SecurityUtil.getCurrentUserUuid())
+            ?: throw UserNotFoundException(SecurityUtil.getCurrentUserUuid())
 
         val plan = Plan(
             itinStart = request.itinStart,

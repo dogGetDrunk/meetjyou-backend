@@ -1,12 +1,14 @@
 package com.dogGetDrunk.meetjyou.chat
 
+import com.dogGetDrunk.meetjyou.auth.ChatSender
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessage
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRequest
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageResponse
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
-import com.dogGetDrunk.meetjyou.user.User
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.user.UserRepository
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 
@@ -15,15 +17,19 @@ class ChatService(
     private val chatMessageRepository: ChatMessageRepository,
     private val chatRoomRepository: ChatRoomRepository,
     private val messagingTemplate: SimpMessagingTemplate,
+    private val userRepository: UserRepository,
 ) {
 
-    fun handleChatMessage(request: ChatMessageRequest, sender: User) {
+    fun handleChatMessage(request: ChatMessageRequest, sender: ChatSender) {
         val room = chatRoomRepository.findByUuid(request.roomUuid)
             ?: throw ChatRoomNotFoundException(request.roomUuid.toString())
 
+        val user = userRepository.findByUuid(sender.uuid)
+            ?: throw UserNotFoundException(sender.uuid)
+
         val message = ChatMessage(
             room = room,
-            sender = sender,
+            sender = user,
             body = request.message,
         )
 
