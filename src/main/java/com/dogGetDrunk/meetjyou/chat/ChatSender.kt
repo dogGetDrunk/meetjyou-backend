@@ -1,4 +1,4 @@
-package com.dogGetDrunk.meetjyou.auth
+package com.dogGetDrunk.meetjyou.chat
 
 import java.util.UUID
 

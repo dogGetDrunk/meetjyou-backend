@@ -1,6 +1,5 @@
 package com.dogGetDrunk.meetjyou.chat
 
-import com.dogGetDrunk.meetjyou.auth.ChatSender
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessage
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRequest
