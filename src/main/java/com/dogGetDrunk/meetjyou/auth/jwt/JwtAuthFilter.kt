@@ -1,10 +1,10 @@
 package com.dogGetDrunk.meetjyou.auth.jwt
 
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
-import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
@@ -17,11 +17,28 @@ class JwtAuthFilter(
     private val jwtProvider: JwtProvider,
 ) : OncePerRequestFilter() {
 
+    val log = LoggerFactory.getLogger(JwtAuthFilter::class.java)
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
-        filterChain: FilterChain
+        filterChain: FilterChain,
     ) {
+        /*
+        스웨거 문서 경로는 JWT 인증 필터를 우회하도록 설정합니다.
+         */
+        val path = request.requestURI
+
+        log.info("✅ JwtAuthFilter invoked for $path")
+        if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
+            log.info("⏭️ Skipping JWT filter for Swagger path: $path")
+            filterChain.doFilter(request, response)
+            return
+        }
+        /*
+        우회 종료
+         */
+
         val token = jwtProvider.extractToken(request)
 
         if (token != null && jwtProvider.validateToken(token)) {
