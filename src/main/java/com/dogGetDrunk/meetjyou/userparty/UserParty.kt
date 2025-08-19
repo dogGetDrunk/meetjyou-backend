@@ -17,22 +17,23 @@ import java.time.LocalDateTime
 
 @Entity
 class UserParty(
-    @Enumerated(EnumType.STRING)
-    @Column(length = 10, nullable = false)
-    val role: PartyRole,
-
-    @CreationTimestamp
-    val joinedAt: LocalDateTime = LocalDateTime.now(),
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "party_id", nullable = false)
     val party: Party,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    val user: User
+    val user: User,
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10, nullable = false)
+    val role: PartyRole,
 ) {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0
+
+    @CreationTimestamp
+    val joinedAt: LocalDateTime = LocalDateTime.now()
 }

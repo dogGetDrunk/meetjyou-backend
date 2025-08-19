@@ -10,11 +10,21 @@
 <h2>🔧 만나쥬 채팅 테스트 클라이언트</h2>
 
 <div>
-    <p><strong>채팅방 UUID:</strong> <code>1c824c2e-f558-4065-b7b6-4a2d73b9f2cd</code></p>
-    <p><strong>유저 UUID:</strong> <code>6faff71a-52ac-41e7-aa48-64a021f829fa</code></p>
+    <label for="jwtInput"><strong>JWT</strong></label><br>
+    <input type="text" id="jwtInput" placeholder="Bearer eyJhbGciOi..." style="width: 500px;">
 </div>
 
-<div>
+<div style="margin-top: 10px;">
+    <label for="userUuidInput"><strong>유저 UUID</strong></label><br>
+    <input type="text" id="userUuidInput" placeholder="6faff71a-52ac-41e7-aa48-64a021f829fa" style="width: 500px;">
+</div>
+
+<div style="margin-top: 10px;">
+    <label for="roomUuidInput"><strong>채팅방 UUID</strong></label><br>
+    <input type="text" id="roomUuidInput" placeholder="1c824c2e-f558-4065-b7b6-4a2d73b9f2cd" style="width: 500px;">
+</div>
+
+<div style="margin-top: 10px;">
     <button onclick="connect()">Connect</button>
     <button onclick="disconnect()">Disconnect</button>
 </div>
@@ -34,11 +44,12 @@
 
 <script>
     let stompClient = null;
-    const roomUuid = "d29a07aa-9c30-4a1a-865b-7ff36e6f4c6b";
 
     function connect() {
         const socket = new SockJS("http://localhost:8080/ws-chat");
         stompClient = Stomp.over(socket);
+        const roomUuid = document.getElementById("roomUuidInput").value.trim();
+
         stompClient.connect({}, function (frame) {
             console.log("🔌 연결됨: " + frame);
             stompClient.subscribe("/sub/chat/room/" + roomUuid, function (message) {
@@ -63,12 +74,24 @@
     }
 
     function sendMessage() {
-        const message = document.getElementById("messageInput").value;
+        const jwt = document.getElementById("jwtInput").value.trim();
+        const roomUuid = document.getElementById("roomUuidInput").value.trim();
+        const message = document.getElementById("messageInput").value.trim();
+
+        if (!jwt || !roomUuid || !message) {
+            alert("JWT, 채팅방 UUID, 메시지를 모두 입력하세요.");
+            return;
+        }
+
         const payload = {
-            room_uuid: roomUuid,
+            roomUuid: roomUuid,
             message: message
         };
-        stompClient.send("/pub/chat/message", {}, JSON.stringify(payload));
+
+        stompClient.send("/pub/chat/message", {
+            Authorization: jwt
+        }, JSON.stringify(payload));
+
         document.getElementById("messageInput").value = "";
     }
 </script>
