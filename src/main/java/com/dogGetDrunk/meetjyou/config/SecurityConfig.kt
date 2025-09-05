@@ -23,6 +23,7 @@ class SecurityConfig(
             .authorizeHttpRequests {
                 it
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").authenticated()
+                    .requestMatchers("/api/v1/push-tokens").authenticated()
                     .anyRequest().permitAll() // TODO: 이후 protected endpoint 설정
             }
             .addFilterBefore(

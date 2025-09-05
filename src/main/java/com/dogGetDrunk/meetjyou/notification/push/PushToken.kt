@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.notification.push
 
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.version.AppVersion
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -19,10 +20,12 @@ class PushToken(
     val token: String,
 
     @Enumerated(EnumType.STRING)
-    val platForm: PushPlatform,
+    val platform: PushPlatform,
 
     val deviceModel: String? = null,
-    var isActive: Boolean = true,
+
+    @Column(name = "is_active")
+    var active: Boolean = true,
 
     @ManyToOne(fetch = FetchType.LAZY)
     val user: User,
