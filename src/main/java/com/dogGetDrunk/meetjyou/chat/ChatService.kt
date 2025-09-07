@@ -8,9 +8,13 @@ import com.dogGetDrunk.meetjyou.chat.message.ChatMessageResponse
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.notification.push.PushNotificationSender
+import com.dogGetDrunk.meetjyou.notification.NotificationPayload
+import com.dogGetDrunk.meetjyou.notification.NotificationType
+import com.dogGetDrunk.meetjyou.notification.event.NotificationEvent
+import com.dogGetDrunk.meetjyou.notification.sender.PushNotificationSender
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 
@@ -23,6 +27,7 @@ class ChatService(
     private val userPartyRepository: UserPartyRepository,
     private val pushNotificationSender: PushNotificationSender,
     private val chatSessionTracker: ChatSessionTracker,
+    private val publisher: ApplicationEventPublisher,
 ) {
 
     fun handleChatMessage(request: ChatMessageRequest, sender: ChatSender) {
@@ -52,11 +57,17 @@ class ChatService(
             .filter { connectedUser -> !chatSessionTracker.isUserConnected(room.uuid, connectedUser.uuid) }
             .forEach { receiver ->
                 if (receiver.notified) {
-                    pushNotificationSender.sendPushNotification(
-                        receiver.uuid,
-                        "${user.nickname} 님이 메시지를 보냈습니다.",
-                        request.message
+                    val payload = NotificationPayload(
+                        type = NotificationType.CHAT_MESSAGE,
+                        titleArgs = mapOf("senderNickname" to user.nickname),
+                        bodyArgs = mapOf("message" to request.message),
+                        data = mapOf("type" to "CHAT_MESSAGE", "roomUuid" to room.uuid.toString()),
+                        dedupKey = "chat:${room.uuid}${receiver.uuid}",
                     )
+                    publisher.publishEvent(NotificationEvent(
+                        userUuid = receiver.uuid,
+                        payload = payload
+                    ))
                 }
             }
     }

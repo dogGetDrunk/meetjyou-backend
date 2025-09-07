@@ -25,7 +25,7 @@ class FcmNotificationSender : PushNotificationSender {
 
         return try {
             val messageId = FirebaseMessaging.getInstance()
-                .send(message) // Admin SDK 경로  [oai_citation:6‡Firebase](https://firebase.google.com/docs/cloud-messaging/send-message?utm_source=chatgpt.com)
+                .send(message)
             log.debug("FCM sent ok: token={}, messageId={}", token, messageId)
             SendResult(ok = true, messageId = messageId)
         } catch (e: FirebaseMessagingException) {
