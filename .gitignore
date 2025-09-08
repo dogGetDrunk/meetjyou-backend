@@ -207,3 +207,8 @@ gradle-app.setting
 src/main/resources/application-db.yml
 src/main/resources/application-secrets.yml
 /.oci/
+
+
+### Secrets ###
+# Firebase
+src/main/resources/firebase/meetjyou-firebase-adminsdk.json

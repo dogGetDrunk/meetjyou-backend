@@ -15,6 +15,8 @@ DROP TABLE IF EXISTS comp_preference;
 DROP TABLE IF EXISTS party_application;
 DROP TABLE IF EXISTS user_party;
 DROP TABLE IF EXISTS app_version;
+DROP TABLE IF EXISTS push_token;
+DROP TABLE IF EXISTS notification_outbox;
 SET foreign_key_checks = 1;
 
 CREATE TABLE user
@@ -197,6 +199,38 @@ CREATE TABLE app_version
     released_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 사용자-디바이스 FCM 토큰
+CREATE TABLE push_token
+(
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    uuid            CHAR(36)     NOT NULL UNIQUE,
+    token           VARCHAR(255) NOT NULL UNIQUE,
+    platform        VARCHAR(32)  NOT NULL,
+    device_model    VARCHAR(64),
+    is_active       BOOLEAN      NOT NULL DEFAULT TRUE, -- 토큰 유효 여부
+    last_updated_at TIMESTAMP    NULL,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_id         INT          NOT NULL,
+    app_version_id  INT          NOT NULL
+);
+
+-- 알림 아웃박스
+CREATE TABLE notification_outbox
+(
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    uuid         CHAR(36)     NOT NULL UNIQUE,                    -- 만나쥬 규칙: Long + UUID
+    type         VARCHAR(64)  NOT NULL,                           -- CHAT_MESSAGE, PARTY_JOIN_REQUEST, ...
+    title        TEXT         NULL,
+    body         TEXT         NULL,
+    data_json    JSON         NOT NULL,                           -- 딥링크 등 key-value 데이터
+    dedup_key    VARCHAR(100) NULL,                               -- 멱등 처리용
+    status       VARCHAR(32)  NOT NULL DEFAULT 'PENDING',         -- PENDING, SENDING, SENT, FAILED, DEAD
+    attempts     INT          NOT NULL DEFAULT 0,
+    available_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 백오프 후 재시도 시각
+    created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_id      INT          NOT NULL
+);
+
 -- Foreign key 설정은 동일하게 유지
 ALTER TABLE post
     ADD FOREIGN KEY (author_id) REFERENCES user (id);
@@ -238,3 +272,12 @@ ALTER TABLE user_party
     ADD FOREIGN KEY (party_id) REFERENCES party (id);
 ALTER TABLE user_party
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
+ALTER TABLE push_token
+    ADD FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE;
+ALTER TABLE push_token
+    ADD FOREIGN KEY (app_version_id) REFERENCES app_version (id) ON DELETE CASCADE;
+ALTER TABLE notification_outbox
+    ADD FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE;
+
+
+-- TODO: TINYINT -> BOOLEAN으로 변경할 것

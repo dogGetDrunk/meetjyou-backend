@@ -61,6 +61,7 @@ dependencies {
     implementation("net.coobird:thumbnailator:0.4.20")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
 
+    implementation("com.google.firebase:firebase-admin:9.5.0")
 
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")

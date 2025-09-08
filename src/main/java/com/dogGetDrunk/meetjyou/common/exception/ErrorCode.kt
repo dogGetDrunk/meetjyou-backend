@@ -20,6 +20,11 @@ enum class ErrorCode(
     MISSING_AUTHORIZATION_HEADER("This authorization header is invalid"),
     INVALID_ACCESS_TOKEN("The access token is invalid"),
 
+    // Auth
+    AUTHENTICATION_FAILED("Authentication failed"),
+    UNAUTHORIZED("Unauthorized"),
+    UNAUTHENTICATED("Unauthenticated"),
+
     // Version
     VERSION_NOT_FOUND("Version not found"),
 
@@ -40,4 +45,7 @@ enum class ErrorCode(
 
     // ChatRoom
     CHAT_ROOM_NOT_FOUND("Chat room not found"),
+
+    // Push tokne
+    PUSH_TOKEN_NOT_FOUND("Push token not found"),
 }
