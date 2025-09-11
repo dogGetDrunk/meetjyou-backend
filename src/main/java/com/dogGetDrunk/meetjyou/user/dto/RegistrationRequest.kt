@@ -21,3 +21,7 @@ data class RegistrationRequest(
     val etc: List<Etc>,
     val authProvider: AuthProvider
 )
+
+fun String?.normalizeOrNull(): String? =
+    this?.trim()
+        ?.takeIf { it.isNotEmpty() }

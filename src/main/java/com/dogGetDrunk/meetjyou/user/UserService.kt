@@ -1,8 +1,8 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
@@ -12,6 +12,7 @@ import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
+import com.dogGetDrunk.meetjyou.user.dto.normalizeOrNull
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -36,10 +37,11 @@ class UserService(
             User(
                 email = request.email,
                 nickname = request.nickname,
-                bio = request.bio,
                 birthDate = request.birthDate,
                 authProvider = request.authProvider,
-            )
+            ).apply {
+                bio = request.bio.normalizeOrNull()
+            }
         )
 
         saveUserPreference(createdUser, request.gender.name)
@@ -97,15 +99,14 @@ class UserService(
     @Transactional
     fun updateUser(uuid: UUID, requestDto: UserUpdateRequest): BasicUserResponse {
         val user = userRepository.findByUuid(uuid)
+            ?.also {
+                it.nickname = requestDto.nickname
+                it.bio = requestDto.bio.normalizeOrNull()
+            }
             ?: throw UserNotFoundException(uuid)
-        user.apply {
-            nickname = requestDto.nickname
-            bio = requestDto.bio
-        }
 
         updateUserPreference(user, requestDto.gender.name, 0)
         updateUserPreference(user, requestDto.age.name, 1)
-
         updateUserPreferences(user, requestDto.personalities.map { it.name }, 2)
         updateUserPreferences(user, requestDto.travelStyles.map { it.name }, 3)
         updateUserPreference(user, requestDto.diet.name, 4)
