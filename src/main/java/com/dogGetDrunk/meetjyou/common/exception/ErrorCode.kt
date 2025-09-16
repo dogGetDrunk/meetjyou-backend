@@ -10,8 +10,10 @@ enum class ErrorCode(
 
     // User
     DUPLICATE_EMAIL("Duplicate email"),
+    DUPLICATE_NICKNAME("Duplicate nickname"),
     EMAIL_NOT_FOUND("Email not found"),
     USER_NOT_FOUND("User not found"),
+    INVALID_NICKNAME("Invalid nickname"),
 
     // JWT
     TOKEN_COMMON("The token has an issue"),

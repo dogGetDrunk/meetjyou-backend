@@ -1,7 +1,7 @@
 package com.dogGetDrunk.meetjyou.common.exception
 
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
-import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.DuplicateException
+import com.dogGetDrunk.meetjyou.common.exception.business.DuplicateException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus

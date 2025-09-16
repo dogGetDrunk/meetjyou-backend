@@ -3,6 +3,8 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.InvalidNicknameException
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
@@ -32,6 +34,8 @@ class UserService(
         if (userRepository.existsByEmail(request.email)) {
             throw UserAlreadyExistsException(request.email)
         }
+
+        validateNickname(request.nickname)
 
         val createdUser = userRepository.save(
             User(
@@ -70,9 +74,6 @@ class UserService(
         return TokenResponse(request.uuid, request.email, accessToken, refreshToken)
     }
 
-    fun isDuplicateNickname(nickname: String): Boolean {
-        return userRepository.existsByNickname(nickname)
-    }
 
     fun refreshToken(refreshToken: String, request: RefreshTokenRequest): TokenResponse {
         jwtProvider.validateToken(refreshToken)
@@ -151,6 +152,28 @@ class UserService(
                 etc = getPreferenceNames(user.id, 5),
                 authProvider = user.authProvider,
             )
+        }
+    }
+
+    fun isDuplicateNickname(nickname: String): Boolean {
+        return userRepository.existsByNickname(nickname)
+    }
+
+    private fun validateNickname(nickname: String): Boolean {
+        when {
+            isDuplicateNickname(nickname) -> {
+                throw DuplicateNicknameException(nickname)
+            }
+            nickname.length < 2 || nickname.length > 8 -> {
+                throw InvalidNicknameException(nickname, "닉네임은 2자 이상 8자 이하여야 합니다.")
+            }
+            nickname.any { it.isWhitespace() } -> {
+                throw InvalidNicknameException(nickname, "닉네임에 공백이 포함될 수 없습니다.")
+            }
+            nickname.any { !it.isLetterOrDigit() } -> {
+                throw InvalidNicknameException(nickname, "닉네임에 특수문자가 포함될 수 없습니다.")
+            }
+            else -> return true
         }
     }
 
