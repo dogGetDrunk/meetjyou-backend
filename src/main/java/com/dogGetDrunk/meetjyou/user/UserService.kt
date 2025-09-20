@@ -4,9 +4,14 @@ import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.InvalidEmailFormatException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.InvalidNicknameException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.TooLongBioException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.TooManyPersonalitiesException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.TooManyTravelStylesException
+import com.dogGetDrunk.meetjyou.preference.Personality
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
+import com.dogGetDrunk.meetjyou.preference.TravelStyle
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
@@ -38,6 +43,9 @@ class UserService(
 
         validateNickname(request.nickname)
         validateBio(request.bio)
+        validateEmail(request.email)
+        validatePersonalityCount(request.personalities)
+        validateTravelStyleCount(request.travelStyles)
 
         val createdUser = userRepository.save(
             User(
@@ -184,6 +192,29 @@ class UserService(
             if (it.length > 30) {
                 throw TooLongBioException(bio, "한 줄 소개는 30자 이하여야 합니다.")
             }
+        }
+        return true
+    }
+
+    private fun validateEmail(email: String): Boolean {
+        val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
+        return if (email.matches(emailRegex)) {
+            true
+        } else {
+            throw InvalidEmailFormatException(email, "이메일 형식이 올바르지 않습니다.")
+        }
+    }
+
+    private fun validatePersonalityCount(personalities: List<Personality>): Boolean {
+        if (personalities.size > 3) {
+            throw TooManyPersonalitiesException(personalities, "성격은 최대 3개까지 선택할 수 있습니다.")
+        }
+        return true
+    }
+
+    private fun validateTravelStyleCount(travelStyles: List<TravelStyle>): Boolean {
+        if (travelStyles.size > 3) {
+            throw TooManyTravelStylesException(travelStyles, "여행 스타일은 최대 3개까지 선택할 수 있습니다.")
         }
         return true
     }

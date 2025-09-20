@@ -14,7 +14,10 @@ enum class ErrorCode(
     EMAIL_NOT_FOUND("Email not found"),
     USER_NOT_FOUND("User not found"),
     INVALID_NICKNAME("Invalid nickname"),
+    INVALID_EMAIL_FORMAT("Invalid email format"),
     TOO_LONG_BIO("Bio is too long"),
+    TOO_MANY_PERSONALITIES("Too many personalities"),
+    TOO_MANY_TRAVEL_STYLES("Too many travel styles"),
 
     // JWT
     TOKEN_COMMON("The token has an issue"),
