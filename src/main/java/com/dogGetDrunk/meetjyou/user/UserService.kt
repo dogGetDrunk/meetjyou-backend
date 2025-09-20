@@ -63,7 +63,7 @@ class UserService(
 
         request.personalities.forEach { saveUserPreference(createdUser, it.name) }
         request.travelStyles.forEach { saveUserPreference(createdUser, it.name) }
-        saveUserPreference(createdUser, request.diet.name)
+        request.diet.forEach { saveUserPreference(createdUser, it.name) }
         request.etc.forEach { saveUserPreference(createdUser, it.name) }
 
         val accessToken = jwtProvider.generateAccessToken(createdUser.uuid, createdUser.email)

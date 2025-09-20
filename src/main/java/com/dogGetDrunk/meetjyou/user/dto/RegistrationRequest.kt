@@ -18,7 +18,7 @@ data class RegistrationRequest(
     val age: Age,
     val personalities: List<Personality>,
     val travelStyles: List<TravelStyle>,
-    val diet: Diet,
+    val diet: List<Diet>,
     val etc: List<Etc>,
     val authProvider: AuthProvider
 )
