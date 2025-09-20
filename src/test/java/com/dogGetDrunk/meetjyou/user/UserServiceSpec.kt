@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.common.exception.business.user.InvalidNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.TooLongBioException
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
@@ -20,10 +21,10 @@ class UserServiceSpec : UserTestBase() {
 
     init {
         beforeTest {
-            userRepository = mockk(relaxed = false)
-            preferenceRepository = mockk(relaxed = false)
-            userPreferenceRepository = mockk(relaxed = false)
-            jwtProvider = mockk(relaxed = false)
+            userRepository = mockk(relaxed = true)
+            preferenceRepository = mockk(relaxed = true)
+            userPreferenceRepository = mockk(relaxed = true)
+            jwtProvider = mockk(relaxed = true)
             userService = UserService(
                 userRepository,
                 preferenceRepository,
@@ -33,19 +34,19 @@ class UserServiceSpec : UserTestBase() {
         }
 
         Given("회원 가입") {
+            val request = mockk<RegistrationRequest>(relaxed = true)
+            every { userRepository.existsByEmail(any()) } returns false
+            every { userRepository.existsByNickname(any()) } returns false
+
             When("유효하지 않은 닉네임으로 가입을 요청하면") {
                 listOf(
                     "특수문자@닉네임",
                     "공백 닉네임",
+                    "한",
                     "길이제한8자를초과하는닉네임",
                 ).forEach { invalidNickname ->
                     Then("InvalidNicknameException 예외를 던진다: $invalidNickname") {
-                        val request = mockk<RegistrationRequest>(relaxed = true) {
-                            every { nickname } returns invalidNickname
-                        }
-
-                        every { userRepository.existsByEmail(any()) } returns false
-                        every { userRepository.existsByNickname(any()) } returns false
+                        every { request.nickname } returns invalidNickname
 
                         shouldThrow<InvalidNicknameException> {
                             userService.createUser(request)
@@ -53,6 +54,21 @@ class UserServiceSpec : UserTestBase() {
 
                         verify(exactly = 0) { userRepository.save(any()) }
                     }
+                }
+            }
+
+            When("길이 제한을 초과하는 한 줄 소개로 가입을 요청하면") {
+                Then("TooLongBioException 예외를 던진다.") {
+                    val tooLongBio = "a".repeat(31) + " with spaces"
+
+                    every { request.bio } returns tooLongBio
+                    every { request.nickname } returns "valid"
+
+                    shouldThrow<TooLongBioException> {
+                        userService.createUser(request)
+                    }
+
+                    verify(exactly = 0) { userRepository.save(any()) }
                 }
             }
         }
