@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyE
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.InvalidNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.TooLongBioException
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
@@ -36,6 +37,7 @@ class UserService(
         }
 
         validateNickname(request.nickname)
+        validateBio(request.bio)
 
         val createdUser = userRepository.save(
             User(
@@ -175,6 +177,15 @@ class UserService(
             }
             else -> return true
         }
+    }
+
+    private fun validateBio(bio: String?): Boolean {
+        bio?.let {
+            if (it.length > 30) {
+                throw TooLongBioException(bio, "한 줄 소개는 30자 이하여야 합니다.")
+            }
+        }
+        return true
     }
 
     private fun saveUserPreference(user: User, preferenceName: String) {
