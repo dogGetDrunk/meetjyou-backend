@@ -3,15 +3,9 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
-import com.dogGetDrunk.meetjyou.common.exception.business.user.InvalidEmailFormatException
-import com.dogGetDrunk.meetjyou.common.exception.business.user.InvalidNicknameException
-import com.dogGetDrunk.meetjyou.common.exception.business.user.TooLongBioException
-import com.dogGetDrunk.meetjyou.common.exception.business.user.TooManyPersonalitiesException
-import com.dogGetDrunk.meetjyou.common.exception.business.user.TooManyTravelStylesException
-import com.dogGetDrunk.meetjyou.preference.Personality
+import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
-import com.dogGetDrunk.meetjyou.preference.TravelStyle
+import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
@@ -41,12 +35,6 @@ class UserService(
             throw UserAlreadyExistsException(request.email)
         }
 
-        validateNickname(request.nickname)
-        validateBio(request.bio)
-        validateEmail(request.email)
-        validatePersonalityCount(request.personalities)
-        validateTravelStyleCount(request.travelStyles)
-
         val createdUser = userRepository.save(
             User(
                 email = request.email,
@@ -73,7 +61,6 @@ class UserService(
     }
 
     fun login(request: LoginRequest): TokenResponse {
-        // TODO: Email 검증 추가
         if (!userRepository.existsByUuid(request.uuid)) {
             throw UserNotFoundException(request.uuid)
         }
@@ -108,24 +95,25 @@ class UserService(
     }
 
     @Transactional
-    fun updateUser(uuid: UUID, requestDto: UserUpdateRequest): BasicUserResponse {
-        val user = userRepository.findByUuid(uuid)
+    fun updateUser(request: UserUpdateRequest): BasicUserResponse {
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val user = userRepository.findByUuid(currentUserUuid)
             ?.also {
-                it.nickname = requestDto.nickname
-                it.bio = requestDto.bio.normalizeOrNull()
+                it.nickname = request.nickname
+                it.bio = request.bio.normalizeOrNull()
             }
-            ?: throw UserNotFoundException(uuid)
+            ?: throw UserNotFoundException(currentUserUuid)
 
-        updateUserPreference(user, requestDto.gender.name, 0)
-        updateUserPreference(user, requestDto.age.name, 1)
-        updateUserPreferences(user, requestDto.personalities.map { it.name }, 2)
-        updateUserPreferences(user, requestDto.travelStyles.map { it.name }, 3)
-        updateUserPreference(user, requestDto.diet.name, 4)
-        updateUserPreferences(user, requestDto.etc.map { it.name }, 5)
+        updateUserPreference(user, request.gender.name, PreferenceType.GENDER)
+        updateUserPreference(user, request.age.name, PreferenceType.AGE)
+        updateUserPreferences(user, request.personalities.map { it.name }, PreferenceType.PERSONALITY)
+        updateUserPreferences(user, request.travelStyles.map { it.name }, PreferenceType.TRAVEL_STYLE)
+        updateUserPreferences(user, request.diet.map { it.name }, PreferenceType.DIET)
+        updateUserPreferences(user, request.etc.map { it.name }, PreferenceType.ETC)
 
         userRepository.save(user)
         log.info("유저 정보 수정 완료: uuid {}", user.uuid)
-        return getUserProfile(uuid)
+        return getUserProfile(currentUserUuid)
     }
 
     @Transactional(readOnly = true)
@@ -137,12 +125,12 @@ class UserService(
             uuid = user.uuid,
             nickname = user.nickname,
             bio = user.bio,
-            gender = getPreferenceName(user.id, 0),
-            age = getPreferenceName(user.id, 1),
-            personalities = getPreferenceNames(user.id, 2),
-            travelStyles = getPreferenceNames(user.id, 3),
-            diet = getPreferenceName(user.id, 4),
-            etc = getPreferenceNames(user.id, 5),
+            gender = getPreferenceName(user.id, PreferenceType.GENDER),
+            age = getPreferenceName(user.id, PreferenceType.AGE),
+            personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
+            travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
+            diet = getPreferenceName(user.id, PreferenceType.DIET),
+            etc = getPreferenceNames(user.id, PreferenceType.ETC),
             authProvider = user.authProvider,
         )
     }
@@ -154,12 +142,12 @@ class UserService(
                 uuid = user.uuid,
                 nickname = user.nickname,
                 bio = user.bio,
-                gender = getPreferenceName(user.id, 0),
-                age = getPreferenceName(user.id, 1),
-                personalities = getPreferenceNames(user.id, 2),
-                travelStyles = getPreferenceNames(user.id, 3),
-                diet = getPreferenceName(user.id, 4),
-                etc = getPreferenceNames(user.id, 5),
+                gender = getPreferenceName(user.id, PreferenceType.GENDER),
+                age = getPreferenceName(user.id, PreferenceType.AGE),
+                personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
+                travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
+                diet = getPreferenceName(user.id, PreferenceType.DIET),
+                etc = getPreferenceNames(user.id, PreferenceType.ETC),
                 authProvider = user.authProvider,
             )
         }
@@ -169,63 +157,13 @@ class UserService(
         return userRepository.existsByNickname(nickname)
     }
 
-    private fun validateNickname(nickname: String): Boolean {
-        when {
-            isDuplicateNickname(nickname) -> {
-                throw DuplicateNicknameException(nickname)
-            }
-            nickname.length < 2 || nickname.length > 8 -> {
-                throw InvalidNicknameException(nickname, "닉네임은 2자 이상 8자 이하여야 합니다.")
-            }
-            nickname.any { it.isWhitespace() } -> {
-                throw InvalidNicknameException(nickname, "닉네임에 공백이 포함될 수 없습니다.")
-            }
-            nickname.any { !it.isLetterOrDigit() } -> {
-                throw InvalidNicknameException(nickname, "닉네임에 특수문자가 포함될 수 없습니다.")
-            }
-            else -> return true
-        }
-    }
-
-    private fun validateBio(bio: String?): Boolean {
-        bio?.let {
-            if (it.length > 30) {
-                throw TooLongBioException(bio, "한 줄 소개는 30자 이하여야 합니다.")
-            }
-        }
-        return true
-    }
-
-    private fun validateEmail(email: String): Boolean {
-        val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
-        return if (email.matches(emailRegex)) {
-            true
-        } else {
-            throw InvalidEmailFormatException(email, "이메일 형식이 올바르지 않습니다.")
-        }
-    }
-
-    private fun validatePersonalityCount(personalities: List<Personality>): Boolean {
-        if (personalities.size > 3) {
-            throw TooManyPersonalitiesException(personalities, "성격은 최대 3개까지 선택할 수 있습니다.")
-        }
-        return true
-    }
-
-    private fun validateTravelStyleCount(travelStyles: List<TravelStyle>): Boolean {
-        if (travelStyles.size > 3) {
-            throw TooManyTravelStylesException(travelStyles, "여행 스타일은 최대 3개까지 선택할 수 있습니다.")
-        }
-        return true
-    }
-
     private fun saveUserPreference(user: User, preferenceName: String) {
         preferenceRepository.findByName(preferenceName)?.let { preference ->
             userPreferenceRepository.save(UserPreference(user, preference))
         }
     }
 
-    private fun updateUserPreferences(user: User, preferenceNames: List<String>, type: Int) {
+    private fun updateUserPreferences(user: User, preferenceNames: List<String>, type: PreferenceType) {
         userPreferenceRepository.deleteByUserIdAndType(user.id, type)
         preferenceNames.forEach { preferenceName ->
             preferenceRepository.findByName(preferenceName)?.let { preference ->
@@ -234,7 +172,7 @@ class UserService(
         }
     }
 
-    private fun updateUserPreference(user: User, preferenceName: String?, type: Int) {
+    private fun updateUserPreference(user: User, preferenceName: String?, type: PreferenceType) {
         preferenceName?.let {
             preferenceRepository.findByName(it)?.let { preference ->
                 userPreferenceRepository.deleteByUserIdAndType(user.id, type)
@@ -243,12 +181,12 @@ class UserService(
         }
     }
 
-    private fun getPreferenceName(userId: Long, type: Int): String {
+    private fun getPreferenceName(userId: Long, type: PreferenceType): String {
         return userPreferenceRepository.findPreferenceByUserIdAndType(userId, type)?.name
             ?: throw Exception("Preference not found") // TODO: 적절한 예외 만들기
     }
 
-    private fun getPreferenceNames(userId: Long, type: Int): List<String> {
+    private fun getPreferenceNames(userId: Long, type: PreferenceType): List<String> {
         return userPreferenceRepository.findPreferencesByUserIdAndType(userId, type)
             .map { it.name }
     }

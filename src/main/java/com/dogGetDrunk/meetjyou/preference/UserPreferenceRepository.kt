@@ -10,11 +10,11 @@ import org.springframework.stereotype.Repository
 interface UserPreferenceRepository : JpaRepository<UserPreference, Long> {
     @Modifying
     @Query("DELETE FROM UserPreference up WHERE up.user.id = :userId AND up.preference.type = :type")
-    fun deleteByUserIdAndType(@Param("userId") userId: Long, @Param("type") type: Int)
+    fun deleteByUserIdAndType(@Param("userId") userId: Long, @Param("type") type: PreferenceType)
 
     @Query("SELECT up.preference FROM UserPreference up WHERE up.user.id = :userId AND up.preference.type = :type")
-    fun findPreferenceByUserIdAndType(@Param("userId") userId: Long, @Param("type") type: Int): Preference?
+    fun findPreferenceByUserIdAndType(@Param("userId") userId: Long, @Param("type") type: PreferenceType): Preference?
 
     @Query("SELECT up.preference FROM UserPreference up WHERE up.user.id = :userId AND up.preference.type = :type")
-    fun findPreferencesByUserIdAndType(@Param("userId") userId: Long, @Param("type") type: Int): List<Preference>
+    fun findPreferencesByUserIdAndType(@Param("userId") userId: Long, @Param("type") type: PreferenceType): List<Preference>
 }

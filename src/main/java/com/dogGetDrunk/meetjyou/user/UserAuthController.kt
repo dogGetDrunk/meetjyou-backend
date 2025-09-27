@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -53,10 +54,10 @@ class UserAuthController(
         )]
     )
     @PostMapping("/registration")
-    fun register(@RequestBody registrationRequestA: RegistrationRequest): ResponseEntity<TokenResponse> {
-        val tokenResponseDto = userService.createUser(registrationRequestA)
-        return ResponseEntity.created(URI.create("/" + tokenResponseDto.uuid))
-            .body(tokenResponseDto)
+    fun register(@Valid @RequestBody request: RegistrationRequest): ResponseEntity<TokenResponse> {
+        val response = userService.createUser(request)
+        return ResponseEntity.created(URI.create("/" + response.uuid))
+            .body(response)
     }
 
 
