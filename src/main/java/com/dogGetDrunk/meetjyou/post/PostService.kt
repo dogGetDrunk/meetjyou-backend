@@ -168,7 +168,7 @@ class PostService(
     }
 
     private fun findOrThrow(name: String, type: PreferenceType): Preference {
-        return preferenceRepository.findByNameAndType(name, type.type)
+        return preferenceRepository.findByNameAndType(name, type)
             ?: throw PreferenceNotFoundException("Preference not found: $name of type ${type.name}")
     }
 }

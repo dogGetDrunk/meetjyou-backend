@@ -1,12 +1,15 @@
 package com.dogGetDrunk.meetjyou.preference
 
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 
 @Entity
 class Preference(
+    @Enumerated(EnumType.STRING)
     var type: PreferenceType,
     var name: String,
 ) {

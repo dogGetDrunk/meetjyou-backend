@@ -73,8 +73,15 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
+    // Kotest
+    testImplementation(platform("io.kotest:kotest-bom:6.0.3"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("io.kotest:kotest-runner-junit5:6.0.3")
+    testImplementation("io.kotest:kotest-assertions-core:6.0.3")
+    testImplementation("io.kotest:kotest-extensions-spring:6.0.3")
+
+    // MockK
+    testImplementation("io.mockk:mockk:1.14.5")
 }
 
 tasks.withType<Test> {

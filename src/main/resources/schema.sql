@@ -25,18 +25,18 @@ CREATE TABLE user
     uuid          CHAR(36)     NOT NULL UNIQUE,
     email         VARCHAR(255) NOT NULL UNIQUE,
     nickname      VARCHAR(10)  NOT NULL UNIQUE,
-    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     birth_date    DATE         NOT NULL,
+    auth_provider VARCHAR(10)  NOT NULL,
+    role          VARCHAR(10)  NOT NULL DEFAULT 'USER',
     bio           VARCHAR(50),
-    participation INT          NOT NULL DEFAULT 0,
+    participation INT          NOT NULL DEFAULT 0, -- 참여 횟수
+    status        VARCHAR(10)  NOT NULL DEFAULT 'NORMAL',
     img_url       VARCHAR(500),
     thumb_img_url VARCHAR(500),
-    notified      TINYINT(1)   NOT NULL DEFAULT 1,
+    notified      BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_login_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    auth_provider VARCHAR(10)  NOT NULL,
-    status        VARCHAR(10)           DEFAULT 'NORMAL',
-    role          VARCHAR(10)  NOT NULL
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE post

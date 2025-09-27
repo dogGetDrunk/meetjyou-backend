@@ -1,9 +1,11 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
+import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
+import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
@@ -12,6 +14,7 @@ import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
+import com.dogGetDrunk.meetjyou.user.dto.normalizeOrNull
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -36,10 +39,11 @@ class UserService(
             User(
                 email = request.email,
                 nickname = request.nickname,
-                bio = request.bio,
                 birthDate = request.birthDate,
                 authProvider = request.authProvider,
-            )
+            ).apply {
+                bio = request.bio.normalizeOrNull()
+            }
         )
 
         saveUserPreference(createdUser, request.gender.name)
@@ -47,7 +51,7 @@ class UserService(
 
         request.personalities.forEach { saveUserPreference(createdUser, it.name) }
         request.travelStyles.forEach { saveUserPreference(createdUser, it.name) }
-        saveUserPreference(createdUser, request.diet.name)
+        request.diet.forEach { saveUserPreference(createdUser, it.name) }
         request.etc.forEach { saveUserPreference(createdUser, it.name) }
 
         val accessToken = jwtProvider.generateAccessToken(createdUser.uuid, createdUser.email)
@@ -57,7 +61,6 @@ class UserService(
     }
 
     fun login(request: LoginRequest): TokenResponse {
-        // TODO: Email 검증 추가
         if (!userRepository.existsByUuid(request.uuid)) {
             throw UserNotFoundException(request.uuid)
         }
@@ -68,9 +71,6 @@ class UserService(
         return TokenResponse(request.uuid, request.email, accessToken, refreshToken)
     }
 
-    fun isDuplicateNickname(nickname: String): Boolean {
-        return userRepository.existsByNickname(nickname)
-    }
 
     fun refreshToken(refreshToken: String, request: RefreshTokenRequest): TokenResponse {
         jwtProvider.validateToken(refreshToken)
@@ -95,25 +95,25 @@ class UserService(
     }
 
     @Transactional
-    fun updateUser(uuid: UUID, requestDto: UserUpdateRequest): BasicUserResponse {
-        val user = userRepository.findByUuid(uuid)
-            ?: throw UserNotFoundException(uuid)
-        user.apply {
-            nickname = requestDto.nickname
-            bio = requestDto.bio
-        }
+    fun updateUser(request: UserUpdateRequest): BasicUserResponse {
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val user = userRepository.findByUuid(currentUserUuid)
+            ?.also {
+                it.nickname = request.nickname
+                it.bio = request.bio.normalizeOrNull()
+            }
+            ?: throw UserNotFoundException(currentUserUuid)
 
-        updateUserPreference(user, requestDto.gender.name, 0)
-        updateUserPreference(user, requestDto.age.name, 1)
-
-        updateUserPreferences(user, requestDto.personalities.map { it.name }, 2)
-        updateUserPreferences(user, requestDto.travelStyles.map { it.name }, 3)
-        updateUserPreference(user, requestDto.diet.name, 4)
-        updateUserPreferences(user, requestDto.etc.map { it.name }, 5)
+        updateUserPreference(user, request.gender.name, PreferenceType.GENDER)
+        updateUserPreference(user, request.age.name, PreferenceType.AGE)
+        updateUserPreferences(user, request.personalities.map { it.name }, PreferenceType.PERSONALITY)
+        updateUserPreferences(user, request.travelStyles.map { it.name }, PreferenceType.TRAVEL_STYLE)
+        updateUserPreferences(user, request.diet.map { it.name }, PreferenceType.DIET)
+        updateUserPreferences(user, request.etc.map { it.name }, PreferenceType.ETC)
 
         userRepository.save(user)
         log.info("유저 정보 수정 완료: uuid {}", user.uuid)
-        return getUserProfile(uuid)
+        return getUserProfile(currentUserUuid)
     }
 
     @Transactional(readOnly = true)
@@ -125,12 +125,12 @@ class UserService(
             uuid = user.uuid,
             nickname = user.nickname,
             bio = user.bio,
-            gender = getPreferenceName(user.id, 0),
-            age = getPreferenceName(user.id, 1),
-            personalities = getPreferenceNames(user.id, 2),
-            travelStyles = getPreferenceNames(user.id, 3),
-            diet = getPreferenceName(user.id, 4),
-            etc = getPreferenceNames(user.id, 5),
+            gender = getPreferenceName(user.id, PreferenceType.GENDER),
+            age = getPreferenceName(user.id, PreferenceType.AGE),
+            personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
+            travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
+            diet = getPreferenceName(user.id, PreferenceType.DIET),
+            etc = getPreferenceNames(user.id, PreferenceType.ETC),
             authProvider = user.authProvider,
         )
     }
@@ -142,15 +142,19 @@ class UserService(
                 uuid = user.uuid,
                 nickname = user.nickname,
                 bio = user.bio,
-                gender = getPreferenceName(user.id, 0),
-                age = getPreferenceName(user.id, 1),
-                personalities = getPreferenceNames(user.id, 2),
-                travelStyles = getPreferenceNames(user.id, 3),
-                diet = getPreferenceName(user.id, 4),
-                etc = getPreferenceNames(user.id, 5),
+                gender = getPreferenceName(user.id, PreferenceType.GENDER),
+                age = getPreferenceName(user.id, PreferenceType.AGE),
+                personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
+                travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
+                diet = getPreferenceName(user.id, PreferenceType.DIET),
+                etc = getPreferenceNames(user.id, PreferenceType.ETC),
                 authProvider = user.authProvider,
             )
         }
+    }
+
+    fun isDuplicateNickname(nickname: String): Boolean {
+        return userRepository.existsByNickname(nickname)
     }
 
     private fun saveUserPreference(user: User, preferenceName: String) {
@@ -159,7 +163,7 @@ class UserService(
         }
     }
 
-    private fun updateUserPreferences(user: User, preferenceNames: List<String>, type: Int) {
+    private fun updateUserPreferences(user: User, preferenceNames: List<String>, type: PreferenceType) {
         userPreferenceRepository.deleteByUserIdAndType(user.id, type)
         preferenceNames.forEach { preferenceName ->
             preferenceRepository.findByName(preferenceName)?.let { preference ->
@@ -168,7 +172,7 @@ class UserService(
         }
     }
 
-    private fun updateUserPreference(user: User, preferenceName: String?, type: Int) {
+    private fun updateUserPreference(user: User, preferenceName: String?, type: PreferenceType) {
         preferenceName?.let {
             preferenceRepository.findByName(it)?.let { preference ->
                 userPreferenceRepository.deleteByUserIdAndType(user.id, type)
@@ -177,12 +181,12 @@ class UserService(
         }
     }
 
-    private fun getPreferenceName(userId: Long, type: Int): String {
+    private fun getPreferenceName(userId: Long, type: PreferenceType): String {
         return userPreferenceRepository.findPreferenceByUserIdAndType(userId, type)?.name
             ?: throw Exception("Preference not found") // TODO: 적절한 예외 만들기
     }
 
-    private fun getPreferenceNames(userId: Long, type: Int): List<String> {
+    private fun getPreferenceNames(userId: Long, type: PreferenceType): List<String> {
         return userPreferenceRepository.findPreferencesByUserIdAndType(userId, type)
             .map { it.name }
     }

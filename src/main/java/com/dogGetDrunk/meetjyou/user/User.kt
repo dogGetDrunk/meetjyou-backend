@@ -17,40 +17,31 @@ import java.util.UUID
 
 @Entity
 class User(
-    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
-    var notified: Boolean = true,
-
-    var email: String,
+    val email: String,
     var nickname: String,
-    var bio: String? = null,
-    var birthDate: LocalDate? = null,
-    var imgUrl: String? = null,
-    var thumbImgUrl: String? = null,
-
+    var birthDate: LocalDate,
     @Enumerated(EnumType.STRING)
     var authProvider: AuthProvider,
-
     @Enumerated(EnumType.STRING)
-    var status: UserStatus = UserStatus.NORMAL,
-
-    @Enumerated(EnumType.STRING)
-    var role: Role = Role.USER,
+    val role: Role = Role.USER,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     val id: Long = 0
-
     @Column(nullable = false, unique = true)
     @JdbcTypeCode(Types.VARCHAR)
     val uuid: UUID = UUID.randomUUID()
-
+    var bio: String? = null
+    var participation: Int = 0
+    var imgUrl: String? = null
+    var thumbImgUrl: String? = null
+    var notified: Boolean = true
     @CreationTimestamp
     val createdAt: LocalDateTime = LocalDateTime.now()
-
-    @UpdateTimestamp
     val lastLoginAt: LocalDateTime = LocalDateTime.now()
-
     @UpdateTimestamp
     val updatedAt: LocalDateTime = LocalDateTime.now()
+    @Enumerated(EnumType.STRING)
+    var status: UserStatus = UserStatus.NORMAL
 }

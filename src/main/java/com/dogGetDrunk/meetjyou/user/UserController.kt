@@ -21,6 +21,7 @@ import org.springframework.web.ErrorResponse
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -127,12 +128,11 @@ class UserController(
             )
         )]
     )
-    @PatchMapping("/{uuid}")
+    @PutMapping
     fun updateUser(
-        @PathVariable uuid: UUID,
-        @RequestBody requestDto: @Valid UserUpdateRequest,
+        @RequestBody request: @Valid UserUpdateRequest
     ): ResponseEntity<BasicUserResponse> {
-        val updatedUser: BasicUserResponse = userService.updateUser(uuid, requestDto)
+        val updatedUser: BasicUserResponse = userService.updateUser(request)
         return ResponseEntity.ok(updatedUser)
     }
 
