@@ -42,4 +42,4 @@ services:
 
 networks:
   my_network:
-    driver: bridg
+    driver: bridge
