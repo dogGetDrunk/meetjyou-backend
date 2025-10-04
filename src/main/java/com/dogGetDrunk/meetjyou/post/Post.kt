@@ -21,40 +21,32 @@ import java.util.UUID
 class Post(
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
     var isInstant: Boolean,
-
     var title: String,
     var content: String,
     var itinStart: LocalDate,
     var itinFinish: LocalDate,
     var location: String,
     var capacity: Int,
-    var joined: Int,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0
-
     @Column(nullable = false, unique = true)
     @JdbcTypeCode(Types.VARCHAR)
     val uuid: UUID = UUID.randomUUID()
-
     @CreationTimestamp
     val createdAt: LocalDateTime = LocalDateTime.now()
-
     @UpdateTimestamp
     val lastEditedAt: LocalDateTime = LocalDateTime.now()
-
     @ManyToOne
     lateinit var author: User
-
     @ManyToOne
     var party: Party? = null
-
     @ManyToOne
     var plan: Plan? = null
-
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
+    var isPlanPublic: Boolean? = null
     var postStatus: Int = 0
-
     var views: Int = 0
+    var joined: Int = 1
 }

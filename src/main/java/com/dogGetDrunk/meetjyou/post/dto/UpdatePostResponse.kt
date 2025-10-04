@@ -21,16 +21,12 @@ data class UpdatePostResponse(
     val location: String,
     val capacity: Int,
     val joined: Int,
-    val compGender: String,
-    val compAge: String,
-    val compPersonalities: List<String>,
-    val compTravelStyles: List<String>,
-    val compDiet: List<String>,
-    val compEtc: List<String>,
-    val planUuid: UUID?
+    val companionSpec: CompanionSpec?,
+    val planUuid: UUID?,
+    val isPlanPublic: Boolean?,
 ) {
     companion object {
-        fun of(post: Post, compPreferences: List<CompPreference>): UpdatePostResponse {
+        fun of(post: Post, companionSpec: CompanionSpec?): UpdatePostResponse {
             return UpdatePostResponse(
                 uuid = post.uuid,
                 title = post.title,
@@ -45,13 +41,9 @@ data class UpdatePostResponse(
                 location = post.location,
                 capacity = post.capacity,
                 joined = post.joined,
+                companionSpec = companionSpec,
                 planUuid = post.plan?.uuid,
-                compGender = compPreferences.find { it.preference.type == PreferenceType.GENDER }?.preference?.name.orEmpty(),
-                compAge = compPreferences.find { it.preference.type == PreferenceType.AGE }?.preference?.name.orEmpty(),
-                compPersonalities = compPreferences.filter { it.preference.type == PreferenceType.PERSONALITY }.map { it.preference.name },
-                compTravelStyles = compPreferences.filter { it.preference.type == PreferenceType.TRAVEL_STYLE }.map { it.preference.name },
-                compDiet = compPreferences.filter { it.preference.type == PreferenceType.DIET }.map { it.preference.name },
-                compEtc = compPreferences.filter { it.preference.type == PreferenceType.ETC }.map { it.preference.name }
+                isPlanPublic = post.isPlanPublic,
             )
         }
     }

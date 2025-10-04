@@ -55,6 +55,7 @@ CREATE TABLE post
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     post_status    TINYINT      NOT NULL DEFAULT 1,
+    is_plan_public BOOLEAN      NULL,
     author_id      INT          NOT NULL,
     party_id       INT,
     plan_id        INT
@@ -111,7 +112,7 @@ CREATE TABLE plan
     center_lat  DECIMAL(13, 10) NOT NULL,
     center_lng  DECIMAL(13, 10) NOT NULL,
     memo        VARCHAR(500),
-    owner       INT             NOT NULL
+    owner_id    INT             NOT NULL
 );
 
 CREATE TABLE marker
@@ -251,7 +252,7 @@ ALTER TABLE chat_participant
 ALTER TABLE chat_participant
     ADD FOREIGN KEY (room_id) REFERENCES chat_room (room_id);
 ALTER TABLE plan
-    ADD FOREIGN KEY (owner) REFERENCES user (id);
+    ADD FOREIGN KEY (owner_id) REFERENCES user (id);
 ALTER TABLE marker
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 ALTER TABLE notification
