@@ -5,19 +5,21 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.io.ClassPathResource
 
 @Configuration
 class FirebaseConfig {
 
     @Bean
     fun firebaseApp(): FirebaseApp {
-        val resource = ClassPathResource("firebase/meetjyou-firebase-adminsdk.json")
-        resource.inputStream.use { serviceAccount ->
-            val options = FirebaseOptions.builder()
-                .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                .build()
-            return FirebaseApp.initializeApp(options)
+        val credentials = GoogleCredentials.getApplicationDefault()
+        val options = FirebaseOptions.builder()
+            .setCredentials(credentials)
+            .build()
+
+        return if (FirebaseApp.getApps().isEmpty()) {
+            FirebaseApp.initializeApp(options)
+        } else {
+            FirebaseApp.getInstance()
         }
     }
 }
