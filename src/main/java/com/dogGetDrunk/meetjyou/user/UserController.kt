@@ -130,7 +130,7 @@ class UserController(
     )
     @PutMapping
     fun updateUser(
-        @RequestBody request: @Valid UserUpdateRequest
+        @Valid @RequestBody request: UserUpdateRequest
     ): ResponseEntity<BasicUserResponse> {
         val updatedUser: BasicUserResponse = userService.updateUser(request)
         return ResponseEntity.ok(updatedUser)

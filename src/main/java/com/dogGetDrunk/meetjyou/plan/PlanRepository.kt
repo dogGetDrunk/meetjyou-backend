@@ -8,4 +8,5 @@ import java.util.UUID
 interface PlanRepository : JpaRepository<Plan, Long> {
     fun findByUuid(uuid: UUID): Plan?
     fun findAllByOwner_Uuid(OwnerUuid: UUID, pageable: Pageable): Page<Plan>
+    fun existsByUuid(uuid: UUID): Boolean
 }

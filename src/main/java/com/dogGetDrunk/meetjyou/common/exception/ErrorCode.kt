@@ -28,7 +28,7 @@ enum class ErrorCode(
 
     // Auth
     AUTHENTICATION_FAILED("Authentication failed"),
-    UNAUTHORIZED("Unauthorized"),
+    ACCESS_DENIED("Access denied"),
     UNAUTHENTICATED("Unauthenticated"),
 
     // Version

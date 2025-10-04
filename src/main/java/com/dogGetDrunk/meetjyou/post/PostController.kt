@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -55,7 +56,7 @@ class PostController(
         ]
     )
     @PostMapping
-    fun createPost(@RequestBody createPostRequest: CreatePostRequest): CreatePostResponse {
+    fun createPost(@Valid @RequestBody createPostRequest: CreatePostRequest): CreatePostResponse {
         return postService.createPost(createPostRequest)
     }
 
@@ -146,7 +147,7 @@ class PostController(
     @PutMapping("/{postUuid}")
     fun updatePost(
         @PathVariable postUuid: UUID,
-        @RequestBody updatePostRequest: UpdatePostRequest
+        @Valid @RequestBody updatePostRequest: UpdatePostRequest
     ): UpdatePostResponse {
         return postService.updatePost(postUuid, updatePostRequest)
     }
