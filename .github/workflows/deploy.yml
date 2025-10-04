@@ -30,6 +30,15 @@ jobs:
           docker buildx build --platform linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest
 
+      - name: 서버에 docker-compose.yml 업로드
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.ORACLE_CLOUD_HOST }}
+          username: ${{ secrets.ORACLE_CLOUD_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml"
+          target: "~/meetjyou/"
+
       - name: 서버에 .env 업로드
         uses: appleboy/ssh-action@master
         with:
