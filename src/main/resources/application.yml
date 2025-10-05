@@ -53,3 +53,7 @@ oracle:
   oci:
     bucketName: ${OCI_BUCKET_NAME}
     namespace: ${OCI_NAMESPACE}
+    auth:
+      mode: ${OCI_AUTH_MODE:FILE} # FILE or INSTANCE
+      config-file-path: ${OCI_CONFIG_FILE_PATH:/run/secrets/oci/config}
+      profile: ${OCI_PROFILE:DEFAULT}

@@ -8,8 +8,10 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=db,secrets
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-adminsdk.json
+      - OCI_AUTH_CONFIG_FILE_PATH=/run/secrets/oci/config
     volumes:
       - ./data/spring_boot/firebase-adminsdk.json:/run/secrets/firebase-adminsdk.json:ro
+      - ./data/spring_boot/oci:/run/secrets/oci:ro
     networks:
       - my_network
 
