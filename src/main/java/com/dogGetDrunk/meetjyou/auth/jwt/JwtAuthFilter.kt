@@ -29,9 +29,9 @@ class JwtAuthFilter(
          */
         val path = request.requestURI
 
-        log.info("✅ JwtAuthFilter invoked for $path")
+        log.info("JwtAuthFilter invoked for $path")
         if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
-            log.info("⏭️ Skipping JWT filter for Swagger path: $path")
+            log.info("Skipping JWT filter for Swagger path: $path")
             filterChain.doFilter(request, response)
             return
         }
