@@ -22,6 +22,7 @@ class User(
     var birthDate: LocalDate,
     @Enumerated(EnumType.STRING)
     var authProvider: AuthProvider,
+    var externalId: String,
     @Enumerated(EnumType.STRING)
     val role: Role = Role.USER,
 ) {

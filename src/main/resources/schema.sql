@@ -27,6 +27,7 @@ CREATE TABLE user
     nickname      VARCHAR(10)  NOT NULL UNIQUE,
     birth_date    DATE         NOT NULL,
     auth_provider VARCHAR(10)  NOT NULL,
+    external_id   VARCHAR(100) NOT NULL UNIQUE,
     role          VARCHAR(10)  NOT NULL DEFAULT 'USER',
     bio           VARCHAR(50),
     participation INT          NOT NULL DEFAULT 0, -- 참여 횟수

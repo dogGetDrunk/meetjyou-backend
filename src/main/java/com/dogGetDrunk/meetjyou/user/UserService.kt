@@ -1,7 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
-import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
+import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
@@ -9,7 +9,6 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
-import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
@@ -30,22 +29,20 @@ class UserService(
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
     @Transactional
-    fun createUser(request: RegistrationRequest): TokenResponse {
-        if (userRepository.existsByEmail(request.email)) {
-            throw UserAlreadyExistsException(request.email)
-        }
-
+    fun createUser(request: RegistrationRequest, principal: SocialPrincipal): User {
         val createdUser = userRepository.save(
             User(
                 email = request.email,
                 nickname = request.nickname,
                 birthDate = request.birthDate,
                 authProvider = request.authProvider,
+                externalId = principal.subject,
             ).apply {
                 bio = request.bio.normalizeOrNull()
             }
         )
 
+        // TODO: 소셜 로그인에서 받아오는 subject를 데이터베이스에 저장해야 할까?
         saveUserPreference(createdUser, request.gender.name)
         saveUserPreference(createdUser, request.age.name)
 
@@ -54,31 +51,9 @@ class UserService(
         request.diet.forEach { saveUserPreference(createdUser, it.name) }
         request.etc.forEach { saveUserPreference(createdUser, it.name) }
 
-        val accessToken = jwtProvider.generateAccessToken(createdUser.uuid, createdUser.email)
-        val refreshToken = jwtProvider.generateRefreshToken(createdUser.uuid, createdUser.email)
+        log.info("User saved successfully. uuid: {}, email: {}", createdUser.uuid, createdUser.email)
 
-        return TokenResponse(createdUser.uuid, request.email, accessToken, refreshToken)
-    }
-
-    fun login(request: LoginRequest): TokenResponse {
-        if (!userRepository.existsByUuid(request.uuid)) {
-            throw UserNotFoundException(request.uuid)
-        }
-
-        val accessToken = jwtProvider.generateAccessToken(request.uuid, request.email)
-        val refreshToken = jwtProvider.generateRefreshToken(request.uuid, request.email)
-
-        return TokenResponse(request.uuid, request.email, accessToken, refreshToken)
-    }
-
-
-    fun refreshToken(refreshToken: String, request: RefreshTokenRequest): TokenResponse {
-        jwtProvider.validateToken(refreshToken)
-
-        val newAccessToken = jwtProvider.generateAccessToken(request.uuid, request.email)
-        val newRefreshToken = jwtProvider.generateRefreshToken(request.uuid, request.email)
-
-        return TokenResponse(request.uuid, request.email, newAccessToken, newRefreshToken)
+        return createdUser
     }
 
     @Transactional
@@ -157,13 +132,13 @@ class UserService(
         return userRepository.existsByNickname(nickname)
     }
 
-    private fun saveUserPreference(user: User, preferenceName: String) {
+    fun saveUserPreference(user: User, preferenceName: String) {
         preferenceRepository.findByName(preferenceName)?.let { preference ->
             userPreferenceRepository.save(UserPreference(user, preference))
         }
     }
 
-    private fun updateUserPreferences(user: User, preferenceNames: List<String>, type: PreferenceType) {
+    fun updateUserPreferences(user: User, preferenceNames: List<String>, type: PreferenceType) {
         userPreferenceRepository.deleteByUserIdAndType(user.id, type)
         preferenceNames.forEach { preferenceName ->
             preferenceRepository.findByName(preferenceName)?.let { preference ->
@@ -172,7 +147,7 @@ class UserService(
         }
     }
 
-    private fun updateUserPreference(user: User, preferenceName: String?, type: PreferenceType) {
+    fun updateUserPreference(user: User, preferenceName: String?, type: PreferenceType) {
         preferenceName?.let {
             preferenceRepository.findByName(it)?.let { preference ->
                 userPreferenceRepository.deleteByUserIdAndType(user.id, type)
@@ -181,7 +156,7 @@ class UserService(
         }
     }
 
-    private fun getPreferenceName(userId: Long, type: PreferenceType): String {
+    fun getPreferenceName(userId: Long, type: PreferenceType): String {
         return userPreferenceRepository.findPreferenceByUserIdAndType(userId, type)?.name
             ?: throw Exception("Preference not found") // TODO: 적절한 예외 만들기
     }

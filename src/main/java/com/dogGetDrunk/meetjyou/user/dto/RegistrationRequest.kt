@@ -36,7 +36,8 @@ data class RegistrationRequest(
     val diet: List<Diet>,
     @field:UniqueElements
     val etc: List<Etc>,
-    val authProvider: AuthProvider
+    val authProvider: AuthProvider,
+    val credential: String,
 )
 
 fun String?.normalizeOrNull(): String? =
