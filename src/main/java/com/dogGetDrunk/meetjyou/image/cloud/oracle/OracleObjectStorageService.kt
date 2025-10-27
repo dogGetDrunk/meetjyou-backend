@@ -41,8 +41,8 @@ class OracleObjectStorageService(
 
     private val log = LoggerFactory.getLogger(OracleObjectStorageService::class.java)
 
-    override fun uploadUserProfileImage(userId: String, file: ByteArray, fileType: String): Boolean {
-        val (originalPath, thumbnailPath) = generateUserProfileImagePath(userId)
+    override fun uploadUserProfileImage(userUuid: UUID, file: ByteArray, fileType: String): Boolean {
+        val (originalPath, thumbnailPath) = generateUserProfileImagePath(userUuid.toString())
 
         val convertedFile = if (fileType.lowercase() in listOf("jpg", "jpeg")) {
             file
@@ -56,8 +56,8 @@ class OracleObjectStorageService(
         return true
     }
 
-    override fun downloadUserProfileImage(userId: String, isThumbnail: Boolean): ByteArray? {
-        val (originalPath, thumbnailPath) = generateUserProfileImagePath(userId)
+    override fun downloadUserProfileImage(userUuid: UUID, isThumbnail: Boolean): ByteArray? {
+        val (originalPath, thumbnailPath) = generateUserProfileImagePath(userUuid.toString())
         val objectPath = if (isThumbnail) {
             thumbnailPath
         } else {
@@ -78,9 +78,9 @@ class OracleObjectStorageService(
         }
     }
 
-    override fun deleteUserProfileImage(userId: String): Boolean {
-        val originalPath = "user/${userId}-profile.jpg"
-        val thumbnailPath = "user/${userId}-thumbnail.jpg"
+    override fun deleteUserProfileImage(userUuid: UUID): Boolean {
+        val originalPath = "user/${userUuid}-profile.jpg"
+        val thumbnailPath = "user/${userUuid}-thumbnail.jpg"
 
         return try {
             val originalRequest = DeleteObjectRequest.builder()
@@ -360,9 +360,9 @@ class OracleObjectStorageService(
         return outputStream.toByteArray()
     }
 
-    private fun generateUserProfileImagePath(userId: String): Pair<String, String> {
-        val originalPath = "user/$userId-profile.$FINAL_FILE_TYPE"
-        val thumbnailPath = "user/$userId-thumbnail.$FINAL_FILE_TYPE"
+    private fun generateUserProfileImagePath(param: String): Pair<String, String> {
+        val originalPath = "user/$param-profile.$FINAL_FILE_TYPE"
+        val thumbnailPath = "user/$param-thumbnail.$FINAL_FILE_TYPE"
         return Pair(originalPath, thumbnailPath)
     }
 

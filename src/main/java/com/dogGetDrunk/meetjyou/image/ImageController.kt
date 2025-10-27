@@ -11,6 +11,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -36,10 +37,10 @@ class ImageController(
             )
         ]
     )
-    @PostMapping("/profile/upload")
-    fun uploadUserProfileImage(@RequestParam userId: String, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+    @PostMapping("/{userUuid}/profile")
+    fun uploadUserProfileImage(@PathVariable userUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
         val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
-        return if (imageService.uploadUserProfileImage(userId, file.bytes, fileType)) {
+        return if (imageService.uploadUserProfileImage(userUuid, file.bytes, fileType)) {
             ResponseEntity.ok().build()
         } else {
             ResponseEntity.badRequest().build()
@@ -57,12 +58,12 @@ class ImageController(
             )
         ]
     )
-    @GetMapping("/profile/download")
+    @GetMapping("/{userUuid}/profile")
     fun downloadUserProfileImage(
-        @RequestParam userId: String,
+        @PathVariable userUuid: UUID,
         @RequestParam(required = false, defaultValue = "false") isThumbnail: Boolean,
     ): ResponseEntity<ByteArray> {
-        val image = imageService.downloadUserProfileImage(userId, isThumbnail)
+        val image = imageService.downloadUserProfileImage(userUuid, isThumbnail)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
     }
@@ -78,9 +79,9 @@ class ImageController(
             )
         ]
     )
-    @DeleteMapping("/profile")
-    fun deleteUserProfileImage(@RequestParam userId: String): ResponseEntity<Unit> {
-        return if (imageService.deleteUserProfileImage(userId)) {
+    @DeleteMapping("/{userUuid}/profile")
+    fun deleteUserProfileImage(@PathVariable userUuid: UUID): ResponseEntity<Unit> {
+        return if (imageService.deleteUserProfileImage(userUuid)) {
             ResponseEntity.noContent().build()
         } else {
             ResponseEntity.notFound().build()
