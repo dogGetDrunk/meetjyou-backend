@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.image.cloud.oracle
 
+import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.image.cloud.CloudImageService
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.objectstorage.model.CopyObjectDetails
@@ -41,7 +42,8 @@ class OracleObjectStorageService(
 
     private val log = LoggerFactory.getLogger(OracleObjectStorageService::class.java)
 
-    override fun uploadUserProfileImage(userUuid: UUID, file: ByteArray, fileType: String): Boolean {
+    override fun uploadUserProfileImage(file: ByteArray, fileType: String): Boolean {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
         val (originalPath, thumbnailPath) = generateUserProfileImagePath(userUuid.toString())
 
         val convertedFile = if (fileType.lowercase() in listOf("jpg", "jpeg")) {
@@ -78,7 +80,8 @@ class OracleObjectStorageService(
         }
     }
 
-    override fun deleteUserProfileImage(userUuid: UUID): Boolean {
+    override fun deleteUserProfileImage(): Boolean {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
         val originalPath = "user/${userUuid}-profile.jpg"
         val thumbnailPath = "user/${userUuid}-thumbnail.jpg"
 

@@ -37,10 +37,10 @@ class ImageController(
             )
         ]
     )
-    @PostMapping("/{userUuid}/profile")
-    fun uploadUserProfileImage(@PathVariable userUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+    @PostMapping("/profile")
+    fun uploadUserProfileImage(@RequestParam file: MultipartFile): ResponseEntity<Unit> {
         val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
-        return if (imageService.uploadUserProfileImage(userUuid, file.bytes, fileType)) {
+        return if (imageService.uploadUserProfileImage(file.bytes, fileType)) {
             ResponseEntity.ok().build()
         } else {
             ResponseEntity.badRequest().build()
@@ -61,8 +61,8 @@ class ImageController(
     @GetMapping("/{userUuid}/profile")
     fun downloadUserProfileImage(
         @PathVariable userUuid: UUID,
-        @RequestParam(required = false, defaultValue = "false") isThumbnail: Boolean,
-    ): ResponseEntity<ByteArray> {
+        @RequestParam(required = false, defaultValue = "false") isThumbnail: Boolean)
+    : ResponseEntity<ByteArray> {
         val image = imageService.downloadUserProfileImage(userUuid, isThumbnail)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
@@ -79,9 +79,9 @@ class ImageController(
             )
         ]
     )
-    @DeleteMapping("/{userUuid}/profile")
-    fun deleteUserProfileImage(@PathVariable userUuid: UUID): ResponseEntity<Unit> {
-        return if (imageService.deleteUserProfileImage(userUuid)) {
+    @DeleteMapping("/profile")
+    fun deleteUserProfileImage(): ResponseEntity<Unit> {
+        return if (imageService.deleteUserProfileImage()) {
             ResponseEntity.noContent().build()
         } else {
             ResponseEntity.notFound().build()
