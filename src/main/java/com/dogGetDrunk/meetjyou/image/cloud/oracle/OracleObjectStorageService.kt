@@ -42,14 +42,15 @@ class OracleObjectStorageService(
 
     private val log = LoggerFactory.getLogger(OracleObjectStorageService::class.java)
 
-    override fun uploadUserProfileImage(file: ByteArray, fileType: String): Boolean {
+    override fun uploadUserProfileImage(file: MultipartFile): Boolean {
         val userUuid = SecurityUtil.getCurrentUserUuid()
         val (originalPath, thumbnailPath) = generateUserProfileImagePath(userUuid.toString())
+        val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
 
         val convertedFile = if (fileType.lowercase() in listOf("jpg", "jpeg")) {
-            file
+            file.bytes
         } else {
-            convertToJpg(file)
+            convertToJpg(file.bytes)
         }
 
         uploadToObjectStorage(originalPath, convertedFile)
@@ -58,53 +59,23 @@ class OracleObjectStorageService(
         return true
     }
 
-    override fun downloadUserProfileImage(userUuid: UUID, isThumbnail: Boolean): ByteArray? {
-        val (originalPath, thumbnailPath) = generateUserProfileImagePath(userUuid.toString())
-        val objectPath = if (isThumbnail) {
-            thumbnailPath
-        } else {
-            originalPath
-        }
+    override fun downloadOriginalUserProfileImage(userUuid: UUID): ByteArray? {
+        val (originalPath, _) = generateUserProfileImagePath(userUuid.toString())
 
-        val request = GetObjectRequest.builder()
-            .namespaceName(namespace)
-            .bucketName(bucketName)
-            .objectName(objectPath)
-            .build()
+        return downloadFromObjectStorage(originalPath)
+    }
 
-        return try {
-            val response: GetObjectResponse = objectStorageClient.getObject(request)
-            response.inputStream.readBytes()
-        } catch (e: Exception) {
-            null
-        }
+    override fun downloadThumbnailUserProfileImage(userUuid: UUID): ByteArray? {
+        val (_, thumbnailPath) = generateUserProfileImagePath(userUuid.toString())
+
+        return downloadFromObjectStorage(thumbnailPath)
     }
 
     override fun deleteUserProfileImage(): Boolean {
         val userUuid = SecurityUtil.getCurrentUserUuid()
-        val originalPath = "user/${userUuid}-profile.jpg"
-        val thumbnailPath = "user/${userUuid}-thumbnail.jpg"
+        val (originalPath, thumbnailPath) = generateUserProfileImagePath(userUuid.toString())
 
-        return try {
-            val originalRequest = DeleteObjectRequest.builder()
-                .namespaceName(namespace)
-                .bucketName(bucketName)
-                .objectName(originalPath)
-                .build()
-            objectStorageClient.deleteObject(originalRequest)
-
-            val thumbnailRequest = DeleteObjectRequest.builder()
-                .namespaceName(namespace)
-                .bucketName(bucketName)
-                .objectName(thumbnailPath)
-                .build()
-            objectStorageClient.deleteObject(thumbnailRequest)
-
-            true
-        } catch (e: Exception) {
-            println("Error deleting user profile image: ${e.message}")
-            false
-        }
+        return deleteFromObjectStorage(originalPath) && deleteFromObjectStorage(thumbnailPath)
     }
 
     override fun uploadPostImage(uuid: UUID, file: MultipartFile): Boolean {
@@ -319,6 +290,37 @@ class OracleObjectStorageService(
             .build()
 
         objectStorageClient.putObject(request)
+    }
+
+    private fun downloadFromObjectStorage(objectPath: String): ByteArray? {
+        val getObjectRequest = GetObjectRequest.builder()
+            .namespaceName(namespace)
+            .bucketName(bucketName)
+            .objectName(objectPath)
+            .build()
+
+        return try {
+            val response: GetObjectResponse = objectStorageClient.getObject(getObjectRequest)
+            response.inputStream.readBytes()
+        } catch (e: Exception) {
+            log.error("Error downloading image from $objectPath: ${e.message}")
+            null
+        }
+    }
+
+    private fun deleteFromObjectStorage(objectPath: String): Boolean {
+        return try {
+            val deleteRequest = DeleteObjectRequest.builder()
+                .namespaceName(namespace)
+                .bucketName(bucketName)
+                .objectName(objectPath)
+                .build()
+            objectStorageClient.deleteObject(deleteRequest)
+            true
+        } catch (e: Exception) {
+            log.error("Error deleting image from $objectPath: ${e.message}")
+            false
+        }
     }
 
     private fun convertToJpg(imageBytes: ByteArray): ByteArray {

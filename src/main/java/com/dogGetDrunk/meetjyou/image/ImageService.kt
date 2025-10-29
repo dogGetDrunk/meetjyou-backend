@@ -4,8 +4,9 @@ import org.springframework.web.multipart.MultipartFile
 import java.util.UUID
 
 interface ImageService {
-    fun uploadUserProfileImage(file: ByteArray, fileType: String): Boolean
-    fun downloadUserProfileImage(userUuid: UUID, isThumbnail: Boolean): ByteArray?
+    fun uploadUserProfileImage(file: MultipartFile): Boolean
+    fun downloadOriginalUserProfileImage(userUuid: UUID): ByteArray?
+    fun downloadThumbnailUserProfileImage(userUuid: UUID): ByteArray?
     fun deleteUserProfileImage(): Boolean
 
     fun uploadPostImage(uuid: UUID, file: MultipartFile): Boolean

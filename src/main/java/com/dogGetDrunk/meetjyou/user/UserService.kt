@@ -9,9 +9,7 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
-import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
-import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import com.dogGetDrunk.meetjyou.user.dto.normalizeOrNull
 import org.slf4j.LoggerFactory
@@ -42,7 +40,6 @@ class UserService(
             }
         )
 
-        // TODO: 소셜 로그인에서 받아오는 subject를 데이터베이스에 저장해야 할까?
         saveUserPreference(createdUser, request.gender.name)
         saveUserPreference(createdUser, request.age.name)
 
@@ -57,16 +54,19 @@ class UserService(
     }
 
     @Transactional
-    fun withdrawUser(uuid: UUID, accessToken: String) {
+    fun withdrawUser() {
+        val uuid = SecurityUtil.getCurrentUserUuid()
+
         if (!userRepository.existsByUuid(uuid)) {
             throw UserNotFoundException(uuid)
         }
 
-        jwtProvider.validateToken(accessToken)
-
-        log.info("유저 탈퇴 시작 (user uuid: {})", uuid.toString())
-        userRepository.deleteByUuid(uuid)
-        log.info("유저 탈퇴 성공 (user uuid: {})", uuid.toString())
+        log.info("Processing user withdrawal (user uuid: {})", uuid.toString())
+        if (userRepository.deleteByUuid(uuid)) {
+            log.info("User withdrawal completed (user uuid: {})", uuid.toString())
+        } else {
+            log.error("Error occurred during user withdrawal (user uuid: {})", uuid.toString())
+        }
     }
 
     @Transactional

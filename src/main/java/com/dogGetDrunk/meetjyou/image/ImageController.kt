@@ -20,7 +20,7 @@ import org.springframework.web.multipart.MultipartFile
 import java.util.UUID
 
 @RestController
-@RequestMapping("/api/v1/images")
+@RequestMapping("/api/v1")
 @Tag(name = "이미지 API", description = "프로필, 모집글 이미지 업로드, 다운로드, 삭제 API")
 class ImageController(
     private val imageService: ImageService,
@@ -37,17 +37,16 @@ class ImageController(
             )
         ]
     )
-    @PostMapping("/profile")
+    @PostMapping("/users/me/profile/img")
     fun uploadUserProfileImage(@RequestParam file: MultipartFile): ResponseEntity<Unit> {
-        val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
-        return if (imageService.uploadUserProfileImage(file.bytes, fileType)) {
+        return if (imageService.uploadUserProfileImage(file)) {
             ResponseEntity.ok().build()
         } else {
             ResponseEntity.badRequest().build()
         }
     }
 
-    @Operation(summary = "유저 프로필 이미지 다운로드")
+    @Operation(summary = "유저 프로필 원본 이미지 다운로드")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "다운로드 성공", content = [Content(mediaType = "image/jpeg")]),
@@ -58,12 +57,27 @@ class ImageController(
             )
         ]
     )
-    @GetMapping("/{userUuid}/profile")
-    fun downloadUserProfileImage(
-        @PathVariable userUuid: UUID,
-        @RequestParam(required = false, defaultValue = "false") isThumbnail: Boolean)
-    : ResponseEntity<ByteArray> {
-        val image = imageService.downloadUserProfileImage(userUuid, isThumbnail)
+    @GetMapping("/users/{userUuid}/profile/img/original")
+    fun downloadOriginalUserProfileImage(@PathVariable userUuid: UUID): ResponseEntity<ByteArray> {
+        val image = imageService.downloadOriginalUserProfileImage(userUuid)
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
+    }
+
+    @Operation(summary = "유저 프로필 썸네일 이미지 다운로드")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "다운로드 성공", content = [Content(mediaType = "image/jpeg")]),
+            ApiResponse(
+                responseCode = "404",
+                description = "이미지 없음",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            )
+        ]
+    )
+    @GetMapping("/users/{userUuid}/profile/img/thumbnail")
+    fun downloadThumbnailUserProfileImage(@PathVariable userUuid: UUID): ResponseEntity<ByteArray> {
+        val image = imageService.downloadThumbnailUserProfileImage(userUuid)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
     }
@@ -79,7 +93,7 @@ class ImageController(
             )
         ]
     )
-    @DeleteMapping("/profile")
+    @DeleteMapping("/users/me/profile/img")
     fun deleteUserProfileImage(): ResponseEntity<Unit> {
         return if (imageService.deleteUserProfileImage()) {
             ResponseEntity.noContent().build()
