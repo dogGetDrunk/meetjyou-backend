@@ -27,13 +27,19 @@ class UserAuthService(
             .verifyAndExtract(request.credential)
 
         if (!userRepository.existsByAuthProviderAndExternalId(request.authProvider, request.credential)) {
-            throw UserNotFoundException(request.uuid)
+            throw UserNotFoundException(
+                request.credential,
+                message = "User not found for provider ${request.authProvider}"
+            )
         }
+        
+        // TODO: principal.email과 request.email이 다를 경우 어떻게 처리할지 고민 필요
 
-        val accessToken = jwtProvider.generateAccessToken(request.uuid, request.email)
-        val refreshToken = jwtProvider.generateRefreshToken(request.uuid, request.email)
+        val user = userRepository.findByAuthProviderAndExternalId(request.authProvider, request.credential)!!
+        val accessToken = jwtProvider.generateAccessToken(user.uuid, request.email)
+        val refreshToken = jwtProvider.generateRefreshToken(user.uuid, request.email)
 
-        return TokenResponse(request.uuid, request.email, accessToken, refreshToken)
+        return TokenResponse(user.uuid, request.email, accessToken, refreshToken)
     }
 
     @Transactional
