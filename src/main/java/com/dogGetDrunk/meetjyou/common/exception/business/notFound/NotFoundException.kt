@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 
 open class NotFoundException(
+    errorCode: ErrorCode = ErrorCode.NOT_FOUND,
     value: String,
-    errorCode: ErrorCode = ErrorCode.NOT_FOUND
-) : BusinessException(value, errorCode)
+    message: String? = null,
+) : BusinessException(errorCode, value, message)

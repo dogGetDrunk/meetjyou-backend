@@ -6,4 +6,4 @@ open class AccessDeniedException(
     errorCode: ErrorCode = ErrorCode.ACCESS_DENIED,
     value: String,
     message: String? = null,
-) : BusinessException(value, errorCode, message)
+) : BusinessException(errorCode, value, message)

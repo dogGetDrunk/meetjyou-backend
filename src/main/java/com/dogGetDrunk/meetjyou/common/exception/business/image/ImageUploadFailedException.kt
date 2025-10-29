@@ -6,4 +6,4 @@ import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 class ImageUploadFailedException(
     value: String,
     errorCode: ErrorCode = ErrorCode.IMAGE_UPLOAD_FAILED
-) : BusinessException(value, errorCode)
+) : BusinessException(errorCode, value)

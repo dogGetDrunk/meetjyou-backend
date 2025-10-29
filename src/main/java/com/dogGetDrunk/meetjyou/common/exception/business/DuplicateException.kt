@@ -6,4 +6,4 @@ open class DuplicateException(
     errorCode: ErrorCode = ErrorCode.DUPLICATE,
     value: String,
     message: String? = null,
-) : BusinessException(value, errorCode, message)
+) : BusinessException(errorCode, value, message)

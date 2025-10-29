@@ -4,8 +4,8 @@ import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import java.util.UUID
 
 class UserNotFoundException(
-    val userId: String
-) : NotFoundException(userId, ErrorCode.USER_NOT_FOUND) {
-//    constructor(userId: Long) : this(userId.toString())
-    constructor(userId: UUID) : this(userId.toString())
+    value: String,
+    message: String? = null,
+) : NotFoundException(ErrorCode.USER_NOT_FOUND, value, message) {
+    constructor(value: UUID, message: String? = null) : this(value.toString(), message)
 }

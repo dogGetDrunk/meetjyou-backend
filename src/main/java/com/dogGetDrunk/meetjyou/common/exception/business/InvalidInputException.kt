@@ -6,4 +6,4 @@ open class InvalidInputException(
     errorCode: ErrorCode = ErrorCode.INVALID_INPUT_VALUE,
     value: String,
     message: String? = null,
-) : BusinessException(value, errorCode, message)
+) : BusinessException(errorCode, value, message)

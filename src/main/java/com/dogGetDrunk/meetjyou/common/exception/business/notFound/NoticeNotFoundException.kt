@@ -4,8 +4,8 @@ import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import java.util.UUID
 
 class NoticeNotFoundException(
-    val uuid: String
-) : NotFoundException(uuid, ErrorCode.NOTICE_NOT_FOUND) {
-//    constructor(noticeId: Long) : this(noticeId.toString())
-    constructor(uuid: UUID) : this(uuid.toString())
+    value: String,
+    message: String? = null,
+) : NotFoundException(ErrorCode.NOTICE_NOT_FOUND, value, message) {
+    constructor(value: UUID, message: String? = null) : this(value.toString(), message)
 }

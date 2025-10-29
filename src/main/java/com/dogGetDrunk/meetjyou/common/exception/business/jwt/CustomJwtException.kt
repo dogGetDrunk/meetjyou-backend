@@ -6,4 +6,4 @@ import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 open class CustomJwtException(
     override val value: String?,
     errorCode: ErrorCode = ErrorCode.TOKEN_COMMON
-) : BusinessException(value, errorCode)
+) : BusinessException(errorCode, value)

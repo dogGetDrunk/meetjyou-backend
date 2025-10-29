@@ -4,8 +4,8 @@ import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import java.util.UUID
 
 class PostNotFoundException(
-    val uuid: String
-) : NotFoundException(uuid, ErrorCode.POST_NOT_FOUND) {
-//    constructor(postId: Long) : this(postId.toString())
-    constructor(uuid: UUID) : this(uuid.toString())
+    value: String,
+    message: String? = null,
+) : NotFoundException(ErrorCode.POST_NOT_FOUND, value, message) {
+    constructor(value: UUID, message: String? = null) : this(value.toString(), message)
 }

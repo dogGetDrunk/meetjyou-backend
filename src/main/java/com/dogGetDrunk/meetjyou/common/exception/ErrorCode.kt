@@ -52,6 +52,9 @@ enum class ErrorCode(
     // ChatRoom
     CHAT_ROOM_NOT_FOUND("Chat room not found"),
 
-    // Push tokne
+    // Push token
     PUSH_TOKEN_NOT_FOUND("Push token not found"),
+
+    // Preference
+    PREFERENCE_NOT_FOUND("Preference not found"),
 }
