@@ -11,4 +11,5 @@ interface PostRepository : JpaRepository<Post, Long> {
     fun findByUuid(uuid: UUID): Post?
     fun findAllByAuthor_Uuid(authorUuid: UUID, pageable: Pageable): Page<Post>
     override fun findAll(pageable: Pageable): Page<Post>
+    fun existsByPostUuidAndAuthor_Uuid(postUuid: UUID, authorUuid: UUID): Boolean
 }

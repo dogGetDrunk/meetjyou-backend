@@ -9,9 +9,10 @@ interface ImageService {
     fun downloadThumbnailUserProfileImage(userUuid: UUID): ByteArray?
     fun deleteUserProfileImage(): Boolean
 
-    fun uploadPostImage(uuid: UUID, file: MultipartFile): Boolean
-    fun downloadPostImage(uuid: UUID): ByteArray?
-    fun deletePostImage(uuid: UUID): Boolean
+    fun uploadPostImage(postUuid: UUID, file: MultipartFile): Boolean
+    fun downloadOriginalPostImage(postUuid: UUID): ByteArray?
+    fun downloadThumbnailPostImage(postUuid: UUID): ByteArray?
+    fun deletePostImage(postUuid: UUID): Boolean
 
     fun uploadPartyImage(uuid: UUID, file: MultipartFile): Boolean
     fun downloadOriginalPartyImage(uuid: UUID): ByteArray?
