@@ -113,8 +113,8 @@ class ImageController(
             )
         ]
     )
-    @PostMapping("/post/upload")
-    fun uploadPostImage(@RequestParam postUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+    @PostMapping("/posts/{postUuid}/img")
+    fun uploadPostImage(@PathVariable postUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
         return if (imageService.uploadPostImage(postUuid, file)) {
             ResponseEntity.ok().build()
         } else {
@@ -122,7 +122,7 @@ class ImageController(
         }
     }
 
-    @Operation(summary = "모집글 이미지 다운로드")
+    @Operation(summary = "모집글 원본 이미지 다운로드")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "다운로드 성공", content = [Content(mediaType = "image/jpeg")]),
@@ -133,9 +133,27 @@ class ImageController(
             )
         ]
     )
-    @GetMapping("/post/download")
-    fun downloadPostImage(@RequestParam postUuid: UUID): ResponseEntity<ByteArray> {
-        val image = imageService.downloadPostImage(postUuid)
+    @GetMapping("/posts/{postUuid}/img/original")
+    fun downloadOriginalPostImage(@PathVariable postUuid: UUID): ResponseEntity<ByteArray> {
+        val image = imageService.downloadOriginalPostImage(postUuid)
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
+    }
+
+    @Operation(summary = "모집글 썸네일 이미지 다운로드")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "다운로드 성공", content = [Content(mediaType = "image/jpeg")]),
+            ApiResponse(
+                responseCode = "404",
+                description = "이미지 없음",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            )
+        ]
+    )
+    @GetMapping("/posts/{postUuid}/img/original")
+    fun downloadThumbnailPostImage(@PathVariable postUuid: UUID): ResponseEntity<ByteArray> {
+        val image = imageService.downloadThumbnailPostImage(postUuid)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
     }
@@ -171,8 +189,8 @@ class ImageController(
             )
         ]
     )
-    @PostMapping("/party")
-    fun uploadPartyImage(@RequestParam partyUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+    @PostMapping("/parties/{partyUuid}/img")
+    fun uploadPartyImage(@PathVariable partyUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
         return if (imageService.uploadPartyImage(partyUuid, file)) {
             ResponseEntity.ok().build()
         } else {

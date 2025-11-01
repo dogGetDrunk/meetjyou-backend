@@ -1,7 +1,11 @@
 package com.dogGetDrunk.meetjyou.image.cloud.oracle
 
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.image.cloud.CloudImageService
+import com.dogGetDrunk.meetjyou.party.PartyService
+import com.dogGetDrunk.meetjyou.post.PostService
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.objectstorage.model.CopyObjectDetails
 import com.oracle.bmc.objectstorage.requests.CopyObjectRequest
@@ -35,6 +39,8 @@ class OracleObjectStorageService(
 
     private val objectStorageClient: ObjectStorageClient,
     private val workRequestClient: WorkRequestClient,
+    private val postService: PostService,
+    private val partyService: PartyService,
 ) : CloudImageService {
     // TODO: return try가 아닌 throw로 GlobalExceptionHandler에서 처리하도록 변경
     private val FINAL_FILE_TYPE = "jpg"
@@ -78,9 +84,19 @@ class OracleObjectStorageService(
         return deleteFromObjectStorage(originalPath) && deleteFromObjectStorage(thumbnailPath)
     }
 
-    override fun uploadPostImage(uuid: UUID, file: MultipartFile): Boolean {
+    override fun uploadPostImage(postUuid: UUID, file: MultipartFile): Boolean {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (postService.verifyPostAuthor(postUuid, userUuid)) {
+            throw PostUpdateAccessDeniedException(
+                postUuid,
+                null,
+                userUuid,
+                "Only the author can upload images for this post.")
+        }
+
         val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
-        val (originalPath, thumbnailPath) = generatePostImagePath(uuid.toString())
+        val (originalPath, thumbnailPath) = generatePostImagePath(postUuid.toString())
 
         val convertedFile = if (fileType.lowercase() in listOf("jpg", "jpeg")) {
             file.bytes
@@ -94,46 +110,43 @@ class OracleObjectStorageService(
         return true
     }
 
-    override fun downloadPostImage(uuid: UUID): ByteArray? {
-        val (originalPath, thumbnailPath) = generatePostImagePath(uuid.toString())
+    override fun downloadOriginalPostImage(postUuid: UUID): ByteArray? {
+        val (originalPath, _) = generatePostImagePath(postUuid.toString())
 
-        val originalImgRequest = GetObjectRequest.builder()
-            .namespaceName(namespace)
-            .bucketName(bucketName)
-            .objectName(originalPath)
-            .build()
-
-        return try {
-            val response: GetObjectResponse = objectStorageClient.getObject(originalImgRequest)
-            response.inputStream.readBytes()
-        } catch (e: Exception) {
-            null
-        }
+        return downloadFromObjectStorage(originalPath)
     }
 
-    override fun deletePostImage(uuid: UUID): Boolean {
-        val objectPath = generatePostImagePath(uuid.toString())
+    override fun downloadThumbnailPostImage(postUuid: UUID): ByteArray? {
+        val (_, thumbnailPath) = generatePostImagePath(postUuid.toString())
 
-        return try {
-            val request = DeleteObjectRequest.builder()
-                .namespaceName(namespace)
-                .bucketName(bucketName)
-                .objectName(objectPath.first)
-                .build()
-            objectStorageClient.deleteObject(request)
-            true
-        } catch (e: Exception) {
-            println("Error deleting post image $objectPath: ${e.message}")
-            false
-        }
+        return downloadFromObjectStorage(thumbnailPath)
     }
 
-    override fun uploadPartyImage(
-        uuid: UUID,
-        file: MultipartFile,
-    ): Boolean {
+    override fun deletePostImage(postUuid: UUID): Boolean {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (postService.verifyPostAuthor(postUuid, userUuid)) {
+            throw PostUpdateAccessDeniedException(
+                postUuid,
+                null,
+                userUuid,
+                "Only the author can delete images for this post.")
+        }
+
+        val (originalPath, thumbnailPath) = generatePostImagePath(postUuid.toString())
+
+        return deleteFromObjectStorage(originalPath) && deleteFromObjectStorage(thumbnailPath)
+    }
+
+    override fun uploadPartyImage(partyUuid: UUID, file: MultipartFile): Boolean {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (partyService.verifyPartyOwner(partyUuid, userUuid)) {
+            throw PartyUpdateAccessDeniedException(partyUuid, "Only the party owner can upload images for this party.")
+        }
+
         val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
-        val (originalPath, thumbnailPath) = generatePartyImagePath(uuid.toString())
+        val (originalPath, thumbnailPath) = generatePartyImagePath(partyUuid.toString())
 
         val convertedFile = if (fileType.lowercase() in listOf("jpg", "jpeg")) {
             file.bytes
@@ -147,55 +160,28 @@ class OracleObjectStorageService(
         return true
     }
 
-    override fun downloadOriginalPartyImage(uuid: UUID): ByteArray? {
-        val (originalPath, thumbnailPath) = generatePartyImagePath(uuid.toString())
+    override fun downloadOriginalPartyImage(partyUuid: UUID): ByteArray? {
+        val (originalPath, _) = generatePartyImagePath(partyUuid.toString())
 
-        val originalImgRequest = GetObjectRequest.builder()
-            .namespaceName(namespace)
-            .bucketName(bucketName)
-            .objectName(originalPath)
-            .build()
-
-        return try {
-            val response: GetObjectResponse = objectStorageClient.getObject(originalImgRequest)
-            response.inputStream.readBytes()
-        } catch (e: Exception) {
-            null
-        }
+        return downloadFromObjectStorage(originalPath)
     }
 
-    override fun downloadThumbnailPartyImage(uuid: UUID): ByteArray? {
-        val (_, thumbnailPath) = generatePartyImagePath(uuid.toString())
+    override fun downloadThumbnailPartyImage(partyUuid: UUID): ByteArray? {
+        val (_, thumbnailPath) = generatePartyImagePath(partyUuid.toString())
 
-        val thumbnailImgRequest = GetObjectRequest.builder()
-            .namespaceName(namespace)
-            .bucketName(bucketName)
-            .objectName(thumbnailPath)
-            .build()
-
-        return try {
-            val response: GetObjectResponse = objectStorageClient.getObject(thumbnailImgRequest)
-            response.inputStream.readBytes()
-        } catch (e: Exception) {
-            null
-        }
+        return downloadFromObjectStorage(thumbnailPath)
     }
 
-    override fun deletePartyImage(uuid: UUID): Boolean {
-        val (originalPath, thumbnailPath) = generatePartyImagePath(uuid.toString())
+    override fun deletePartyImage(partyUuid: UUID): Boolean {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
 
-        return try {
-            val request = DeleteObjectRequest.builder()
-                .namespaceName(namespace)
-                .bucketName(bucketName)
-                .objectName(originalPath)
-                .build()
-            objectStorageClient.deleteObject(request)
-            true
-        } catch (e: Exception) {
-            println("Error deleting party image $originalPath: ${e.message}")
-            false
+        if (partyService.verifyPartyOwner(partyUuid, userUuid)) {
+            throw PartyUpdateAccessDeniedException(partyUuid, "Only the party owner can delete images for this party.")
         }
+
+        val (originalPath, thumbnailPath) = generatePartyImagePath(partyUuid.toString())
+
+        return deleteFromObjectStorage(originalPath) && deleteFromObjectStorage(thumbnailPath)
     }
 
     override fun setDefaultPartyImage(partyUuid: UUID, postUuid: UUID): Boolean {
@@ -228,7 +214,6 @@ class OracleObjectStorageService(
         return try {
             val response: CopyObjectResponse = objectStorageClient.copyObject(request)
             val workRequestId = response.opcWorkRequestId
-
             waitForCopyCompletion(workRequestId, 10L, 1000L)
         } catch (e: Exception) {
             log.error("CopyObject failed for $sourcePath → $destinationPath: ${e.message}")

@@ -77,6 +77,11 @@ class PartyService(
             .map { GetPartyResponse.of(it.party) }
     }
 
+    @Transactional(readOnly = true)
+    fun verifyPartyOwner(partyUuid: UUID, userUuid: UUID): Boolean {
+        return partyRepository.existsByUuidAndOwner_Uuid(partyUuid, userUuid)
+    }
+
     @Transactional
     fun updateParty(uuid: UUID, request: UpdatePartyRequest): UpdatePartyResponse {
         val party = partyRepository.findByUuid(uuid)

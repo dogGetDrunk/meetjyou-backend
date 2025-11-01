@@ -17,7 +17,6 @@ import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostResponse
 import com.dogGetDrunk.meetjyou.preference.CompPreference
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
-import com.dogGetDrunk.meetjyou.preference.Preference
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.toCompanionSpec
@@ -96,6 +95,11 @@ class PostService(
             .map { post ->
                 GetPostResponse.of(post, compPreferenceRepository.findAllByPost(post).toCompanionSpec())
             }
+    }
+
+    @Transactional(readOnly = true)
+    fun verifyPostAuthor(postUuid: UUID, userUuid: UUID): Boolean {
+        return postRepository.existsByUuidAndAuthor_Uuid(postUuid, userUuid)
     }
 
     @Transactional(readOnly = true)
