@@ -99,7 +99,7 @@ class PostService(
 
     @Transactional(readOnly = true)
     fun verifyPostAuthor(postUuid: UUID, userUuid: UUID): Boolean {
-        return postRepository.existsByPostUuidAndAuthor_Uuid(postUuid, userUuid)
+        return postRepository.existsByUuidAndAuthor_Uuid(postUuid, userUuid)
     }
 
     @Transactional(readOnly = true)

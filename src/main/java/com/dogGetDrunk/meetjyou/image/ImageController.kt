@@ -189,8 +189,8 @@ class ImageController(
             )
         ]
     )
-    @PostMapping("/party")
-    fun uploadPartyImage(@RequestParam partyUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+    @PostMapping("/parties/{partyUuid}/img")
+    fun uploadPartyImage(@PathVariable partyUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
         return if (imageService.uploadPartyImage(partyUuid, file)) {
             ResponseEntity.ok().build()
         } else {

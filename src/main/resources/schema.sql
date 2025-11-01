@@ -74,7 +74,8 @@ CREATE TABLE party
     name           VARCHAR(50) NOT NULL,
     created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    plan_id        INT         NOT NULL
+    plan_id        INT         NOT NULL,
+    owner_id       INT         NOT NULL
 );
 
 CREATE TABLE chat_room
@@ -242,6 +243,8 @@ ALTER TABLE post
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 ALTER TABLE party
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
+ALTER TABLE party
+    ADD FOREIGN KEY (owner_id) REFERENCES user (id);
 ALTER TABLE chat_room
     ADD FOREIGN KEY (room_id) REFERENCES party (id);
 ALTER TABLE chat_message

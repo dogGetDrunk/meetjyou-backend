@@ -14,10 +14,9 @@ interface ImageService {
     fun downloadThumbnailPostImage(postUuid: UUID): ByteArray?
     fun deletePostImage(postUuid: UUID): Boolean
 
-    fun uploadPartyImage(uuid: UUID, file: MultipartFile): Boolean
-    fun downloadOriginalPartyImage(uuid: UUID): ByteArray?
-    fun downloadThumbnailPartyImage(uuid: UUID): ByteArray?
-    fun deletePartyImage(uuid: UUID): Boolean
-
+    fun uploadPartyImage(partyUuid: UUID, file: MultipartFile): Boolean
+    fun downloadOriginalPartyImage(partyUuid: UUID): ByteArray?
+    fun downloadThumbnailPartyImage(partyUuid: UUID): ByteArray?
+    fun deletePartyImage(partyUuid: UUID): Boolean
     fun setDefaultPartyImage(partyUuid: UUID, postUuid: UUID): Boolean
 }
