@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PartyNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.image.ImageService
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyResponse
@@ -9,6 +10,10 @@ import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
+import com.dogGetDrunk.meetjyou.user.Role
+import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.userparty.PartyRole
+import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
@@ -23,6 +28,7 @@ class PartyService(
     private val planRepository: PlanRepository,
     private val userPartyRepository: UserPartyRepository,
     private val imageService: ImageService,
+    private val userRepository: UserRepository,
 ) {
     private val log = LoggerFactory.getLogger(PartyService::class.java)
 
@@ -33,6 +39,9 @@ class PartyService(
                 ?: throw PlanNotFoundException(planUuid)
         }
 
+        val owner = userRepository.findByUuid(request.ownerUuid)
+            ?: throw UserNotFoundException(request.ownerUuid)
+
         val party = Party(
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
@@ -42,11 +51,13 @@ class PartyService(
             name = request.name,
         ).apply {
             this.plan = plan
+            this.owner = owner
         }
 
         partyRepository.save(party)
+        userPartyRepository.save(UserParty(party, owner, PartyRole.LEADER))
 
-        log.info("Party created: uuid=${'$'}{party.uuid}")
+        log.info("Party created: uuid=${party.uuid}")
 
         imageService.setDefaultPartyImage(party.uuid, request.postUuid)
 

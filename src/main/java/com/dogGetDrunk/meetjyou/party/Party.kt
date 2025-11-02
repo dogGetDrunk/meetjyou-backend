@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.plan.Plan
+import com.dogGetDrunk.meetjyou.user.User
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -29,18 +30,16 @@ class Party(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0
-
     @Column(nullable = false, unique = true)
     @JdbcTypeCode(Types.VARCHAR)
     val uuid: UUID = UUID.randomUUID()
-
     @CreationTimestamp
     var createdAt: LocalDateTime = LocalDateTime.now()
-
     @UpdateTimestamp
     var lastEditedAt: LocalDateTime = LocalDateTime.now()
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
     var plan: Plan? = null
+    @ManyToOne
+    lateinit var owner: User
 }
