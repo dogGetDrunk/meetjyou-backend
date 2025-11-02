@@ -13,6 +13,7 @@ data class CreatePartyRequest(
     val name: String,
     val postUuid: UUID,
     val planUuid: UUID?,
+    val ownerUuid: UUID,
 ) {
     companion object {
         fun from(post: Post): CreatePartyRequest {
@@ -25,6 +26,7 @@ data class CreatePartyRequest(
                 name = post.title,
                 postUuid = post.uuid,
                 planUuid = post.plan?.uuid,
+                ownerUuid = post.author.uuid,
             )
         }
     }
