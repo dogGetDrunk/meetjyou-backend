@@ -39,8 +39,6 @@ class OracleObjectStorageService(
 
     private val objectStorageClient: ObjectStorageClient,
     private val workRequestClient: WorkRequestClient,
-    private val postService: PostService,
-    private val partyService: PartyService,
 ) : CloudImageService {
     // TODO: return try가 아닌 throw로 GlobalExceptionHandler에서 처리하도록 변경
     private val FINAL_FILE_TYPE = "jpg"
@@ -85,16 +83,6 @@ class OracleObjectStorageService(
     }
 
     override fun uploadPostImage(postUuid: UUID, file: MultipartFile): Boolean {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-
-        if (postService.verifyPostAuthor(postUuid, userUuid)) {
-            throw PostUpdateAccessDeniedException(
-                postUuid,
-                null,
-                userUuid,
-                "Only the author can upload images for this post.")
-        }
-
         val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
         val (originalPath, thumbnailPath) = generatePostImagePath(postUuid.toString())
 
@@ -123,28 +111,12 @@ class OracleObjectStorageService(
     }
 
     override fun deletePostImage(postUuid: UUID): Boolean {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-
-        if (postService.verifyPostAuthor(postUuid, userUuid)) {
-            throw PostUpdateAccessDeniedException(
-                postUuid,
-                null,
-                userUuid,
-                "Only the author can delete images for this post.")
-        }
-
         val (originalPath, thumbnailPath) = generatePostImagePath(postUuid.toString())
 
         return deleteFromObjectStorage(originalPath) && deleteFromObjectStorage(thumbnailPath)
     }
 
     override fun uploadPartyImage(partyUuid: UUID, file: MultipartFile): Boolean {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-
-        if (partyService.verifyPartyOwner(partyUuid, userUuid)) {
-            throw PartyUpdateAccessDeniedException(partyUuid, "Only the party owner can upload images for this party.")
-        }
-
         val fileType = file.originalFilename?.substringAfterLast('.') ?: "jpg"
         val (originalPath, thumbnailPath) = generatePartyImagePath(partyUuid.toString())
 
@@ -173,12 +145,6 @@ class OracleObjectStorageService(
     }
 
     override fun deletePartyImage(partyUuid: UUID): Boolean {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-
-        if (partyService.verifyPartyOwner(partyUuid, userUuid)) {
-            throw PartyUpdateAccessDeniedException(partyUuid, "Only the party owner can delete images for this party.")
-        }
-
         val (originalPath, thumbnailPath) = generatePartyImagePath(partyUuid.toString())
 
         return deleteFromObjectStorage(originalPath) && deleteFromObjectStorage(thumbnailPath)

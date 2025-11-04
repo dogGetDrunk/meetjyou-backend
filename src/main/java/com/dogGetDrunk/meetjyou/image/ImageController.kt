@@ -1,6 +1,11 @@
 package com.dogGetDrunk.meetjyou.image
 
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.party.PartyService
+import com.dogGetDrunk.meetjyou.post.PostService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
@@ -24,6 +29,8 @@ import java.util.UUID
 @Tag(name = "이미지 API", description = "프로필, 모집글 이미지 업로드, 다운로드, 삭제 API")
 class ImageController(
     private val imageService: ImageService,
+    private val postService: PostService,
+    private val partyService: PartyService,
 ) {
 
     @Operation(summary = "유저 프로필 이미지 업로드")
@@ -115,6 +122,12 @@ class ImageController(
     )
     @PostMapping("/posts/{postUuid}/img")
     fun uploadPostImage(@PathVariable postUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (!postService.verifyPostAuthor(postUuid, userUuid)) {
+            throw PostUpdateAccessDeniedException(postUuid, null, userUuid)
+        }
+
         return if (imageService.uploadPostImage(postUuid, file)) {
             ResponseEntity.ok().build()
         } else {
@@ -151,7 +164,7 @@ class ImageController(
             )
         ]
     )
-    @GetMapping("/posts/{postUuid}/img/original")
+    @GetMapping("/posts/{postUuid}/img/thumbnail")
     fun downloadThumbnailPostImage(@PathVariable postUuid: UUID): ResponseEntity<ByteArray> {
         val image = imageService.downloadThumbnailPostImage(postUuid)
             ?: return ResponseEntity.notFound().build()
@@ -169,8 +182,18 @@ class ImageController(
             )
         ]
     )
-    @DeleteMapping("/post")
-    fun deletePostImage(@RequestParam postUuid: UUID): ResponseEntity<Unit> {
+    @DeleteMapping("/post/{postUuid}/img")
+    fun deletePostImage(@PathVariable postUuid: UUID): ResponseEntity<Unit> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (!postService.verifyPostAuthor(postUuid, userUuid)) {
+            throw PostUpdateAccessDeniedException(
+                postUuid,
+                null,
+                userUuid,
+                "Only the author can delete images for this post."
+            )
+        }
         return if (imageService.deletePostImage(postUuid)) {
             ResponseEntity.noContent().build()
         } else {
@@ -191,6 +214,12 @@ class ImageController(
     )
     @PostMapping("/parties/{partyUuid}/img")
     fun uploadPartyImage(@PathVariable partyUuid: UUID, @RequestParam file: MultipartFile): ResponseEntity<Unit> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (partyService.verifyPartyOwner(partyUuid, userUuid)) {
+            throw PartyUpdateAccessDeniedException(partyUuid, "Only the party owner can upload images for this party.")
+        }
+
         return if (imageService.uploadPartyImage(partyUuid, file)) {
             ResponseEntity.ok().build()
         } else {
@@ -209,8 +238,8 @@ class ImageController(
             )
         ]
     )
-    @GetMapping("/party")
-    fun downloadOriginalPartyImage(@RequestParam partyUuid: UUID): ResponseEntity<ByteArray> {
+    @GetMapping("/parties/{partyUuid}/img/original")
+    fun downloadOriginalPartyImage(@PathVariable partyUuid: UUID): ResponseEntity<ByteArray> {
         val image = imageService.downloadOriginalPartyImage(partyUuid)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
@@ -227,8 +256,8 @@ class ImageController(
             )
         ]
     )
-    @GetMapping("/party/thumbnail")
-    fun downloadThumbnailPartyImage(@RequestParam partyUuid: UUID): ResponseEntity<ByteArray> {
+    @GetMapping("/parties/{partyUuid}/img/thumbnail")
+    fun downloadThumbnailPartyImage(@PathVariable partyUuid: UUID): ResponseEntity<ByteArray> {
         val image = imageService.downloadThumbnailPartyImage(partyUuid)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
@@ -245,8 +274,14 @@ class ImageController(
             )
         ]
     )
-    @DeleteMapping("/party")
-    fun deletePartyImage(@RequestParam partyUuid: UUID): ResponseEntity<Unit> {
+    @DeleteMapping("/parties/{partyUuid}/img")
+    fun deletePartyImage(@PathVariable partyUuid: UUID): ResponseEntity<Unit> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (partyService.verifyPartyOwner(partyUuid, userUuid)) {
+            throw PartyUpdateAccessDeniedException(partyUuid, "Only the party owner can delete images for this party.")
+        }
+
         return if (imageService.deletePartyImage(partyUuid)) {
             ResponseEntity.noContent().build()
         } else {

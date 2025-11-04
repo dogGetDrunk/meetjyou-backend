@@ -3,14 +3,12 @@ package com.dogGetDrunk.meetjyou.party
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PartyNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.image.ImageService
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
-import com.dogGetDrunk.meetjyou.user.Role
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.userparty.PartyRole
 import com.dogGetDrunk.meetjyou.userparty.UserParty
@@ -27,7 +25,6 @@ class PartyService(
     private val partyRepository: PartyRepository,
     private val planRepository: PlanRepository,
     private val userPartyRepository: UserPartyRepository,
-    private val imageService: ImageService,
     private val userRepository: UserRepository,
 ) {
     private val log = LoggerFactory.getLogger(PartyService::class.java)
@@ -58,8 +55,6 @@ class PartyService(
         userPartyRepository.save(UserParty(party, owner, PartyRole.LEADER))
 
         log.info("Party created: uuid=${party.uuid}")
-
-        imageService.setDefaultPartyImage(party.uuid, request.postUuid)
 
         return CreatePartyResponse.of(party)
     }
