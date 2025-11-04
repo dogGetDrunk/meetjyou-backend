@@ -78,7 +78,7 @@ class UserAuthController(
         )]
     )
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest): ResponseEntity<TokenResponse> {
+    fun login(@Valid @RequestBody request: LoginRequest): ResponseEntity<TokenResponse> {
         val tokenResponseDto = userAuthService.loginViaSocial(request)
         return ResponseEntity.ok(tokenResponseDto)
     }

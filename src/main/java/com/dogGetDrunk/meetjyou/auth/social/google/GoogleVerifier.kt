@@ -12,11 +12,11 @@ class GoogleVerifier(
     private val firebaseApp: FirebaseApp,
 ) : SocialVerifier {
 
-    override fun verifyAndExtract(credential: String): SocialPrincipal {
+    override fun verifyAndExtract(credential: String?, accessToken: String?): SocialPrincipal {
         val auth = FirebaseAuth.getInstance(firebaseApp)
         val decoded = auth.verifyIdToken(credential, true)
         return SocialPrincipal(
-            provider = AuthProvider.GOOGLE,
+            authProvider = AuthProvider.GOOGLE,
             subject = decoded.uid,
             email = decoded.email,
             displayName = decoded.name,

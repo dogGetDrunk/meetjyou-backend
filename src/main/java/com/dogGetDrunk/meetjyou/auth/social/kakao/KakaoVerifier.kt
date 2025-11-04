@@ -10,11 +10,11 @@ class KakaoVerifier(
 
 ) : SocialVerifier {
 
-    override fun verifyAndExtract(credential: String): SocialPrincipal {
+    override fun verifyAndExtract(credential: String?, accessToken: String?): SocialPrincipal {
         return SocialPrincipal(
-            provider = AuthProvider.KAKAO,
+            authProvider = AuthProvider.KAKAO,
             subject = "kakao-$credential",
-            email = null,
+            email = "something@example.com",
             displayName = null,
         )
     }

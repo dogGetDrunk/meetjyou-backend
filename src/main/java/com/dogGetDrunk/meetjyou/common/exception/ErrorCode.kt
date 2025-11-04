@@ -9,7 +9,7 @@ enum class ErrorCode(
     INVALID_INPUT_VALUE("Invalid input value"),
 
     // User
-    DUPLICATE_EMAIL("Duplicate email"),
+    DUPLICATE_USER("Duplicate email"),
     DUPLICATE_NICKNAME("Duplicate nickname"),
     EMAIL_NOT_FOUND("Email not found"),
     USER_NOT_FOUND("User not found"),
