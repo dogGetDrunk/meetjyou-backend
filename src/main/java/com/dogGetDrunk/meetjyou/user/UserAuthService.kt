@@ -2,7 +2,7 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
-import com.dogGetDrunk.meetjyou.common.exception.business.duplicate.UserAlreadyExistsException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
@@ -21,37 +21,19 @@ class UserAuthService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun loginViaSocial(request: LoginRequest): TokenResponse {
-        val principal = socialVerifierRegistry
-            .get(request.authProvider)
-            .verifyAndExtract(request.credential)
-
-        if (!userRepository.existsByAuthProviderAndExternalId(request.authProvider, request.credential)) {
-            throw UserNotFoundException(
-                request.credential,
-                message = "User not found for provider ${request.authProvider}"
-            )
-        }
-        
-        // TODO: principal.email과 request.email이 다를 경우 어떻게 처리할지 고민 필요
-
-        val user = userRepository.findByAuthProviderAndExternalId(request.authProvider, request.credential)!!
-        val accessToken = jwtProvider.generateAccessToken(user.uuid, request.email)
-        val refreshToken = jwtProvider.generateRefreshToken(user.uuid, request.email)
-
-        return TokenResponse(user.uuid, request.email, accessToken, refreshToken)
-    }
-
     @Transactional
     fun registerViaSocial(request: RegistrationRequest): TokenResponse {
-        log.info("Register(social) request received. email: {}, provider: {}", request.email, request.authProvider)
+        log.info("Register via social request received. email: {}, provider: {}", request.email, request.authProvider)
 
         val principal = socialVerifierRegistry
             .get(request.authProvider)
-            .verifyAndExtract(request.credential)
+            .verifyAndExtract(request.credential, request.accessToken)
 
-        if (userRepository.existsByEmail(request.email)) {
-            throw UserAlreadyExistsException(request.email)
+        if (userRepository.existsByAuthProviderAndExternalId(principal.authProvider, principal.subject)) {
+            throw UserAlreadyExistsException(
+                principal.email,
+                message = "User already exists for provider ${request.authProvider}"
+            )
         }
 
         val user = userService.createUser(request, principal)
@@ -61,7 +43,32 @@ class UserAuthService(
 
         log.info("User registered successfully. uuid: {}, email: {}", user.uuid, user.email)
 
-        return TokenResponse(user.uuid, request.email, accessToken, refreshToken)
+        return TokenResponse(user.uuid, user.email, accessToken, refreshToken)
+    }
+
+    fun loginViaSocial(request: LoginRequest): TokenResponse {
+        val token = request.credential ?: request.accessToken!!
+
+        log.info("Login via social request received. token: {}, provider: {}", token.take(5), request.authProvider)
+
+        val principal = socialVerifierRegistry
+            .get(request.authProvider)
+            .verifyAndExtract(request.credential, request.accessToken)
+
+        if (!userRepository.existsByAuthProviderAndExternalId(principal.authProvider, principal.subject)) {
+            throw UserNotFoundException(
+                principal.email,
+                message = "User not found for provider ${request.authProvider}"
+            )
+        }
+
+        val user = userRepository.findByAuthProviderAndExternalId(principal.authProvider, principal.subject)!!
+        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email)
+        val refreshToken = jwtProvider.generateRefreshToken(user.uuid, user.email)
+
+        log.info("User logged in successfully. uuid: {}, email: {}", user.uuid, user.email)
+
+        return TokenResponse(user.uuid, user.email, accessToken, refreshToken)
     }
 
     fun refreshToken(refreshToken: String, request: RefreshTokenRequest): TokenResponse {

@@ -7,6 +7,7 @@ import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.preference.Personality
 import com.dogGetDrunk.meetjyou.preference.TravelStyle
 import com.dogGetDrunk.meetjyou.user.AuthProvider
+import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
@@ -37,8 +38,13 @@ data class RegistrationRequest(
     @field:UniqueElements
     val etc: List<Etc>,
     val authProvider: AuthProvider,
-    val credential: String,
-)
+    val credential: String? = null,
+    val accessToken: String? = null,
+) {
+    @AssertTrue(message = "credential 또는 accessToken 중 하나는 반드시 존재해야 합니다.")
+    private fun isValidAuthentication(): Boolean =
+        !(credential.isNullOrBlank() && accessToken.isNullOrBlank())
+}
 
 fun String?.normalizeOrNull(): String? =
     this?.trim()
