@@ -10,5 +10,6 @@ data class KakaoOidcProperties(
     val userInfoUri: String,
     val clientId: String,
     val appId: String,
+    val clockSkewSeconds: Long,
     val jwkCacheTtlMinutes: Long,
 )

@@ -59,6 +59,14 @@ jobs:
             DNS_URL=${{ secrets.DNS_URL }}
             OCI_BUCKET_NAME=${{ secrets.OCI_BUCKET_NAME }}
             OCI_NAMESPACE=${{ secrets.OCI_NAMESPACE }}
+            KAKAO_ISSUER=${{ secrets.KAKAO_ISSUER }}
+            KAKAO_JWKS_URI=${{ secrets.KAKAO_JWKS_URI }}
+            KAKAO_ACCESS_TOKEN_INFO_URI=${{ secrets.KAKAO_ACCESS_TOKEN_INFO_URI }}
+            KAKAO_USER_INFO_URI=${{ secrets.KAKAO_USER_INFO_URI }}
+            KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
+            KAKAO_APP_ID=${{ secrets.KAKAO_APP_ID }}
+            KAKAO_CLOCK_SKEW_SECONDS=${{ secrets.KAKAO_CLOCK_SKEW_SECONDS }}
+            KAKAO_JWK_CACHE_TTL_MINUTES=${{ secrets.KAKAO_JWK_CACHE_TTL_MINUTES }}
             COMPOSE_PROJECT_NAME=meetjyou
             EOF
 
