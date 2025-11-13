@@ -59,6 +59,10 @@ jobs:
             DNS_URL=${{ secrets.DNS_URL }}
             OCI_BUCKET_NAME=${{ secrets.OCI_BUCKET_NAME }}
             OCI_NAMESPACE=${{ secrets.OCI_NAMESPACE }}
+            OCI_PAR_EXPIRATION_MINUTES=${{ secrets.OCI_PAR_EXPIRATION_MINUTES }}
+            OCI_AUTH_MODE=${{ secrets.OCI_AUTH_MODE }}
+            OCI_CONFIG_FILE_PATH=${{ secrets.OCI_CONFIG_FILE_PATH }}
+            OCI_PROFILE=${{ secrets.OCI_PROFILE }}
             KAKAO_ISSUER=${{ secrets.KAKAO_ISSUER }}
             KAKAO_JWKS_URI=${{ secrets.KAKAO_JWKS_URI }}
             KAKAO_ACCESS_TOKEN_INFO_URI=${{ secrets.KAKAO_ACCESS_TOKEN_INFO_URI }}
