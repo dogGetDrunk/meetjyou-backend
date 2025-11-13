@@ -60,11 +60,11 @@ jwt:
 
 auth:
   kakao:
-    issuer: {KAKAO_ISSUER}
-    jwks-uri: {KAKAO_JWKS_URI}
-    access-token-info-uri: {KAKAO_ACCESS_TOKEN_INFO_URI}
-    user-info-uri: {KAKAO_USER_INFO_URI}
-    client-id: {KAKAO_CLIENT_ID}
-    app-id: {KAKAO_APP_ID}
-    clock-skew-seconds: {KAKAO_CLOCK_SKEW_SECONDS}
-    jwk-cache-ttl-minutes: {KAKAO_JWK_CACHE_TTL_MINUTES}
+    issuer: ${KAKAO_ISSUER}
+    jwks-uri: ${KAKAO_JWKS_URI}
+    access-token-info-uri: ${KAKAO_ACCESS_TOKEN_INFO_URI}
+    user-info-uri: ${KAKAO_USER_INFO_URI}
+    client-id: ${KAKAO_CLIENT_ID}
+    app-id: ${KAKAO_APP_ID}
+    clock-skew-seconds: ${KAKAO_CLOCK_SKEW_SECONDS}
+    jwk-cache-ttl-minutes: ${KAKAO_JWK_CACHE_TTL_MINUTES}
