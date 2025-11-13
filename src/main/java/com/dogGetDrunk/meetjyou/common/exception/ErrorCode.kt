@@ -25,6 +25,7 @@ enum class ErrorCode(
     INCORRECT_TOKEN_SUBJECT("The subject in the token is incorrect"),
     MISSING_AUTHORIZATION_HEADER("This authorization header is invalid"),
     INVALID_ACCESS_TOKEN("The access token is invalid"),
+    INVALID_JWT("The JWT is invalid"),
 
     // Auth
     AUTHENTICATION_FAILED("Authentication failed"),

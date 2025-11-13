@@ -6,5 +6,4 @@ data class SocialPrincipal(
     val authProvider: AuthProvider,
     val subject: String,
     val email: String,
-    val displayName: String?,
 )

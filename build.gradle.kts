@@ -47,7 +47,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.security:spring-security-oauth2-jose")
     implementation("org.hibernate.common:hibernate-commons-annotations:7.0.3.Final")
+
+    // Cache library - Caffeine
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
 
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
