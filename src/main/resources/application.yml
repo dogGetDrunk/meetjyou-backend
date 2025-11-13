@@ -40,12 +40,6 @@ logging:
 server:
   forward-headers-strategy: native
 
-jwt:
-  issuer: ${JWT_ISSUER}
-  access-expiration: ${JWT_AT_EXP} # 30분
-  refresh-expiration: ${JWT_RT_EXP} # 30일
-  secret-key: ${JWT_SECRET_KEY} # 256 bits for HS256
-
 dns:
   url: ${DNS_URL}
 
@@ -57,3 +51,20 @@ oracle:
       mode: ${OCI_AUTH_MODE:FILE} # FILE or INSTANCE
       config-file-path: ${OCI_CONFIG_FILE_PATH:/run/secrets/oci/config}
       profile: ${OCI_PROFILE:DEFAULT}
+
+jwt:
+  issuer: ${JWT_ISSUER}
+  access-expiration: ${JWT_AT_EXP} # 30분
+  refresh-expiration: ${JWT_RT_EXP} # 30일
+  secret-key: ${JWT_SECRET_KEY} # 256 bits for HS256
+
+auth:
+  kakao:
+    issuer: {KAKAO_ISSUER}
+    jwks-uri: {KAKAO_JWKS_URI}
+    access-token-info-uri: {KAKAO_ACCESS_TOKEN_INFO_URI}
+    user-info-uri: {KAKAO_USER_INFO_URI}
+    client-id: {KAKAO_CLIENT_ID}
+    app-id: {KAKAO_APP_ID}
+    clock-skew-seconds: {KAKAO_CLOCK_SKEW_SECONDS}
+    jwk-cache-ttl-minutes: {KAKAO_JWK_CACHE_TTL_MINUTES}
