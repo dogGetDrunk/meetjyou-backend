@@ -1,11 +1,8 @@
 package com.dogGetDrunk.meetjyou.image.cloud.oracle
 
-import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.config.OracleProps
 import com.dogGetDrunk.meetjyou.image.cloud.CloudImageService
-import com.dogGetDrunk.meetjyou.party.PartyService
-import com.dogGetDrunk.meetjyou.post.PostService
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.objectstorage.model.CopyObjectDetails
 import com.oracle.bmc.objectstorage.requests.CopyObjectRequest
@@ -18,7 +15,6 @@ import com.oracle.bmc.workrequests.WorkRequestClient
 import com.oracle.bmc.workrequests.model.WorkRequest
 import com.oracle.bmc.workrequests.requests.GetWorkRequestRequest
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import java.awt.Color
@@ -31,12 +27,7 @@ import javax.imageio.ImageIO
 
 @Service
 class OracleObjectStorageService(
-    @Value("\${oracle.oci.namespace}")
-    val namespace: String,
-
-    @Value("\${oracle.oci.bucketName}")
-    val bucketName: String,
-
+    private val props: OracleProps,
     private val objectStorageClient: ObjectStorageClient,
     private val workRequestClient: WorkRequestClient,
 ) : CloudImageService {
@@ -166,14 +157,14 @@ class OracleObjectStorageService(
 
         val copyDetails = CopyObjectDetails.builder()
             .sourceObjectName(sourcePath)
-            .destinationBucket(bucketName)
-            .destinationNamespace(namespace)
+            .destinationBucket(props.bucketName)
+            .destinationNamespace(props.namespace)
             .destinationObjectName(destinationPath)
             .build()
 
         val request = CopyObjectRequest.builder()
-            .namespaceName(namespace)
-            .bucketName(bucketName)
+            .namespaceName(props.namespace)
+            .bucketName(props.bucketName)
             .copyObjectDetails(copyDetails)
             .build()
 
@@ -233,8 +224,8 @@ class OracleObjectStorageService(
 
     private fun uploadToObjectStorage(objectPath: String, file: ByteArray) {
         val request = PutObjectRequest.builder()
-            .namespaceName(namespace)
-            .bucketName(bucketName)
+            .namespaceName(props.namespace)
+            .bucketName(props.bucketName)
             .objectName(objectPath)
             .putObjectBody(ByteArrayInputStream(file))
             .contentLength(file.size.toLong())
@@ -245,8 +236,8 @@ class OracleObjectStorageService(
 
     private fun downloadFromObjectStorage(objectPath: String): ByteArray? {
         val getObjectRequest = GetObjectRequest.builder()
-            .namespaceName(namespace)
-            .bucketName(bucketName)
+            .namespaceName(props.namespace)
+            .bucketName(props.bucketName)
             .objectName(objectPath)
             .build()
 
@@ -262,8 +253,8 @@ class OracleObjectStorageService(
     private fun deleteFromObjectStorage(objectPath: String): Boolean {
         return try {
             val deleteRequest = DeleteObjectRequest.builder()
-                .namespaceName(namespace)
-                .bucketName(bucketName)
+                .namespaceName(props.namespace)
+                .bucketName(props.bucketName)
                 .objectName(objectPath)
                 .build()
             objectStorageClient.deleteObject(deleteRequest)
