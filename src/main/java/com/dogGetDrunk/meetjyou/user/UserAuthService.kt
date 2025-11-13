@@ -1,6 +1,8 @@
 package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
+import com.dogGetDrunk.meetjyou.auth.social.AccessToken
+import com.dogGetDrunk.meetjyou.auth.social.IdToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
@@ -22,12 +24,18 @@ class UserAuthService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
-    fun registerViaSocial(request: RegistrationRequest): TokenResponse {
+    fun registerViaSocial(request: RegistrationRequest, nonce: String? = null): TokenResponse {
         log.info("Register via social request received. email: {}, provider: {}", request.email, request.authProvider)
+
+        val token = if (!request.idToken.isNullOrBlank()) {
+            IdToken(request.idToken)
+        } else {
+            AccessToken(request.accessToken!!)
+        }
 
         val principal = socialVerifierRegistry
             .get(request.authProvider)
-            .verifyAndExtract(request.credential, request.accessToken)
+            .verifyAndExtract(token, nonce)
 
         if (userRepository.existsByAuthProviderAndExternalId(principal.authProvider, principal.subject)) {
             throw UserAlreadyExistsException(
@@ -46,14 +54,18 @@ class UserAuthService(
         return TokenResponse(user.uuid, user.email, accessToken, refreshToken)
     }
 
-    fun loginViaSocial(request: LoginRequest): TokenResponse {
-        val token = request.credential ?: request.accessToken!!
+    fun loginViaSocial(request: LoginRequest, nonce: String? = null): TokenResponse {
+        val token = if (!request.idToken.isNullOrBlank()) {
+            IdToken(request.idToken)
+        } else {
+            AccessToken(request.accessToken!!)
+        }
 
-        log.info("Login via social request received. token: {}, provider: {}", token.take(5), request.authProvider)
+        log.info("Login via social request received. token: {}, provider: {}", token.value.take(5), request.authProvider)
 
         val principal = socialVerifierRegistry
             .get(request.authProvider)
-            .verifyAndExtract(request.credential, request.accessToken)
+            .verifyAndExtract(token, nonce)
 
         if (!userRepository.existsByAuthProviderAndExternalId(principal.authProvider, principal.subject)) {
             throw UserNotFoundException(
