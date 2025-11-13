@@ -66,5 +66,4 @@ auth:
     user-info-uri: ${KAKAO_USER_INFO_URI}
     client-id: ${KAKAO_CLIENT_ID}
     app-id: ${KAKAO_APP_ID}
-    clock-skew-seconds: ${KAKAO_CLOCK_SKEW_SECONDS}
     jwk-cache-ttl-minutes: ${KAKAO_JWK_CACHE_TTL_MINUTES}

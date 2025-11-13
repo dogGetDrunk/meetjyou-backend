@@ -56,7 +56,7 @@ class KakaoVerifier(
             throw Exception()
         }
 
-        if (tokenInfo.appId.toString() != props.clientId) {
+        if (tokenInfo.appId.toString() != props.appId) {
             throw InvalidJwtException()
         }
 
