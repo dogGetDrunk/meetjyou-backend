@@ -60,6 +60,7 @@ jobs:
             OCI_BUCKET_NAME=${{ secrets.OCI_BUCKET_NAME }}
             OCI_NAMESPACE=${{ secrets.OCI_NAMESPACE }}
             OCI_PAR_EXPIRATION_MINUTES=${{ secrets.OCI_PAR_EXPIRATION_MINUTES }}
+            OCI_REGION=${{ secrets.OCI_REGION }}
             OCI_AUTH_MODE=${{ secrets.OCI_AUTH_MODE }}
             OCI_CONFIG_FILE_PATH=${{ secrets.OCI_CONFIG_FILE_PATH }}
             OCI_PROFILE=${{ secrets.OCI_PROFILE }}

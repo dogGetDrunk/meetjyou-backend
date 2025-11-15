@@ -7,6 +7,7 @@ data class OracleProps(
     val bucketName: String,
     val namespace: String,
     val parExpirationMinutes: Long,
+    val region: String,
     val auth: Auth = Auth()
 ) {
     data class Auth(
