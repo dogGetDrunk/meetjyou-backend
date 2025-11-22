@@ -10,6 +10,9 @@ data class OracleProps(
     val region: String,
     val auth: Auth = Auth()
 ) {
+    val parBaseUrl: String
+        get() = "https://objectstorage.${region}.oraclecloud.com"
+
     data class Auth(
         val mode: Mode = Mode.FILE,
         val configFilePath: String? = null,
