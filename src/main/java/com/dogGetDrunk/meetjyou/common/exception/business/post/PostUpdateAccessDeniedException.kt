@@ -6,7 +6,7 @@ import java.util.UUID
 
 class PostUpdateAccessDeniedException(
     postUuid: UUID,
-    authorUuid: UUID?,
     userUuid: UUID,
+    authorUuid: UUID? = null,
     message: String? = null,
 ) : AccessDeniedException(ErrorCode.ACCESS_DENIED, postUuid.toString(), message)

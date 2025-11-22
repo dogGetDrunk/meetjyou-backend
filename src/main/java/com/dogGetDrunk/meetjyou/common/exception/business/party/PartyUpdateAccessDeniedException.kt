@@ -5,8 +5,8 @@ import com.dogGetDrunk.meetjyou.common.exception.business.AccessDeniedException
 import java.util.UUID
 
 class PartyUpdateAccessDeniedException(
-    value: String,
+    partyUuid: UUID,
+    userUuid: UUID,
+    ownerUuid: UUID? = null,
     message: String? = null,
-) : AccessDeniedException(ErrorCode.ACCESS_DENIED, value, message) {
-    constructor(partyUuid: UUID, message: String? = null) : this(partyUuid.toString(), message)
-}
+) : AccessDeniedException(ErrorCode.ACCESS_DENIED, partyUuid.toString(), message)

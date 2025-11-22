@@ -45,11 +45,13 @@ dns:
 
 oracle:
   oci:
-    bucketName: ${OCI_BUCKET_NAME}
+    bucket-name: ${OCI_BUCKET_NAME}
     namespace: ${OCI_NAMESPACE}
+    par-expiration-minutes: ${OCI_PAR_EXPIRATION_MINUTES}
+    region: ${OCI_REGION}
     auth:
       mode: ${OCI_AUTH_MODE:FILE} # FILE or INSTANCE
-      config-file-path: ${OCI_CONFIG_FILE_PATH:/run/secrets/oci/config}
+      config-file-path: ${OCI_CONFIG_FILE_PATH:/run/secrets/oci/config} # in docker container
       profile: ${OCI_PROFILE:DEFAULT}
 
 jwt:

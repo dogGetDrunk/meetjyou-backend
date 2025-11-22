@@ -3,7 +3,6 @@ package com.dogGetDrunk.meetjyou.config
 import com.dogGetDrunk.meetjyou.auth.jwt.AudienceValidator
 import com.dogGetDrunk.meetjyou.auth.social.kakao.KakaoOidcProperties
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator
@@ -15,7 +14,6 @@ import org.springframework.security.oauth2.jwt.JwtTimestampValidator
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 
 @Configuration
-@EnableConfigurationProperties(KakaoOidcProperties::class)
 class KakaoOidcConfig(
     private val props: KakaoOidcProperties
 ) {

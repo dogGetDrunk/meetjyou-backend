@@ -1,20 +1,21 @@
 package com.dogGetDrunk.meetjyou.config
 
+import com.oracle.bmc.Region
 import com.oracle.bmc.auth.AuthenticationDetailsProvider
 import com.oracle.bmc.auth.ConfigFileAuthenticationDetailsProvider
 import com.oracle.bmc.auth.InstancePrincipalsAuthenticationDetailsProvider
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.workrequests.WorkRequestClient
-import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-@EnableConfigurationProperties(OracleProps::class)
-class OracleStorageConfig {
+class OracleStorageConfig(
+    private val props: OracleProps
+) {
 
     @Bean
-    fun ociAuthProvider(props: OracleProps): AuthenticationDetailsProvider =
+    fun ociAuthProvider(): AuthenticationDetailsProvider =
         when (props.auth.mode) {
             OracleProps.Mode.INSTANCE ->
                 InstancePrincipalsAuthenticationDetailsProvider.builder().build()
@@ -29,7 +30,9 @@ class OracleStorageConfig {
 
     @Bean
     fun objectStorageClient(authProvider: AuthenticationDetailsProvider): ObjectStorageClient {
-        return ObjectStorageClient.builder().build(authProvider)
+        return ObjectStorageClient.builder()
+            .region(Region.fromRegionId(props.region))
+            .build(authProvider)
     }
 
     @Bean
