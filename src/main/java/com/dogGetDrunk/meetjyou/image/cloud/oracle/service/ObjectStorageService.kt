@@ -3,12 +3,12 @@ package com.dogGetDrunk.meetjyou.image.cloud.oracle.service
 import com.dogGetDrunk.meetjyou.config.OracleProps
 import com.dogGetDrunk.meetjyou.image.ImageOperation
 import com.dogGetDrunk.meetjyou.image.ImageTarget
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.BulkParRequest
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.ParRequest
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.ParResponse
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.objectstorage.model.CreatePreauthenticatedRequestDetails
 import com.oracle.bmc.objectstorage.requests.CreatePreauthenticatedRequestRequest
+import com.oracle.bmc.objectstorage.requests.DeleteObjectRequest
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -18,12 +18,12 @@ import java.util.Date
 import java.util.UUID
 
 @Service
-class ObjectStorageParService(
+class ObjectStorageService(
     private val objectStorageClient: ObjectStorageClient,
     private val props: OracleProps
 ) {
 
-    private val log = LoggerFactory.getLogger(ObjectStorageParService::class.java)
+    private val log = LoggerFactory.getLogger(ObjectStorageService::class.java)
 
     fun createUploadPars(uuid: UUID, target: ImageTarget): ParResponse {
         val request = ParRequest(
@@ -42,19 +42,6 @@ class ObjectStorageParService(
         )
         return createPars(request)
     }
-
-    fun createPars(requests: List<ParRequest>): List<ParResponse> =
-        requests.map { createPars(it) }
-
-    fun createPars(request: BulkParRequest): List<ParResponse> =
-        request.uuid.map { uuid ->
-            val parRequest = ParRequest(
-                uuid = uuid,
-                target = request.target,
-                operation = request.operation
-            )
-            createPars(parRequest)
-        }
 
     fun createPars(request: ParRequest): ParResponse {
         val now = Instant.now()
@@ -113,7 +100,22 @@ class ObjectStorageParService(
             httpMethod = httpMethod,
             expiresAt = expiresAtSeoul
         )
+    }
 
+    fun deleteObject(uuid: UUID, target: ImageTarget): Boolean {
+        val objectPath = target.toObjectName(uuid)
+        return try {
+            val deleteRequest = DeleteObjectRequest.builder()
+                .namespaceName(props.namespace)
+                .bucketName(props.bucketName)
+                .objectName(objectPath)
+                .build()
+            objectStorageClient.deleteObject(deleteRequest)
+            true
+        } catch (e: Exception) {
+            log.error("Error deleting image from $objectPath: ${e.message}")
+            false
+        }
     }
 
     private fun buildParName(request: ParRequest, now: Instant) =

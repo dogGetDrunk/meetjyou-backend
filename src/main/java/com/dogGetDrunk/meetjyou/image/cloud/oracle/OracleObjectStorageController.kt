@@ -5,14 +5,15 @@ import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessD
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.BulkParRequest
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.ParResponse
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgParService
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgParService
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImageParService
+import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
+import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
+import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImgService
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.post.PostService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -24,9 +25,9 @@ import java.util.UUID
 @RequestMapping("/api/v1/")
 @Tag(name = "이미지 API", description = "프로필, 모집글, 파티 이미지 관련 API를 제공합니다.")
 class OracleObjectStorageController(
-    private val userImgParService: UserImageParService,
-    private val postImgParService: PostImgParService,
-    private val partyImgParService: PartyImgParService,
+    private val userImgService: UserImgService,
+    private val postImgService: PostImgService,
+    private val partyImgService: PartyImgService,
     private val postService: PostService,
     private val partyService: PartyService
 ) {
@@ -38,14 +39,14 @@ class OracleObjectStorageController(
     @PostMapping("/users/me/img/profile/par/upload")
     fun createUserImgUploadPar(): ResponseEntity<List<ParResponse>> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
-        val response = userImgParService.createUserProfileImgUploadPars(userUuid)
+        val response = userImgService.createUserProfileImgUploadPars(userUuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(summary = "유저 프로필 원본 이미지 다운로드 PAR URL 생성")
     @PostMapping("/users/{userUuid}/img/profile/original/par/download")
     fun createUserOriginalImgDownloadPar(@PathVariable userUuid: UUID): ResponseEntity<ParResponse> {
-        val response = userImgParService.createUserProfileOriginalImgDownloadPars(userUuid)
+        val response = userImgService.createUserProfileOriginalImgDownloadPars(userUuid)
         return ResponseEntity.ok(response)
     }
 
@@ -55,8 +56,19 @@ class OracleObjectStorageController(
     )
     @PostMapping("/users/img/profile/thumbnail/par/download")
     fun createUserThumbnailImgDownloadPar(@RequestBody request: BulkParRequest): ResponseEntity<List<ParResponse>> {
-        val response = userImgParService.createUserProfileThumbnailImgDownloadPars(request.uuid)
+        val response = userImgService.createUserProfileThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
+    }
+
+    @Operation(
+        summary = "유저 프로필 이미지 삭제",
+        description = "유저 프로필 이미지(원본 및 썸네일)를 삭제합니다."
+    )
+    @DeleteMapping("/users/me/img/profile")
+    fun deleteUserProfileImg(): ResponseEntity<Unit> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        userImgService.deleteUserProfileImg(userUuid)
+        return ResponseEntity.noContent().build()
     }
 
     @Operation(
@@ -71,14 +83,14 @@ class OracleObjectStorageController(
             throw PostUpdateAccessDeniedException(postUuid, userUuid)
         }
 
-        val response = postImgParService.createPostImgUploadPars(postUuid)
+        val response = postImgService.createPostImgUploadPars(postUuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(summary = "모집글 원본 이미지 다운로드 PAR URL 생성")
     @PostMapping("/posts/{postUuid}/img/original/par/download")
     fun createPostOriginalImgDownloadPar(@PathVariable postUuid: UUID): ResponseEntity<ParResponse> {
-        val response = postImgParService.createPostOriginalImgDownloadPars(postUuid)
+        val response = postImgService.createPostOriginalImgDownloadPars(postUuid)
         return ResponseEntity.ok(response)
     }
 
@@ -88,8 +100,24 @@ class OracleObjectStorageController(
     )
     @PostMapping("/posts/img/thumbnail/par/download")
     fun createPostThumbnailImgDownloadPar(@RequestBody request: BulkParRequest): ResponseEntity<List<ParResponse>> {
-        val response = postImgParService.createPostThumbnailImgDownloadPars(request.uuid)
+        val response = postImgService.createPostThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
+    }
+
+    @Operation(
+        summary = "모집글 이미지 삭제",
+        description = "모집글 이미지(원본 및 썸네일)를 삭제합니다."
+    )
+    @DeleteMapping("/posts/{postUuid}/img")
+    fun deletePostImg(@PathVariable postUuid: UUID): ResponseEntity<Unit> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (!postService.verifyPostAuthor(postUuid, userUuid)) {
+            throw PostUpdateAccessDeniedException(postUuid, userUuid)
+        }
+
+        postImgService.deletePostImg(postUuid)
+        return ResponseEntity.noContent().build()
     }
 
     @Operation(
@@ -104,14 +132,14 @@ class OracleObjectStorageController(
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
 
-        val response = partyImgParService.createPartyImgUploadPars(partyUuid)
+        val response = partyImgService.createPartyImgUploadPars(partyUuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(summary = "파티 원본 이미지 다운로드 PAR URL 생성")
     @PostMapping("/parties/{partyUuid}/img/original/par/download")
     fun createPartyOriginalImgDownloadPar(@PathVariable partyUuid: UUID): ResponseEntity<ParResponse> {
-        val response = partyImgParService.createPartyOriginalImgDownloadPars(partyUuid)
+        val response = partyImgService.createPartyOriginalImgDownloadPars(partyUuid)
         return ResponseEntity.ok(response)
     }
 
@@ -121,8 +149,24 @@ class OracleObjectStorageController(
     )
     @PostMapping("/parties/img/thumbnail/par/download")
     fun createPartyThumbnailImgDownloadPar(@RequestBody request: BulkParRequest): ResponseEntity<List<ParResponse>> {
-        val response = partyImgParService.createPartyThumbnailImgDownloadPars(request.uuid)
+        val response = partyImgService.createPartyThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
+    }
+
+    @Operation(
+        summary = "파티 이미지 삭제",
+        description = "파티 이미지(원본 및 썸네일)를 삭제합니다."
+    )
+    @DeleteMapping("/parties/{partyUuid}/img")
+    fun deletePartyImg(@PathVariable partyUuid: UUID): ResponseEntity<Unit> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (!partyService.verifyPartyOwner(partyUuid, userUuid)) {
+            throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
+        }
+
+        partyImgService.deletePartyImg(partyUuid)
+        return ResponseEntity.noContent().build()
     }
 }
 
