@@ -3,7 +3,7 @@ package com.dogGetDrunk.meetjyou.image.cloud.oracle
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.BulkParRequest
+import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.BulkRequest
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.ParResponse
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
@@ -55,7 +55,7 @@ class OracleObjectStorageController(
         description = "1명 이상의 프로필 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다."
     )
     @PostMapping("/users/img/profile/thumbnail/par/download")
-    fun createUserThumbnailImgDownloadPar(@RequestBody request: BulkParRequest): ResponseEntity<List<ParResponse>> {
+    fun createUserThumbnailImgDownloadPar(@RequestBody request: BulkRequest): ResponseEntity<List<ParResponse>> {
         val response = userImgService.createUserProfileThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
     }
@@ -99,7 +99,7 @@ class OracleObjectStorageController(
         description = "1개 이상의 모집글 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다."
     )
     @PostMapping("/posts/img/thumbnail/par/download")
-    fun createPostThumbnailImgDownloadPar(@RequestBody request: BulkParRequest): ResponseEntity<List<ParResponse>> {
+    fun createPostThumbnailImgDownloadPar(@RequestBody request: BulkRequest): ResponseEntity<List<ParResponse>> {
         val response = postImgService.createPostThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
     }
@@ -148,7 +148,7 @@ class OracleObjectStorageController(
         description = "1개 이상의 파티 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다."
     )
     @PostMapping("/parties/img/thumbnail/par/download")
-    fun createPartyThumbnailImgDownloadPar(@RequestBody request: BulkParRequest): ResponseEntity<List<ParResponse>> {
+    fun createPartyThumbnailImgDownloadPar(@RequestBody request: BulkRequest): ResponseEntity<List<ParResponse>> {
         val response = partyImgService.createPartyThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
     }

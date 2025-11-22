@@ -18,12 +18,12 @@ import java.util.Date
 import java.util.UUID
 
 @Service
-class ObjectStorageService(
+class OracleObjectStorageService(
     private val objectStorageClient: ObjectStorageClient,
     private val props: OracleProps
 ) {
 
-    private val log = LoggerFactory.getLogger(ObjectStorageService::class.java)
+    private val log = LoggerFactory.getLogger(OracleObjectStorageService::class.java)
 
     fun createUploadPars(uuid: UUID, target: ImageTarget): ParResponse {
         val request = ParRequest(
@@ -96,7 +96,7 @@ class ObjectStorageService(
         )
 
         return ParResponse(
-            parUrl = parUrl,
+            url = parUrl,
             httpMethod = httpMethod,
             expiresAt = expiresAtSeoul
         )

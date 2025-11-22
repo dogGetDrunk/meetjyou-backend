@@ -7,24 +7,24 @@ import java.util.UUID
 
 @Service
 class UserImgService(
-    private val objectStorageService: ObjectStorageService
+    private val oracleObjectStorageService: OracleObjectStorageService
 ) {
 
     fun createUserProfileImgUploadPars(uuid: UUID): List<ParResponse> =
         listOf(
-            objectStorageService.createUploadPars(uuid, ImageTarget.USER_PROFILE_ORIGINAL),
-            objectStorageService.createUploadPars(uuid, ImageTarget.USER_PROFILE_THUMBNAIL)
+            oracleObjectStorageService.createUploadPars(uuid, ImageTarget.USER_PROFILE_ORIGINAL),
+            oracleObjectStorageService.createUploadPars(uuid, ImageTarget.USER_PROFILE_THUMBNAIL)
         )
 
     fun createUserProfileOriginalImgDownloadPars(uuid: UUID): ParResponse =
-        objectStorageService.createDownloadPars(uuid, ImageTarget.USER_PROFILE_ORIGINAL)
+        oracleObjectStorageService.createDownloadPars(uuid, ImageTarget.USER_PROFILE_ORIGINAL)
 
     fun createUserProfileThumbnailImgDownloadPars(uuid: List<UUID>): List<ParResponse> =
-        uuid.map { objectStorageService.createDownloadPars(it, ImageTarget.USER_PROFILE_THUMBNAIL) }
+        uuid.map { oracleObjectStorageService.createDownloadPars(it, ImageTarget.USER_PROFILE_THUMBNAIL) }
 
     fun deleteUserProfileImg(uuid: UUID) {
-        objectStorageService.deleteObject(uuid, ImageTarget.USER_PROFILE_ORIGINAL)
-        objectStorageService.deleteObject(uuid, ImageTarget.USER_PROFILE_THUMBNAIL)
+        oracleObjectStorageService.deleteObject(uuid, ImageTarget.USER_PROFILE_ORIGINAL)
+        oracleObjectStorageService.deleteObject(uuid, ImageTarget.USER_PROFILE_THUMBNAIL)
     }
 }
 

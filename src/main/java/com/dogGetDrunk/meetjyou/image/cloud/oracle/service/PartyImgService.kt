@@ -7,23 +7,23 @@ import java.util.UUID
 
 @Service
 class PartyImgService(
-    private val objectStorageService: ObjectStorageService
+    private val oracleObjectStorageService: OracleObjectStorageService
 ) {
 
     fun createPartyImgUploadPars(uuid: UUID): List<ParResponse> =
         listOf(
-            objectStorageService.createUploadPars(uuid, ImageTarget.PARTY_ORIGINAL),
-            objectStorageService.createUploadPars(uuid, ImageTarget.PARTY_THUMBNAIL)
+            oracleObjectStorageService.createUploadPars(uuid, ImageTarget.PARTY_ORIGINAL),
+            oracleObjectStorageService.createUploadPars(uuid, ImageTarget.PARTY_THUMBNAIL)
         )
 
     fun createPartyOriginalImgDownloadPars(uuid: UUID): ParResponse =
-        objectStorageService.createDownloadPars(uuid, ImageTarget.PARTY_ORIGINAL)
+        oracleObjectStorageService.createDownloadPars(uuid, ImageTarget.PARTY_ORIGINAL)
 
     fun createPartyThumbnailImgDownloadPars(uuid: List<UUID>): List<ParResponse> =
-        uuid.map { objectStorageService.createDownloadPars(it, ImageTarget.PARTY_THUMBNAIL) }
+        uuid.map { oracleObjectStorageService.createDownloadPars(it, ImageTarget.PARTY_THUMBNAIL) }
 
     fun deletePartyImg(uuid: UUID) {
-        objectStorageService.deleteObject(uuid, ImageTarget.PARTY_ORIGINAL)
-        objectStorageService.deleteObject(uuid, ImageTarget.PARTY_THUMBNAIL)
+        oracleObjectStorageService.deleteObject(uuid, ImageTarget.PARTY_ORIGINAL)
+        oracleObjectStorageService.deleteObject(uuid, ImageTarget.PARTY_THUMBNAIL)
     }
 }
