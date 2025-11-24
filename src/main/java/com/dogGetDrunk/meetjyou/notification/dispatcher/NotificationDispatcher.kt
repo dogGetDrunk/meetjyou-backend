@@ -24,10 +24,10 @@ class NotificationDispatcher(
     private val log = LoggerFactory.getLogger(NotificationDispatcher::class.java)
     private val backoffSeconds = listOf(5L, 15L, 60L, 180L, 600L)
 
-    @Scheduled(fixedDelay = 2000L) // 2초 간격
-    fun scheduledDispatch() {
-        dispatchBatch(limit = 200)
-    }
+//    @Scheduled(fixedDelay = 2000L) // 2초 간격
+//    fun scheduledDispatch() {
+//        dispatchBatch(limit = 200)
+//    }
 
     @Transactional
     fun dispatchBatch(limit: Int) {
