@@ -14,7 +14,7 @@ data class CreatePartyResponse(
         fun of(party: Party) = CreatePartyResponse(
             uuid = party.uuid,
             name = party.name,
-            location = party.location,
+            location = party.destination,
             createdAt = party.createdAt
         )
     }

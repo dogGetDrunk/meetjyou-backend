@@ -42,13 +42,12 @@ class PartyService(
         val party = Party(
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
-            location = request.destination,
+            destination = request.destination,
             joined = request.joined,
             capacity = request.capacity,
             name = request.name,
         ).apply {
             this.plan = plan
-            this.owner = owner
         }
 
         partyRepository.save(party)
@@ -85,7 +84,11 @@ class PartyService(
 
     @Transactional(readOnly = true)
     fun verifyPartyOwner(partyUuid: UUID, userUuid: UUID): Boolean {
-        return partyRepository.existsByUuidAndOwner_Uuid(partyUuid, userUuid)
+        if (userPartyRepository.existsByParty_UuidAndUser_Uuid(partyUuid, userUuid)) {
+            val userParty = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
+            return userParty?.role == PartyRole.LEADER
+        }
+        return false
     }
 
     @Transactional
@@ -95,7 +98,7 @@ class PartyService(
 
         return party.apply {
             name = request.name
-            location = request.location
+            destination = request.location
             joined = request.joined
             capacity = request.capacity
             itinStart = request.itinStart

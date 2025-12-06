@@ -36,4 +36,7 @@ class UserParty(
 
     @CreationTimestamp
     val joinedAt: LocalDateTime = LocalDateTime.now()
+
+    @Enumerated(EnumType.STRING)
+    var status = UserPartyStatus.JOINED
 }

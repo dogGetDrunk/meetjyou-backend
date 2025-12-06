@@ -23,7 +23,7 @@ data class GetPartyResponse(
                 uuid = party.uuid,
                 itinStart = party.itinStart,
                 itinFinish = party.itinFinish,
-                location = party.location,
+                location = party.destination,
                 joined = party.joined,
                 capacity = party.capacity,
                 name = party.name,

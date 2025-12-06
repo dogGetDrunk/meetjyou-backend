@@ -1,9 +1,10 @@
 package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.plan.Plan
-import com.dogGetDrunk.meetjyou.user.User
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -22,7 +23,7 @@ import java.util.UUID
 class Party(
     var itinStart: LocalDate,
     var itinFinish: LocalDate,
-    var location: String,
+    var destination: String,
     var joined: Int,
     var capacity: Int,
     var name: String,
@@ -37,9 +38,9 @@ class Party(
     var createdAt: LocalDateTime = LocalDateTime.now()
     @UpdateTimestamp
     var lastEditedAt: LocalDateTime = LocalDateTime.now()
+    @Enumerated(EnumType.STRING)
+    var status = PartyStatus.PLANNING
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
     var plan: Plan? = null
-    @ManyToOne
-    lateinit var owner: User
 }
