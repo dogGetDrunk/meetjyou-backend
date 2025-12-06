@@ -68,14 +68,14 @@ CREATE TABLE party
     uuid           CHAR(36)    NOT NULL UNIQUE,
     itin_start     TIMESTAMP   NOT NULL,
     itin_finish    TIMESTAMP   NOT NULL,
-    location       VARCHAR(50) NOT NULL,
-    joined         TINYINT     NOT NULL,
-    capacity       TINYINT     NOT NULL,
+    destination    VARCHAR(50) NOT NULL,
+    joined         INT         NOT NULL,
+    capacity       INT         NOT NULL,
     name           VARCHAR(50) NOT NULL,
     created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    plan_id        INT         NOT NULL,
-    owner_id       INT         NOT NULL
+    status         VARCHAR(30) NOT NULL DEFAULT 'PLANNING',
+    plan_id        INT         NOT NULL
 );
 
 CREATE TABLE chat_room
@@ -187,10 +187,11 @@ CREATE TABLE party_application
 CREATE TABLE user_party
 (
     id        INT AUTO_INCREMENT PRIMARY KEY,
-    role      CHAR(10)  NOT NULL,
-    joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    party_id  INT       NOT NULL,
-    user_id   INT       NOT NULL
+    role      CHAR(10)    NOT NULL,
+    joined_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status    VARCHAR(20) NOT NULL DEFAULT 'JOINED',
+    party_id  INT         NOT NULL,
+    user_id   INT         NOT NULL
 );
 
 CREATE TABLE app_version
@@ -243,8 +244,6 @@ ALTER TABLE post
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
 ALTER TABLE party
     ADD FOREIGN KEY (plan_id) REFERENCES plan (id);
-ALTER TABLE party
-    ADD FOREIGN KEY (owner_id) REFERENCES user (id);
 ALTER TABLE chat_room
     ADD FOREIGN KEY (room_id) REFERENCES party (id);
 ALTER TABLE chat_message
