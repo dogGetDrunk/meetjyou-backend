@@ -73,6 +73,9 @@ jobs:
             KAKAO_APP_ID=${{ secrets.KAKAO_APP_ID }}
             KAKAO_CLOCK_SKEW_SECONDS=${{ secrets.KAKAO_CLOCK_SKEW_SECONDS }}
             KAKAO_JWK_CACHE_TTL_MINUTES=${{ secrets.KAKAO_JWK_CACHE_TTL_MINUTES }}
+            GOOGLE_ISSUER=${{ secrets.GOOGLE_ISSUER }}
+            GOOGLE_CLIENT_ID_ANDROID=${{ secrets.GOOGLE_CLIENT_ID_ANDROID }}
+            GOOGLE_CLIENT_ID_WEB=${{ secrets.GOOGLE_CLIENT_ID_WEB }}
             COMPOSE_PROJECT_NAME=meetjyou
             EOF
 
