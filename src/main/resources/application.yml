@@ -70,3 +70,11 @@ auth:
     app-id: ${KAKAO_APP_ID}
     clock-skew-seconds: ${KAKAO_CLOCK_SKEW_SECONDS}
     jwk-cache-ttl-minutes: ${KAKAO_JWK_CACHE_TTL_MINUTES}
+  google:
+    issuer: ${GOOGLE_ISSUER}
+    clients:
+      android: ${GOOGLE_CLIENT_ID_ANDROID}
+      web: ${GOOGLE_CLIENT_ID_WEB}
+    # jwks-uri: ${GOOGLE_JWKS_URI}
+    # clock-skew-seconds: ${GOOGLE_CLOCK_SKEW_SECONDS}
+    # jwk-cache-ttl-minutes: ${GOOGLE_JWK_CACHE_TTL_MINUTES}

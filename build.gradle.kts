@@ -70,6 +70,11 @@ dependencies {
     // firebase admin sdk
     implementation("com.google.firebase:firebase-admin:9.5.0")
 
+    // google api
+    implementation("com.google.api-client:google-api-client:2.8.1")
+    implementation("com.google.http-client:google-http-client-jackson2:2.0.2")
+    implementation("com.google.code.gson:gson:2.13.2")
+
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
