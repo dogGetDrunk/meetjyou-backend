@@ -3,8 +3,6 @@ services:
     container_name: spring_boot
     restart: always
     image: ssove/meetjyou
-    ports:
-      - "8080:8080"
     env_file:
       - .env
     environment:
@@ -14,6 +12,8 @@ services:
     volumes:
       - ./data/spring_boot/firebase-adminsdk.json:/run/secrets/firebase-adminsdk.json:ro
       - ./data/spring_boot/oci:/run/secrets/oci:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     networks:
       - my_network
 
@@ -24,6 +24,8 @@ services:
       - ./data/nginx:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     ports:
       - "80:80"
       - "443:443"
