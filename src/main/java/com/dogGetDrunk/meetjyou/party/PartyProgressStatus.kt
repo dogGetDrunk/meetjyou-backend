@@ -1,6 +1,6 @@
 package com.dogGetDrunk.meetjyou.party
 
-enum class PartyStatus {
+enum class PartyProgressStatus {
     PLANNING,
     ONGOING,
     COMPLETED,

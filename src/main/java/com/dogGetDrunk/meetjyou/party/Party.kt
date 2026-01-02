@@ -39,7 +39,10 @@ class Party(
     @UpdateTimestamp
     var lastEditedAt: LocalDateTime = LocalDateTime.now()
     @Enumerated(EnumType.STRING)
-    var status = PartyStatus.PLANNING
+    var progressStatus = PartyProgressStatus.PLANNING
+    @Enumerated(EnumType.STRING)
+    var recruitmentStatus = PartyRecruitmentStatus.OPEN
+    var memo: String? = null
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
     var plan: Plan? = null

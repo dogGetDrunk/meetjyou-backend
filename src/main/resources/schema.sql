@@ -64,18 +64,19 @@ CREATE TABLE post
 
 CREATE TABLE party
 (
-    id             INT AUTO_INCREMENT PRIMARY KEY,
-    uuid           CHAR(36)    NOT NULL UNIQUE,
-    itin_start     TIMESTAMP   NOT NULL,
-    itin_finish    TIMESTAMP   NOT NULL,
-    destination    VARCHAR(50) NOT NULL,
-    joined         INT         NOT NULL,
-    capacity       INT         NOT NULL,
-    name           VARCHAR(50) NOT NULL,
-    created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_edited_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status         VARCHAR(30) NOT NULL DEFAULT 'PLANNING',
-    plan_id        INT         NOT NULL
+    id                 INT AUTO_INCREMENT PRIMARY KEY,
+    uuid               CHAR(36)    NOT NULL UNIQUE,
+    itin_start         TIMESTAMP   NOT NULL,
+    itin_finish        TIMESTAMP   NOT NULL,
+    destination        VARCHAR(50) NOT NULL,
+    joined             INT         NOT NULL,
+    capacity           INT         NOT NULL,
+    name               VARCHAR(50) NOT NULL,
+    created_at         TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_edited_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    progress_status    VARCHAR(30) NOT NULL DEFAULT 'PLANNING',
+    recruitment_status VARCHAR(10) NOT NULL DEFAULT 'OPEN',
+    plan_id            INT         NOT NULL
 );
 
 CREATE TABLE chat_room
@@ -186,12 +187,12 @@ CREATE TABLE party_application
 
 CREATE TABLE user_party
 (
-    id        INT AUTO_INCREMENT PRIMARY KEY,
-    role      CHAR(10)    NOT NULL,
-    joined_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status    VARCHAR(20) NOT NULL DEFAULT 'JOINED',
-    party_id  INT         NOT NULL,
-    user_id   INT         NOT NULL
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    role          CHAR(10)    NOT NULL,
+    joined_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    member_status VARCHAR(20) NOT NULL DEFAULT 'JOINED',
+    party_id      INT         NOT NULL,
+    user_id       INT         NOT NULL
 );
 
 CREATE TABLE app_version

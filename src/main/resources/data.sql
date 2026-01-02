@@ -200,28 +200,28 @@ VALUES ('0f6e967f-2608-46aa-89e9-b867dcfb2a87', '첫 번째 여행 모집', '함
         DATE_ADD(NOW(), INTERVAL 4 DAY), '일본', NOW(), NOW(), 1, 10, NULL, 10, TRUE);
 
 
-INSERT INTO party (uuid, itin_start, itin_finish, location, joined, capacity, name, created_at,
-                   last_edited_at, plan_id, owner_id)
+INSERT INTO party (uuid, itin_start, itin_finish, destination, joined, capacity, name, created_at,
+                   last_edited_at, plan_id)
 VALUES ('88d98b41-c34b-42ea-9f0f-07440e02478f', NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), '서울', 1, 3, '서울모임1', NOW(),
-        NOW(), 1, 1),
+        NOW(), 1),
        ('f86abba4-3fbd-43d3-b3d3-48932cfa4ef7', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '서울', 1, 2, '서울모임2', NOW(),
-        NOW(), 2, 1),
+        NOW(), 2),
        ('3f56afea-d0cd-4f95-abad-188654680349', NOW(), DATE_ADD(NOW(), INTERVAL 5 DAY), '유럽', 1, 5, '유럽모임', NOW(),
-        NOW(), 3, 2),
+        NOW(), 3),
        ('916780cc-abc1-40d2-8b2d-cb8feb1ca171', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), '전국', 1, 1, '국내모임', NOW(),
-        NOW(), 4, 7),
+        NOW(), 4),
        ('570dc0df-ba7b-448b-96c4-b73df5fe53ec', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '부산', 1, 4, '부산모임', NOW(),
-        NOW(), 5, 4),
+        NOW(), 5),
        ('2b6b7cbc-1e77-42ea-845d-f2c70423d43d', NOW(), DATE_ADD(NOW(), INTERVAL 10 DAY), '프랑스', 1, 6, '프랑스모임', NOW(),
-        NOW(), 6, 5),
+        NOW(), 6),
        ('b7df7b84-fabb-4875-b167-e3b5af23e919', NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), '제주도', 1, 3, '제주모임', NOW(),
-        NOW(), 7, 3),
+        NOW(), 7),
        ('26d16d83-13ca-495c-aac4-9a84bdcd068a', NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), '전국', 1, 2, '사진모임', NOW(),
-        NOW(), 8, 6),
+        NOW(), 8),
        ('c7e98d3b-b468-498c-a02a-c9dee2c5de7a', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), '일본', 1, 1, '일본모임1', NOW(),
-        NOW(), 9, 7),
+        NOW(), 9),
        ('0b12d1db-80ae-4ad3-8f66-670f7cb95c5d', NOW(), DATE_ADD(NOW(), INTERVAL 4 DAY), '일본', 1, 3, '일본모임2', NOW(),
-        NOW(), 10, 8);
+        NOW(), 10);
 
 
 -- marker 더미 데이터

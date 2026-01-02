@@ -1,6 +1,6 @@
 package com.dogGetDrunk.meetjyou.userparty
 
-enum class UserPartyStatus {
+enum class MemberStatus {
     JOINED,
     LEFT,
     BANNED,

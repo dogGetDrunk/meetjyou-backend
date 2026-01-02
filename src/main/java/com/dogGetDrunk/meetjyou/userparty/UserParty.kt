@@ -33,10 +33,8 @@ class UserParty(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0
-
     @CreationTimestamp
     val joinedAt: LocalDateTime = LocalDateTime.now()
-
     @Enumerated(EnumType.STRING)
-    var status = UserPartyStatus.JOINED
+    var memberStatus = MemberStatus.JOINED
 }
