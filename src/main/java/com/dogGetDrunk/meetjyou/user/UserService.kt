@@ -32,7 +32,6 @@ class UserService(
             User(
                 email = request.email,
                 nickname = request.nickname,
-                birthDate = request.birthDate,
                 authProvider = request.authProvider,
                 externalId = principal.subject,
             ).apply {

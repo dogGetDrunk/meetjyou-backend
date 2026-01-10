@@ -19,7 +19,6 @@ import java.util.UUID
 class User(
     val email: String,
     var nickname: String,
-    var birthDate: LocalDate,
     @Enumerated(EnumType.STRING)
     var authProvider: AuthProvider,
     var externalId: String,

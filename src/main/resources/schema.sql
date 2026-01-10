@@ -25,7 +25,6 @@ CREATE TABLE user
     uuid          CHAR(36)     NOT NULL UNIQUE,
     email         VARCHAR(255) NOT NULL UNIQUE,
     nickname      VARCHAR(10)  NOT NULL UNIQUE,
-    birth_date    DATE         NOT NULL,
     auth_provider VARCHAR(10)  NOT NULL,
     external_id   VARCHAR(100) NOT NULL UNIQUE,
     role          VARCHAR(10)  NOT NULL DEFAULT 'USER',
