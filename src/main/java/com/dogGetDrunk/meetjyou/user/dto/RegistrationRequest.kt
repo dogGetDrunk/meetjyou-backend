@@ -24,7 +24,6 @@ data class RegistrationRequest(
     val nickname: String,
     @field:Size(max = 30)
     val bio: String?,
-    val birthDate: LocalDate,
     val gender: Gender,
     val age: Age,
     @field:Size(max = 3)
