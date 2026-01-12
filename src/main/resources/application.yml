@@ -35,7 +35,6 @@ springdoc:
 logging:
   level:
     org.hibernate.orm.jdbc.bind: trace
-    org.springframework.security: DEBUG
 
 server:
   forward-headers-strategy: native
