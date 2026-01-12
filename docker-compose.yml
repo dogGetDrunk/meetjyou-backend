@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     environment:
-      - SPRING_PROFILES_ACTIVE=db,secrets
+      - SPRING_PROFILES_ACTIVE=db,secrets,release
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-adminsdk.json
       - OCI_CONFIG_FILE_PATH=/run/secrets/oci/config
     volumes:
