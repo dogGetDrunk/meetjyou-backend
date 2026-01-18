@@ -61,7 +61,7 @@ VALUES ('GENDER', 'M'),
        ('ETC', 'NOT_SMOKE'),
        ('ETC', 'DRINK'),
        ('ETC', 'NOT_DRINK'),
-       ('ETC', 'ANYTHING');
+       ('ETC', 'DONT_CARE');
 
 INSERT INTO user_preference (user_id, preference_id)
 VALUES
@@ -71,7 +71,7 @@ VALUES
     (1, 14),  -- PRACTICAL
     (1, 25),  -- NATURE
     (1, 33),  -- ANYTHING
-    (1, 38),  -- ANYTHING
+    (1, 38),  -- DONT_CARE
 
     -- 이준호: M, TWENTY, EXTROVERTED, ADVENTURE, SPECIFIC
     (2, 1),   -- M
@@ -114,7 +114,7 @@ VALUES
     (6, 9),   -- INTROVERTED
     (6, 26),  -- URBAN
     (6, 33),  -- ANYTHING (ANYTHING은 한 개만 선택 가능)
-    (6, 38),  -- ANYTHING
+    (6, 38),  -- DONT_CARE
 
     -- 김수현: F, TWENTY, CAREFUL, RELAX, MEAT
     (7, 2),   -- F
@@ -122,7 +122,7 @@ VALUES
     (7, 15),  -- CAREFUL
     (7, 18),  -- RELAX
     (7, 33),  -- ANYTHING
-    (7, 38),  -- ANYTHING
+    (7, 38),  -- DONT_CARE
 
     -- 이서준: M, TWENTY, BOLD, ACTIVITY, SPECIFIC
     (8, 1),   -- M

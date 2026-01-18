@@ -5,5 +5,5 @@ enum class Etc {
     NOT_SMOKE,
     DRINK,
     NOT_DRINK,
-    ANYTHING
+    DONT_CARE
 }
