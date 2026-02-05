@@ -212,3 +212,6 @@ src/main/resources/application-secrets.yml
 ### Secrets ###
 # Firebase
 src/main/resources/firebase/meetjyou-firebase-adminsdk.json
+
+### Miscellaneous ###
+/playground.sql
