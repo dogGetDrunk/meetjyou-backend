@@ -1,8 +1,6 @@
 package com.dogGetDrunk.meetjyou.party
 
-import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
-import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
-import com.dogGetDrunk.meetjyou.party.dto.CreatePartyResponse
+import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
@@ -10,7 +8,6 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
-import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Page
@@ -21,7 +18,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -57,12 +53,7 @@ class PartyController(
 //        return partyService.createParty(request)
 //    }
 
-    @Operation(summary = "파티 단건 조회", description = "UUID로 특정 파티를 조회합니다.")
-    @ApiResponse(
-        responseCode = "200",
-        description = "파티 조회 성공",
-        content = [Content(schema = Schema(implementation = GetPartyResponse::class))]
-    )
+    @Operation(summary = "파티 단건 조회", description = "파티 UUID로 특정 파티를 조회합니다.")
     @GetMapping("/{partyUuid}")
     fun getPartyByUuid(@PathVariable partyUuid: UUID): GetPartyResponse {
         return partyService.getPartyByUuid(partyUuid)
@@ -71,14 +62,13 @@ class PartyController(
     @Operation(summary = "전체 파티 조회", description = "모든 파티 목록을 페이지네이션하여 조회합니다.")
     @GetMapping
     fun getAllParties(
-        @ParameterObject
-        @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
+        @ParameterObject @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable,
     ): Page<GetPartyResponse> {
         return partyService.getAllParties(pageable)
     }
 
-    @Operation(summary = "유저가 참여 중인 파티 목록 조회", description = "UUID로 특정 유저가 참여 중인 모든 파티를 조회합니다.")
+    @Operation(summary = "유저가 참여 중인 파티 목록 조회", description = "유저 UUID로 특정 유저가 참여 중인 모든 파티를 조회합니다.")
     @GetMapping("/user/{userUuid}")
     fun getPartiesByUserUuid(
         @PathVariable userUuid: UUID,
@@ -88,27 +78,27 @@ class PartyController(
         return partyService.getPartiesByUserUuid(userUuid, pageable)
     }
 
-    @Operation(summary = "여행 계획서 UUID 기반 파티 조회", description = "특정 여행 계획서에 속한 파티 목록을 조회합니다.")
+    @Operation(summary = "여행 계획서 UUID 기반 파티 조회", description = "여행 계획서 UUID로 특정 여행 계획서와 연결된 모든 파티를 조회합니다.")
     @GetMapping("/plan/{planUuid}")
     fun getPartiesByPlanUuid(
         @PathVariable planUuid: UUID,
-        @ParameterObject
-        @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
+        @ParameterObject @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable,
     ): Page<GetPartyResponse> {
         return partyService.getPartiesByPlanUuid(planUuid, pageable)
     }
 
-    @Operation(summary = "파티 수정", description = "UUID로 특정 파티를 수정합니다.")
+    @Operation(summary = "파티 수정", description = "파티 UUID로 특정 파티를 수정합니다.")
     @PutMapping("/{partyUuid}")
     fun updateParty(
         @PathVariable partyUuid: UUID,
         @RequestBody request: UpdatePartyRequest,
     ): UpdatePartyResponse {
-        return partyService.updateParty(partyUuid, request)
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        return partyService.updateParty(partyUuid, userUuid, request)
     }
 
-    @Operation(summary = "파티 삭제", description = "UUID로 특정 파티를 삭제합니다.")
+    @Operation(summary = "파티 삭제", description = "파티 UUID로 특정 파티를 삭제합니다.")
     @DeleteMapping("/{partyUuid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteParty(@PathVariable partyUuid: UUID) {

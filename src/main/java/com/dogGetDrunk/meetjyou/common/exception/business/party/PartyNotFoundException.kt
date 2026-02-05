@@ -1,6 +1,7 @@
-package com.dogGetDrunk.meetjyou.common.exception.business.notFound
+package com.dogGetDrunk.meetjyou.common.exception.business.party
 
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NotFoundException
 import java.util.UUID
 
 class PartyNotFoundException(

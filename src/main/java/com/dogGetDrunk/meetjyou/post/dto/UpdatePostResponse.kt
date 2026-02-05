@@ -1,9 +1,6 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
 import com.dogGetDrunk.meetjyou.post.Post
-import com.dogGetDrunk.meetjyou.preference.CompPreference
-import com.dogGetDrunk.meetjyou.preference.PreferenceType
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -16,8 +13,8 @@ data class UpdatePostResponse(
     val postStatus: Int,
     val authorUuid: UUID,
     val isInstant: Boolean,
-    val itinStart: LocalDate,
-    val itinFinish: LocalDate,
+    val itinStart: LocalDateTime,
+    val itinFinish: LocalDateTime,
     val location: String,
     val capacity: Int,
     val joined: Int,

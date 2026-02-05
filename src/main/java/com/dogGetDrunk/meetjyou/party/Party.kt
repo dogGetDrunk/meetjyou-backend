@@ -15,14 +15,13 @@ import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
 class Party(
-    var itinStart: LocalDate,
-    var itinFinish: LocalDate,
+    var itinStart: LocalDateTime,
+    var itinFinish: LocalDateTime,
     var destination: String,
     var joined: Int,
     var capacity: Int,
@@ -42,7 +41,6 @@ class Party(
     var progressStatus = PartyProgressStatus.PLANNING
     @Enumerated(EnumType.STRING)
     var recruitmentStatus = PartyRecruitmentStatus.OPEN
-    var memo: String? = null
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
     var plan: Plan? = null

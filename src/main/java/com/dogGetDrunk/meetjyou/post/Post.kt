@@ -13,7 +13,6 @@ import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -23,8 +22,8 @@ class Post(
     var isInstant: Boolean,
     var title: String,
     var content: String,
-    var itinStart: LocalDate,
-    var itinFinish: LocalDate,
+    var itinStart: LocalDateTime,
+    var itinFinish: LocalDateTime,
     var location: String,
     var capacity: Int,
 ) {
