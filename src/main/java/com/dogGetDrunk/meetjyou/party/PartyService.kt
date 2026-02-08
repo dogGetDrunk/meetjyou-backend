@@ -1,8 +1,9 @@
 package com.dogGetDrunk.meetjyou.party
 
-import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PartyNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
@@ -31,9 +32,9 @@ class PartyService(
 
     @Transactional
     fun createParty(request: CreatePartyRequest): CreatePartyResponse {
+        log.info("Party creation request received: name=${request.name}")
         val plan = request.planUuid?.let { planUuid ->
-            planRepository.findByUuid(planUuid)
-                ?: throw PlanNotFoundException(planUuid)
+            planRepository.findByUuid(planUuid) ?: throw PlanNotFoundException(planUuid)
         }
 
         val owner = userRepository.findByUuid(request.ownerUuid)
@@ -42,27 +43,25 @@ class PartyService(
         val party = Party(
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
-            location = request.destination,
+            destination = request.destination,
             joined = request.joined,
             capacity = request.capacity,
             name = request.name,
         ).apply {
             this.plan = plan
-            this.owner = owner
         }
 
         partyRepository.save(party)
         userPartyRepository.save(UserParty(party, owner, PartyRole.LEADER))
 
-        log.info("Party created: uuid=${party.uuid}")
+        log.info("Party created: uuid=${party.uuid}, name=${party.name}")
 
         return CreatePartyResponse.of(party)
     }
 
     @Transactional(readOnly = true)
     fun getPartyByUuid(uuid: UUID): GetPartyResponse {
-        val party = partyRepository.findByUuid(uuid)
-            ?: throw PartyNotFoundException(uuid)
+        val party = partyRepository.findByUuid(uuid) ?: throw PartyNotFoundException(uuid)
 
         return GetPartyResponse.of(party)
     }
@@ -85,23 +84,32 @@ class PartyService(
 
     @Transactional(readOnly = true)
     fun verifyPartyOwner(partyUuid: UUID, userUuid: UUID): Boolean {
-        return partyRepository.existsByUuidAndOwner_Uuid(partyUuid, userUuid)
+        if (userPartyRepository.existsByParty_UuidAndUser_Uuid(partyUuid, userUuid)) {
+            val userParty = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
+            return userParty?.role == PartyRole.LEADER
+        }
+        return false
     }
 
     @Transactional
-    fun updateParty(uuid: UUID, request: UpdatePartyRequest): UpdatePartyResponse {
-        val party = partyRepository.findByUuid(uuid)
-            ?: throw PartyNotFoundException(uuid)
+    fun updateParty(partyUuid: UUID, userUuid: UUID, request: UpdatePartyRequest): UpdatePartyResponse {
+        log.info("Party update request received: uuid=$partyUuid by user=$userUuid")
+        if (!verifyPartyOwner(partyUuid, userUuid)) {
+            throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
+        }
+
+        val party = partyRepository.findByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
 
         return party.apply {
             name = request.name
-            location = request.location
+            destination = request.destination
             joined = request.joined
             capacity = request.capacity
             itinStart = request.itinStart
             itinFinish = request.itinFinish
+
         }.also {
-            log.info("Party updated: uuid=$uuid")
+            log.info("Party is updated: uuid=$partyUuid")
         }.let {
             UpdatePartyResponse.of(it)
         }
@@ -109,10 +117,10 @@ class PartyService(
 
     @Transactional
     fun deleteParty(uuid: UUID) {
-        val party = partyRepository.findByUuid(uuid)
-            ?: throw PartyNotFoundException(uuid)
+        log.info("Party deletion request received: uuid=$uuid")
+        val party = partyRepository.findByUuid(uuid) ?: throw PartyNotFoundException(uuid)
 
         partyRepository.delete(party)
-        log.info("Party deleted: uuid=${'$'}uuid")
+        log.info("Party is deleted: uuid=$uuid")
     }
 }

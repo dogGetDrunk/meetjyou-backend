@@ -1,9 +1,10 @@
 package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.plan.Plan
-import com.dogGetDrunk.meetjyou.user.User
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -14,15 +15,14 @@ import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
 class Party(
-    var itinStart: LocalDate,
-    var itinFinish: LocalDate,
-    var location: String,
+    var itinStart: LocalDateTime,
+    var itinFinish: LocalDateTime,
+    var destination: String,
     var joined: Int,
     var capacity: Int,
     var name: String,
@@ -37,9 +37,11 @@ class Party(
     var createdAt: LocalDateTime = LocalDateTime.now()
     @UpdateTimestamp
     var lastEditedAt: LocalDateTime = LocalDateTime.now()
+    @Enumerated(EnumType.STRING)
+    var progressStatus = PartyProgressStatus.PLANNING
+    @Enumerated(EnumType.STRING)
+    var recruitmentStatus = PartyRecruitmentStatus.OPEN
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
     var plan: Plan? = null
-    @ManyToOne
-    lateinit var owner: User
 }

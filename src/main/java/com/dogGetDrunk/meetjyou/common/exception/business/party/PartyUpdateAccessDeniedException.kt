@@ -7,6 +7,5 @@ import java.util.UUID
 class PartyUpdateAccessDeniedException(
     partyUuid: UUID,
     userUuid: UUID,
-    ownerUuid: UUID? = null,
-    message: String? = null,
+    message: String? = "User $userUuid does not have permission to update Party $partyUuid",
 ) : AccessDeniedException(ErrorCode.ACCESS_DENIED, partyUuid.toString(), message)
