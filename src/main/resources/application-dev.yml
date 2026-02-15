@@ -1,3 +1,7 @@
 logging:
   level:
     org.springframework.security: DEBUG
+
+dev:
+  bypass:
+    enabled: true
