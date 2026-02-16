@@ -24,6 +24,12 @@ class JwtAuthFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
+        val existing = SecurityContextHolder.getContext().authentication
+        if (existing != null && existing.isAuthenticated) {
+            filterChain.doFilter(request, response)
+            return
+        }
+
         /*
         스웨거 문서 경로는 JWT 인증 필터를 우회하도록 설정합니다.
          */
