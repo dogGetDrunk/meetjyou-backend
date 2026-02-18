@@ -11,4 +11,5 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
     fun findAllByParty_Uuid(partyUuid: UUID, pageable: Pageable): Page<UserParty>
     fun findAllByParty_Uuid(partyUuid: UUID): List<UserParty>
     fun existsByParty_UuidAndUser_Uuid(partyUuid: UUID, userUuid: UUID): Boolean
+    fun deleteAllByParty_Uuid(partyUuid: UUID): Boolean
 }

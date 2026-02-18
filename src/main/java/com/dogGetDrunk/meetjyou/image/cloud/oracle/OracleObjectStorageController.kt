@@ -128,7 +128,7 @@ class OracleObjectStorageController(
     fun createPartyImgUploadPar(@PathVariable partyUuid: UUID): ResponseEntity<List<ParResponse>> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
 
-        if (!partyService.verifyPartyOwner(partyUuid, userUuid)) {
+        if (!partyService.verifyPartyLeader(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
 
@@ -161,7 +161,7 @@ class OracleObjectStorageController(
     fun deletePartyImg(@PathVariable partyUuid: UUID): ResponseEntity<Unit> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
 
-        if (!partyService.verifyPartyOwner(partyUuid, userUuid)) {
+        if (!partyService.verifyPartyLeader(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
 
