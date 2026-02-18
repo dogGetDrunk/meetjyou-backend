@@ -5,9 +5,6 @@ import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
-import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Page
@@ -72,7 +69,7 @@ class PartyController(
     @GetMapping("/user/{userUuid}")
     fun getPartiesByUserUuid(
         @PathVariable userUuid: UUID,
-        @ParameterObject @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
+        @ParameterObject @PageableDefault(size = 10, sort = ["party.createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable,
     ): Page<GetPartyResponse> {
         return partyService.getPartiesByUserUuid(userUuid, pageable)
@@ -82,7 +79,7 @@ class PartyController(
     @GetMapping("/plan/{planUuid}")
     fun getPartiesByPlanUuid(
         @PathVariable planUuid: UUID,
-        @ParameterObject @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
+        @ParameterObject @PageableDefault(size = 10, sort = ["party.createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable,
     ): Page<GetPartyResponse> {
         return partyService.getPartiesByPlanUuid(planUuid, pageable)
@@ -102,6 +99,7 @@ class PartyController(
     @DeleteMapping("/{partyUuid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteParty(@PathVariable partyUuid: UUID) {
-        partyService.deleteParty(partyUuid)
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        partyService.deleteParty(partyUuid, userUuid)
     }
 }
