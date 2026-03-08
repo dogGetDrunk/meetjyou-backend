@@ -10,27 +10,27 @@ enum class ImageOperation {
 enum class ImageTarget {
     USER_PROFILE_ORIGINAL {
         override fun toObjectName(uuid: UUID): String =
-            "user/profile/${uuid}-original.jpg"
+            "image/user/profile/${uuid}-original.jpg"
     },
     USER_PROFILE_THUMBNAIL {
         override fun toObjectName(uuid: UUID): String =
-            "user/profile/${uuid}-thumbnail.jpg"
+            "image/user/profile/${uuid}-thumbnail.jpg"
     },
     POST_ORIGINAL {
         override fun toObjectName(uuid: UUID): String =
-            "post/${uuid}-original.jpg"
+            "image/post/${uuid}-original.jpg"
     },
     POST_THUMBNAIL {
         override fun toObjectName(uuid: UUID): String =
-            "post/${uuid}-thumbnail.jpg"
+            "image/post/${uuid}-thumbnail.jpg"
     },
     PARTY_ORIGINAL {
         override fun toObjectName(uuid: UUID): String =
-            "party/${uuid}-original.jpg"
+            "image/party/${uuid}-original.jpg"
     },
     PARTY_THUMBNAIL {
         override fun toObjectName(uuid: UUID): String =
-            "party/${uuid}-thumbnail.jpg"
+            "image/party/${uuid}-thumbnail.jpg"
     };
 
     abstract fun toObjectName(uuid: UUID): String

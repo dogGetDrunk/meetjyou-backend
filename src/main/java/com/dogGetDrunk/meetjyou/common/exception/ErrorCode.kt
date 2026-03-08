@@ -1,7 +1,7 @@
 package com.dogGetDrunk.meetjyou.common.exception
 
 enum class ErrorCode(
-    val message: String
+    val message: String,
 ) {
     // Business
     DUPLICATE("Duplicate value"),
@@ -58,4 +58,11 @@ enum class ErrorCode(
 
     // Preference
     PREFERENCE_NOT_FOUND("Preference not found"),
+
+    // Terms
+    INVALID_TERMS_UUID("Invalid terms UUID"),
+    TERMS_NOT_FOUND("Terms not found"),
+    INACTIVE_TERMS_ACCESS("Inactive terms cannot be accessed"),
+    INVALID_TERMS_AGREEMENT("Invalid terms agreement"),
+    MISSING_REQUIRED_TERMS_AGREEMENT("Missing required terms agreement"),
 }

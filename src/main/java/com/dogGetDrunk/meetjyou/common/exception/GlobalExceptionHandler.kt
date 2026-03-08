@@ -1,7 +1,8 @@
 package com.dogGetDrunk.meetjyou.common.exception
 
-import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.DuplicateException
+import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -47,6 +48,15 @@ class GlobalExceptionHandler {
     fun handleCustomJwtException(e: CustomJwtException): ResponseEntity<ErrorResponse> {
         log.info("Handle CustomJwtException", e)
         val status = HttpStatus.UNAUTHORIZED
+        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
+        return ResponseEntity(errorResponse, status)
+    }
+
+    @ExceptionHandler(InvalidInputException::class)
+    fun handleInvalidInputException(e: InvalidInputException): ResponseEntity<ErrorResponse> {
+        log.info("Handle InvalidInputException", e)
+
+        val status = HttpStatus.BAD_REQUEST
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
         return ResponseEntity(errorResponse, status)
     }
