@@ -63,20 +63,16 @@ class TermsService(
     }
 
     @Transactional(readOnly = true)
-    fun validateRequiredTermsAgreement(agreedTermsUuidStrings: List<String>): List<Terms> {
+    fun validateRequiredTermsAgreement(agreedTermsUuids: List<UUID>): List<Terms> {
         log.info(
             "Starting validation of required terms agreement. agreedTermsCount={}",
-            agreedTermsUuidStrings.size,
+            agreedTermsUuids.size,
         )
-
-        val agreedTermsUuids = agreedTermsUuidStrings
-            .distinct()
-            .map(::parseUuid)
 
         val agreedTerms = termsRepository.findAllByUuidIn(agreedTermsUuids)
 
         if (agreedTerms.size != agreedTermsUuids.size) {
-            throw InvalidTermsAgreementException(agreedTermsUuidStrings.joinToString(","))
+            throw InvalidTermsAgreementException(agreedTermsUuids.joinToString(","))
         }
 
         if (agreedTerms.any { it.status != TermsStatus.ACTIVE }) {
