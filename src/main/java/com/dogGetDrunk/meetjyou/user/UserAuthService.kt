@@ -4,8 +4,9 @@ import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.social.AccessToken
 import com.dogGetDrunk.meetjyou.auth.social.IdToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
-import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
+import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
@@ -20,12 +21,15 @@ class UserAuthService(
     private val userRepository: UserRepository,
     private val userService: UserService,
     private val jwtProvider: JwtProvider,
+    private val termsService: TermsService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
     fun registerViaSocial(request: RegistrationRequest, nonce: String? = null): TokenResponse {
         log.info("Register via social request received. email: {}, provider: {}", request.email, request.authProvider)
+
+        val agreedTerms = termsService.validateRequiredTermsAgreement(request.agreedTermsUuids)
 
         val token = if (!request.idToken.isNullOrBlank()) {
             IdToken(request.idToken)
@@ -45,6 +49,7 @@ class UserAuthService(
         }
 
         val user = userService.createUser(request, principal)
+        termsService.saveUserTerms(user, agreedTerms)
 
         val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email)
         val refreshToken = jwtProvider.generateRefreshToken(user.uuid, user.email)

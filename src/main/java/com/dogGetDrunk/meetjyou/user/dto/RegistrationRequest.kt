@@ -13,7 +13,7 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import org.hibernate.validator.constraints.UniqueElements
-import java.time.LocalDate
+import java.util.UUID
 
 data class RegistrationRequest(
     @field:Email
@@ -39,6 +39,7 @@ data class RegistrationRequest(
     val authProvider: AuthProvider,
     val idToken: String? = null,
     val accessToken: String? = null,
+    val agreedTermsUuids: List<UUID>
 ) {
     @AssertTrue(message = "credential 또는 accessToken 중 하나는 반드시 존재해야 합니다.")
     private fun isValidAuthentication(): Boolean =

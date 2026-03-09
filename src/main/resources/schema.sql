@@ -13,7 +13,9 @@ DROP TABLE IF EXISTS preference;
 DROP TABLE IF EXISTS user_preference;
 DROP TABLE IF EXISTS comp_preference;
 DROP TABLE IF EXISTS party_application;
+DROP TABLE IF EXISTS terms;
 DROP TABLE IF EXISTS user_party;
+DROP TABLE IF EXISTS user_terms;
 DROP TABLE IF EXISTS app_version;
 DROP TABLE IF EXISTS push_token;
 DROP TABLE IF EXISTS notification_outbox;
@@ -184,6 +186,23 @@ CREATE TABLE party_application
     user_id    INT         NOT NULL
 );
 
+CREATE TABLE terms
+(
+    id                 INT AUTO_INCREMENT PRIMARY KEY,
+    uuid               CHAR(36)     NOT NULL UNIQUE,
+    type               VARCHAR(30)  NOT NULL,
+    version            VARCHAR(20)  NOT NULL,
+    display_text       VARCHAR(255) NOT NULL,
+    required           BOOLEAN      NOT NULL,
+    content_object_key VARCHAR(255) NOT NULL,
+    content_hash       CHAR(64)     NOT NULL,
+    status             VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE',
+    effective_at       TIMESTAMP    NOT NULL,
+    created_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_terms_type_version (type, version)
+);
+
 CREATE TABLE user_party
 (
     id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -192,6 +211,15 @@ CREATE TABLE user_party
     member_status VARCHAR(20) NOT NULL DEFAULT 'JOINED',
     party_id      INT         NOT NULL,
     user_id       INT         NOT NULL
+);
+
+CREATE TABLE user_terms
+(
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    user_id   INT       NOT NULL,
+    terms_id  INT       NOT NULL,
+    agreed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_terms_user_id_terms_id (user_id, terms_id)
 );
 
 CREATE TABLE app_version
@@ -276,6 +304,10 @@ ALTER TABLE user_party
     ADD FOREIGN KEY (party_id) REFERENCES party (id);
 ALTER TABLE user_party
     ADD FOREIGN KEY (user_id) REFERENCES user (id);
+ALTER TABLE user_terms
+    ADD FOREIGN KEY (user_id) REFERENCES user (id);
+ALTER TABLE user_terms
+    ADD FOREIGN KEY (terms_id) REFERENCES terms (id);
 ALTER TABLE push_token
     ADD FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE;
 ALTER TABLE push_token

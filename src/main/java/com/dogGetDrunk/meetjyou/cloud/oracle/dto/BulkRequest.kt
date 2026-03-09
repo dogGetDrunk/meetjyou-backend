@@ -1,4 +1,4 @@
-package com.dogGetDrunk.meetjyou.image.cloud.oracle.dto
+package com.dogGetDrunk.meetjyou.cloud.oracle.dto
 
 import java.util.UUID
 
