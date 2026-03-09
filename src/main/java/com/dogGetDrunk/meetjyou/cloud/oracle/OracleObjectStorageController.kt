@@ -1,10 +1,10 @@
-package com.dogGetDrunk.meetjyou.image.cloud.oracle
+package com.dogGetDrunk.meetjyou.cloud.oracle
 
+import com.dogGetDrunk.meetjyou.cloud.oracle.dto.BulkRequest
+import com.dogGetDrunk.meetjyou.cloud.oracle.dto.ParResponse
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.BulkRequest
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.dto.ParResponse
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImgService
@@ -22,19 +22,18 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
 @RestController
-@RequestMapping("/api/v1/")
+@RequestMapping("/api/v1")
 @Tag(name = "이미지 API", description = "프로필, 모집글, 파티 이미지 관련 API를 제공합니다.")
 class OracleObjectStorageController(
     private val userImgService: UserImgService,
     private val postImgService: PostImgService,
     private val partyImgService: PartyImgService,
     private val postService: PostService,
-    private val partyService: PartyService
+    private val partyService: PartyService,
 ) {
-
     @Operation(
         summary = "유저 프로필 이미지 업로드 PAR URL 생성",
-        description = "유저 프로필 이미지(원본 및 썸네일) 업로드를 위한 PAR URL을 생성합니다."
+        description = "유저 프로필 이미지(원본 및 썸네일) 업로드를 위한 PAR URL을 생성합니다.",
     )
     @PostMapping("/users/me/img/profile/par/upload")
     fun createUserImgUploadPar(): ResponseEntity<List<ParResponse>> {
@@ -45,24 +44,28 @@ class OracleObjectStorageController(
 
     @Operation(summary = "유저 프로필 원본 이미지 다운로드 PAR URL 생성")
     @PostMapping("/users/{userUuid}/img/profile/original/par/download")
-    fun createUserOriginalImgDownloadPar(@PathVariable userUuid: UUID): ResponseEntity<ParResponse> {
+    fun createUserOriginalImgDownloadPar(
+        @PathVariable userUuid: UUID,
+    ): ResponseEntity<ParResponse> {
         val response = userImgService.createUserProfileOriginalImgDownloadPars(userUuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(
         summary = "유저 프로필 썸네일 이미지 다운로드 PAR URL 생성",
-        description = "1명 이상의 프로필 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다."
+        description = "1명 이상의 프로필 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다.",
     )
     @PostMapping("/users/img/profile/thumbnail/par/download")
-    fun createUserThumbnailImgDownloadPar(@RequestBody request: BulkRequest): ResponseEntity<List<ParResponse>> {
+    fun createUserThumbnailImgDownloadPar(
+        @RequestBody request: BulkRequest,
+    ): ResponseEntity<List<ParResponse>> {
         val response = userImgService.createUserProfileThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(
         summary = "유저 프로필 이미지 삭제",
-        description = "유저 프로필 이미지(원본 및 썸네일)를 삭제합니다."
+        description = "유저 프로필 이미지(원본 및 썸네일)를 삭제합니다.",
     )
     @DeleteMapping("/users/me/img/profile")
     fun deleteUserProfileImg(): ResponseEntity<Unit> {
@@ -73,10 +76,12 @@ class OracleObjectStorageController(
 
     @Operation(
         summary = "모집글 이미지 업로드 PAR URL 생성",
-        description = "모집글 이미지(원본 및 썸네일) 업로드를 위한 PAR URL을 생성합니다."
+        description = "모집글 이미지(원본 및 썸네일) 업로드를 위한 PAR URL을 생성합니다.",
     )
     @PostMapping("/posts/{postUuid}/img/par/upload")
-    fun createPostImgUploadPar(@PathVariable postUuid: UUID): ResponseEntity<List<ParResponse>> {
+    fun createPostImgUploadPar(
+        @PathVariable postUuid: UUID,
+    ): ResponseEntity<List<ParResponse>> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
 
         if (!postService.verifyPostAuthor(postUuid, userUuid)) {
@@ -89,27 +94,33 @@ class OracleObjectStorageController(
 
     @Operation(summary = "모집글 원본 이미지 다운로드 PAR URL 생성")
     @PostMapping("/posts/{postUuid}/img/original/par/download")
-    fun createPostOriginalImgDownloadPar(@PathVariable postUuid: UUID): ResponseEntity<ParResponse> {
+    fun createPostOriginalImgDownloadPar(
+        @PathVariable postUuid: UUID,
+    ): ResponseEntity<ParResponse> {
         val response = postImgService.createPostOriginalImgDownloadPars(postUuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(
         summary = "모집글 썸네일 이미지 다운로드 PAR URL 생성",
-        description = "1개 이상의 모집글 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다."
+        description = "1개 이상의 모집글 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다.",
     )
     @PostMapping("/posts/img/thumbnail/par/download")
-    fun createPostThumbnailImgDownloadPar(@RequestBody request: BulkRequest): ResponseEntity<List<ParResponse>> {
+    fun createPostThumbnailImgDownloadPar(
+        @RequestBody request: BulkRequest,
+    ): ResponseEntity<List<ParResponse>> {
         val response = postImgService.createPostThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(
         summary = "모집글 이미지 삭제",
-        description = "모집글 이미지(원본 및 썸네일)를 삭제합니다."
+        description = "모집글 이미지(원본 및 썸네일)를 삭제합니다.",
     )
     @DeleteMapping("/posts/{postUuid}/img")
-    fun deletePostImg(@PathVariable postUuid: UUID): ResponseEntity<Unit> {
+    fun deletePostImg(
+        @PathVariable postUuid: UUID,
+    ): ResponseEntity<Unit> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
 
         if (!postService.verifyPostAuthor(postUuid, userUuid)) {
@@ -122,10 +133,12 @@ class OracleObjectStorageController(
 
     @Operation(
         summary = "파티 이미지 업로드 PAR URL 생성",
-        description = "파티 이미지(원본 및 썸네일) 업로드를 위한 PAR URL을 생성합니다."
+        description = "파티 이미지(원본 및 썸네일) 업로드를 위한 PAR URL을 생성합니다.",
     )
     @PostMapping("/parties/{partyUuid}/img/par/upload")
-    fun createPartyImgUploadPar(@PathVariable partyUuid: UUID): ResponseEntity<List<ParResponse>> {
+    fun createPartyImgUploadPar(
+        @PathVariable partyUuid: UUID,
+    ): ResponseEntity<List<ParResponse>> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
 
         if (!partyService.verifyPartyLeader(partyUuid, userUuid)) {
@@ -138,27 +151,33 @@ class OracleObjectStorageController(
 
     @Operation(summary = "파티 원본 이미지 다운로드 PAR URL 생성")
     @PostMapping("/parties/{partyUuid}/img/original/par/download")
-    fun createPartyOriginalImgDownloadPar(@PathVariable partyUuid: UUID): ResponseEntity<ParResponse> {
+    fun createPartyOriginalImgDownloadPar(
+        @PathVariable partyUuid: UUID,
+    ): ResponseEntity<ParResponse> {
         val response = partyImgService.createPartyOriginalImgDownloadPars(partyUuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(
         summary = "파티 썸네일 이미지 다운로드 PAR URL 생성",
-        description = "1개 이상의 파티 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다."
+        description = "1개 이상의 파티 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다.",
     )
     @PostMapping("/parties/img/thumbnail/par/download")
-    fun createPartyThumbnailImgDownloadPar(@RequestBody request: BulkRequest): ResponseEntity<List<ParResponse>> {
+    fun createPartyThumbnailImgDownloadPar(
+        @RequestBody request: BulkRequest,
+    ): ResponseEntity<List<ParResponse>> {
         val response = partyImgService.createPartyThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
     }
 
     @Operation(
         summary = "파티 이미지 삭제",
-        description = "파티 이미지(원본 및 썸네일)를 삭제합니다."
+        description = "파티 이미지(원본 및 썸네일)를 삭제합니다.",
     )
     @DeleteMapping("/parties/{partyUuid}/img")
-    fun deletePartyImg(@PathVariable partyUuid: UUID): ResponseEntity<Unit> {
+    fun deletePartyImg(
+        @PathVariable partyUuid: UUID,
+    ): ResponseEntity<Unit> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
 
         if (!partyService.verifyPartyLeader(partyUuid, userUuid)) {
@@ -169,4 +188,3 @@ class OracleObjectStorageController(
         return ResponseEntity.noContent().build()
     }
 }
-
