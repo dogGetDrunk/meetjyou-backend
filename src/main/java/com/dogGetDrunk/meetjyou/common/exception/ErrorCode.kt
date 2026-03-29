@@ -55,6 +55,7 @@ enum class ErrorCode(
     CHATROOM_ACCESS_DENIED("Chat room access denied"),
     EMPTY_CHAT_MESSAGE("Chat message is empty"),
     CHAT_MESSAGE_TOO_LONG("Chat message is too long"),
+    CHAT_MESSAGE_NOT_FOUND("Chat message not found"),
 
     // Push token
     PUSH_TOKEN_NOT_FOUND("Push token not found"),

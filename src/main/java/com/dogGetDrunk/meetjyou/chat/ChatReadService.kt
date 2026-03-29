@@ -1,0 +1,159 @@
+package com.dogGetDrunk.meetjyou.chat
+
+import com.dogGetDrunk.meetjyou.chat.dto.GetChatMessagesResponse
+import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
+import com.dogGetDrunk.meetjyou.chat.message.ChatMessageResponse
+import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantRepository
+import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
+import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatMessageNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
+import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
+import org.slf4j.LoggerFactory
+import org.springframework.data.domain.PageRequest
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
+
+@Service
+class ChatReadService(
+    private val chatMessageRepository: ChatMessageRepository,
+    private val chatRoomRepository: ChatRoomRepository,
+    private val userPartyRepository: UserPartyRepository,
+    private val chatParticipantRepository: ChatParticipantRepository,
+) {
+
+    private val log = LoggerFactory.getLogger(ChatReadService::class.java)
+
+    @Transactional(readOnly = true)
+    fun getMessages(
+        roomUuid: UUID,
+        requesterUuid: UUID,
+        beforeMessageUuid: UUID?,
+        size: Int,
+    ): GetChatMessagesResponse {
+        val validatedSize = size.coerceIn(1, MAX_PAGE_SIZE)
+        val pageable = PageRequest.of(0, validatedSize)
+
+        log.info(
+            "Chat messages read requested. roomUuid={}, requesterUuid={}, beforeMessageUuid={}, size={}",
+            roomUuid,
+            requesterUuid,
+            beforeMessageUuid,
+            validatedSize,
+        )
+
+        val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
+            ?: throw ChatRoomNotFoundException(roomUuid.toString())
+
+        validateReadPermission(partyUuid, requesterUuid)
+
+        val messages = if (beforeMessageUuid == null) {
+            chatMessageRepository.findLatestMessages(
+                roomUuid = roomUuid,
+                pageable = pageable,
+            )
+        } else {
+            val cursorMessage = chatMessageRepository.findByUuid(beforeMessageUuid)
+                ?: throw ChatMessageNotFoundException(beforeMessageUuid.toString())
+
+            if (cursorMessage.room.uuid != roomUuid) {
+                throw ChatMessageNotFoundException(beforeMessageUuid.toString())
+            }
+
+            chatMessageRepository.findOlderMessages(
+                roomUuid = roomUuid,
+                cursorCreatedAt = cursorMessage.createdAt,
+                cursorId = cursorMessage.id,
+                pageable = pageable,
+            )
+        }
+
+        val ascendingMessages = messages.asReversed()
+        val messageResponses = ascendingMessages.map(ChatMessageResponse::of)
+
+        val nextCursor = messages.lastOrNull()?.uuid
+
+        log.info(
+            "Chat messages read completed. roomUuid={}, requesterUuid={}, messageCount={}, nextCursor={}",
+            roomUuid,
+            requesterUuid,
+            messageResponses.size,
+            nextCursor,
+        )
+
+        return GetChatMessagesResponse(
+            messages = messageResponses,
+            nextCursor = nextCursor,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getUnreadCount(
+        roomUuid: UUID,
+        requesterUuid: UUID,
+    ): Long {
+        log.info(
+            "Unread count requested. roomUuid={}, requesterUuid={}",
+            roomUuid,
+            requesterUuid,
+        )
+
+        val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
+            ?: throw ChatRoomNotFoundException(roomUuid.toString())
+
+        validateReadPermission(partyUuid, requesterUuid)
+
+        val participant = chatParticipantRepository.findByUser_UuidAndRoom_Uuid(
+            userUuid = requesterUuid,
+            roomUuid = roomUuid,
+        )
+
+        val unreadCount = if (participant?.lastReadAt == null) {
+            chatMessageRepository.countByRoom_UuidAndSender_UuidNot(
+                roomUuid = roomUuid,
+                senderUuid = requesterUuid,
+            )
+        } else {
+            chatMessageRepository.countByRoom_UuidAndCreatedAtAfterAndSender_UuidNot(
+                roomUuid = roomUuid,
+                createdAt = participant.lastReadAt!!,
+                senderUuid = requesterUuid,
+            )
+        }
+
+        log.info(
+            "Unread count calculated. roomUuid={}, requesterUuid={}, unreadCount={}",
+            roomUuid,
+            requesterUuid,
+            unreadCount,
+        )
+
+        return unreadCount
+    }
+
+    private fun validateReadPermission(
+        partyUuid: UUID,
+        requesterUuid: UUID,
+    ) {
+        val hasPermission = userPartyRepository.existsByParty_UuidAndUser_UuidAndMemberStatus(
+            partyUuid = partyUuid,
+            userUuid = requesterUuid,
+            memberStatus = MemberStatus.JOINED,
+        )
+
+        if (!hasPermission) {
+            log.warn(
+                "User does not have permission to read chat data. partyUuid={}, requesterUuid={}",
+                partyUuid,
+                requesterUuid,
+            )
+            throw ChatRoomAccessDeniedException(requesterUuid.toString())
+        }
+    }
+
+    companion object {
+        private const val MAX_PAGE_SIZE = 50
+    }
+}
