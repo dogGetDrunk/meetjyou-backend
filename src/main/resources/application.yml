@@ -36,6 +36,7 @@ springdoc:
 
 logging:
   level:
+    root: INFO
     org.hibernate.orm.jdbc.bind: trace
 
 server:
@@ -83,3 +84,8 @@ auth:
 dev:
   bypass:
     enabled: false
+
+app:
+  websocket:
+    allowed-origin-patterns:
+      - ${WEBSOCKET_ALLOWED_ORIGIN_PATTERN}
