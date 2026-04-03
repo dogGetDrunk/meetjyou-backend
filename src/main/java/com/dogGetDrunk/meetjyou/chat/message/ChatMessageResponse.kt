@@ -1,6 +1,6 @@
 package com.dogGetDrunk.meetjyou.chat.message
 
-import java.time.LocalDateTime
+import java.time.Instant
 
 data class ChatMessageResponse(
     val uuid: String,
@@ -8,7 +8,7 @@ data class ChatMessageResponse(
     val senderUuid: String,
     val senderNickname: String,
     val body: String,
-    val createdAt: LocalDateTime,
+    val createdAt: Instant,
 ) {
     companion object {
         fun of(chatMessage: ChatMessage): ChatMessageResponse {

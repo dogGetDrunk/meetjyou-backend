@@ -27,6 +27,8 @@ class SecurityConfig(
                 auth
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").authenticated()
                     .requestMatchers("/api/v1/push-tokens").authenticated()
+                    .requestMatchers("/ws-chat", "/ws-chat/**").permitAll()
+                    .requestMatchers("/pub/**", "/sub/**").permitAll()
                     .anyRequest().permitAll() // TODO: 이후 protected endpoint 설정
             }
 

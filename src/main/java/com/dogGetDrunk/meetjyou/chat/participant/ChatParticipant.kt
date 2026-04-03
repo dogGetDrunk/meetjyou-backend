@@ -11,7 +11,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
-import java.time.LocalDateTime
+import java.time.Instant
 
 @Entity
 @Table(
@@ -34,5 +34,5 @@ class ChatParticipant(
     val room: ChatRoom,
 
     @Column(name = "last_read_at", nullable = false)
-    var lastReadAt: LocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0, 0)
+    var lastReadAt: Instant? = null
 )

@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.time.Instant
 
 @RestController
 @RequestMapping("/api/v1/docs/chat")
@@ -45,7 +46,7 @@ class ChatSwaggerDocController {
             senderUuid = request.roomUuid.toString(),
             roomUuid = request.roomUuid.toString(),
             body = request.message,
-            createdAt = java.time.LocalDateTime.now()
+            createdAt = Instant.now()
         )
     }
 }
