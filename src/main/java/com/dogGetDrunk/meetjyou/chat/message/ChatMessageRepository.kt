@@ -66,7 +66,6 @@ interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
         @Param("roomUuids") roomUuids: Collection<UUID>,
     ): List<ChatMessage>
 
-
     fun countByRoom_UuidAndSender_UuidNot(
         roomUuid: UUID,
         senderUuid: UUID,
@@ -77,4 +76,39 @@ interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
         createdAt: Instant,
         senderUuid: UUID,
     ): Long
+
+    @Query(
+        """
+        select cm.room.uuid as roomUuid, count(cm) as unreadCount
+        from ChatMessage cm
+        where cm.room.uuid in :roomUuids
+          and cm.sender.uuid <> :requesterUuid
+        group by cm.room.uuid
+        """
+    )
+    fun countUnreadByRoomUuidsWithoutLastReadAt(
+        @Param("roomUuids") roomUuids: Collection<UUID>,
+        @Param("requesterUuid") requesterUuid: UUID,
+    ): List<RoomUnreadCountProjection>
+
+    @Query(
+        """
+        select cm.room.uuid as roomUuid, count(cm) as unreadCount
+        from ChatMessage cm
+        where cm.room.uuid = :roomUuid
+          and cm.sender.uuid <> :requesterUuid
+          and cm.createdAt > :lastReadAt
+        group by cm.room.uuid
+        """
+    )
+    fun countUnreadByRoomUuidAfterLastReadAt(
+        @Param("roomUuid") roomUuid: UUID,
+        @Param("requesterUuid") requesterUuid: UUID,
+        @Param("lastReadAt") lastReadAt: Instant,
+    ): RoomUnreadCountProjection?
+}
+
+interface RoomUnreadCountProjection {
+    fun getRoomUuid(): UUID
+    fun getUnreadCount(): Long
 }

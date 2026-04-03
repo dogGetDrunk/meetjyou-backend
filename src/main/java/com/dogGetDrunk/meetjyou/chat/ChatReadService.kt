@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.chat.dto.GetChatMessagesResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatRoomsResponse
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageResponse
+import com.dogGetDrunk.meetjyou.chat.message.RoomUnreadCountProjection
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantRepository
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatMessageNotFoundException
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -165,9 +167,14 @@ class ChatReadService(
                 .associateBy { it.room.uuid }
         }
 
+        val unreadCountByRoomUuid = buildUnreadCountMap(
+            roomUuids = roomUuids,
+            requesterUuid = requesterUuid,
+        )
+
         val roomSummaries = rooms.map { room ->
             val latestMessage = latestMessageByRoomUuid[room.uuid]
-            val unreadCount = getUnreadCount(room.uuid, requesterUuid)
+            val unreadCount = unreadCountByRoomUuid[room.uuid] ?: 0L
 
             ChatRoomSummaryResponse(
                 roomUuid = room.uuid,
@@ -191,6 +198,51 @@ class ChatReadService(
         return GetChatRoomsResponse(rooms = roomSummaries)
     }
 
+    private fun buildUnreadCountMap(
+        roomUuids: List<UUID>,
+        requesterUuid: UUID,
+    ): Map<UUID, Long> {
+        if (roomUuids.isEmpty()) {
+            return emptyMap()
+        }
+
+        val participants = roomUuids.associateWith { roomUuid ->
+            chatParticipantRepository.findByUser_UuidAndRoom_Uuid(
+                userUuid = requesterUuid,
+                roomUuid = roomUuid,
+            )
+        }
+
+        val roomUuidsWithoutLastReadAt = participants
+            .filterValues { participant -> participant?.lastReadAt == null }
+            .keys
+
+        val unreadMap = mutableMapOf<UUID, Long>()
+
+        if (roomUuidsWithoutLastReadAt.isNotEmpty()) {
+            chatMessageRepository.countUnreadByRoomUuidsWithoutLastReadAt(
+                roomUuids = roomUuidsWithoutLastReadAt,
+                requesterUuid = requesterUuid,
+            ).forEach { projection ->
+                unreadMap[projection.getRoomUuid()] = projection.getUnreadCount()
+            }
+        }
+
+        participants.forEach { (roomUuid, participant) ->
+            val lastReadAt = participant?.lastReadAt ?: return@forEach
+
+            val projection = chatMessageRepository.countUnreadByRoomUuidAfterLastReadAt(
+                roomUuid = roomUuid,
+                requesterUuid = requesterUuid,
+                lastReadAt = lastReadAt,
+            )
+
+            unreadMap[roomUuid] = projection?.getUnreadCount() ?: 0L
+        }
+
+        return unreadMap
+    }
+
     private fun validateReadPermission(
         partyUuid: UUID,
         requesterUuid: UUID,
@@ -212,6 +264,6 @@ class ChatReadService(
     }
 
     companion object {
-        private const val MAX_PAGE_SIZE = 50
+        private const val MAX_PAGE_SIZE = 30
     }
 }

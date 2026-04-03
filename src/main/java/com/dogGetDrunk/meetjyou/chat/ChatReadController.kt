@@ -27,7 +27,7 @@ class ChatReadController(
     fun getMessages(
         @PathVariable roomUuid: UUID,
         @RequestParam(required = false) beforeMessageUuid: UUID?,
-        @RequestParam(required = false, defaultValue = "50") size: Int,
+        @RequestParam(required = false, defaultValue = "30") size: Int,
         @RequestHeader("X-Debug-User-UUID", required = false) debugUserUuidHeader: String?,
     ): ResponseEntity<GetChatMessagesResponse> {
         val requesterUuid = resolveRequesterUuid(debugUserUuidHeader)
