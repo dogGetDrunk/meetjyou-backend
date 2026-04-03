@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.common.exception
 
+import com.dogGetDrunk.meetjyou.common.exception.business.AccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.DuplicateException
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
@@ -13,11 +14,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 
 @ControllerAdvice
 class GlobalExceptionHandler {
+
     private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationException(e: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
-        log.info("Handle MethodArgumentNotValidException", e)
+        log.info("Handling MethodArgumentNotValidException.", e)
 
         val values = e.bindingResult.fieldErrors.map { error ->
             "[${error.field}] ${error.defaultMessage}"
@@ -30,7 +32,8 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DuplicateException::class)
     fun handleDuplicateException(e: DuplicateException): ResponseEntity<ErrorResponse> {
-        log.info("Handle DuplicateException", e)
+        log.info("Handling DuplicateException.", e)
+
         val status = HttpStatus.CONFLICT
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
         return ResponseEntity(errorResponse, status)
@@ -38,7 +41,8 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException::class)
     fun handleNotExistException(e: NotFoundException): ResponseEntity<ErrorResponse> {
-        log.info("Handle NotExistException", e)
+        log.info("Handling NotFoundException.", e)
+
         val status = HttpStatus.NOT_FOUND
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
         return ResponseEntity(errorResponse, status)
@@ -46,7 +50,8 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(CustomJwtException::class)
     fun handleCustomJwtException(e: CustomJwtException): ResponseEntity<ErrorResponse> {
-        log.info("Handle CustomJwtException", e)
+        log.info("Handling CustomJwtException.", e)
+
         val status = HttpStatus.UNAUTHORIZED
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
         return ResponseEntity(errorResponse, status)
@@ -54,9 +59,18 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidInputException::class)
     fun handleInvalidInputException(e: InvalidInputException): ResponseEntity<ErrorResponse> {
-        log.info("Handle InvalidInputException", e)
+        log.info("Handling InvalidInputException.", e)
 
         val status = HttpStatus.BAD_REQUEST
+        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
+        return ResponseEntity(errorResponse, status)
+    }
+
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleAccessDeniedException(e: AccessDeniedException): ResponseEntity<ErrorResponse> {
+        log.info("Handling AccessDeniedException.", e)
+
+        val status = HttpStatus.FORBIDDEN
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
         return ResponseEntity(errorResponse, status)
     }

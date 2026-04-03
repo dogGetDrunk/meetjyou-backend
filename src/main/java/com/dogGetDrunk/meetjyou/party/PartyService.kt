@@ -52,7 +52,7 @@ class PartyService(
         }
 
         partyRepository.save(party)
-        userPartyRepository.save(UserParty(party, owner, PartyRole.LEADER))
+        userPartyRepository.save(UserParty(party, owner, PartyRole.HOST))
 
         log.info("Party created: uuid=${party.uuid}, name=${party.name}")
 
@@ -85,7 +85,7 @@ class PartyService(
     fun verifyPartyLeader(partyUuid: UUID, userUuid: UUID): Boolean {
         if (userPartyRepository.existsByParty_UuidAndUser_Uuid(partyUuid, userUuid)) {
             val userParty = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
-            return userParty?.role == PartyRole.LEADER
+            return userParty?.role == PartyRole.HOST
         }
         return false
     }

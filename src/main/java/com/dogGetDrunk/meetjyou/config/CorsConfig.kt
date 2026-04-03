@@ -10,13 +10,17 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @Configuration
 class CorsConfig(
     @Value("\${dns.url}")
-    private val dnsUrl: String
+    private val dnsUrl: String,
 ) {
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration()
 
-        config.allowedOrigins = listOf(dnsUrl)
+        config.allowedOriginPatterns = listOf(
+            dnsUrl,
+            "http://localhost:*",
+            "http://127.0.0.1:*"
+        )
 
         // 허용할 HTTP 메서드
         config.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")

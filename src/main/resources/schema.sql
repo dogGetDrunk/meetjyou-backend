@@ -77,7 +77,7 @@ CREATE TABLE party
     last_edited_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     progress_status    VARCHAR(30) NOT NULL DEFAULT 'PLANNING',
     recruitment_status VARCHAR(10) NOT NULL DEFAULT 'OPEN',
-    plan_id            INT         NOT NULL
+    plan_id            INT         NULL
 );
 
 CREATE TABLE chat_room
@@ -101,7 +101,7 @@ CREATE TABLE chat_participant
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id      INT       NOT NULL,
     room_id      INT       NOT NULL,
-    last_read_at TIMESTAMP NOT NULL DEFAULT '2000-01-01 00:00:00',
+    last_read_at TIMESTAMP NULL DEFAULT NULL,
 
     UNIQUE (user_id, room_id)
 );

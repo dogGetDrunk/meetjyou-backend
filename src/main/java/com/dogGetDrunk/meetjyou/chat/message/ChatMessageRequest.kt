@@ -1,9 +1,13 @@
 package com.dogGetDrunk.meetjyou.chat.message
 
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import java.util.UUID
 
-// 클라이언트가 /pub/chat/message 요청을 보낼 때 사용하는 DTO
 data class ChatMessageRequest(
     val roomUuid: UUID,
+
+    @field:NotBlank(message = "Message must not be blank.")
+    @field:Size(max = 1000, message = "Message must not exceed 1000 characters.")
     val message: String,
 )
