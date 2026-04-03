@@ -1,6 +1,8 @@
 package com.dogGetDrunk.meetjyou.chat
 
+import com.dogGetDrunk.meetjyou.chat.dto.ChatRoomSummaryResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatMessagesResponse
+import com.dogGetDrunk.meetjyou.chat.dto.GetChatRoomsResponse
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageResponse
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantRepository
@@ -131,6 +133,62 @@ class ChatReadService(
         )
 
         return unreadCount
+    }
+
+    @Transactional(readOnly = true)
+    fun getChatRooms(
+        requesterUuid: UUID,
+    ): GetChatRoomsResponse {
+        log.info("Chat room list requested. requesterUuid={}", requesterUuid)
+
+        val memberships = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(
+            userUuid = requesterUuid,
+            memberStatus = MemberStatus.JOINED,
+        )
+
+        if (memberships.isEmpty()) {
+            log.info("Chat room list completed with no joined rooms. requesterUuid={}", requesterUuid)
+            return GetChatRoomsResponse(rooms = emptyList())
+        }
+
+        val partyByUuid = memberships.associate { membership ->
+            membership.party.uuid to membership.party
+        }
+
+        val rooms = chatRoomRepository.findAllWithPartyByPartyUuidIn(partyByUuid.keys)
+        val roomUuids = rooms.map { it.uuid }
+
+        val latestMessageByRoomUuid = if (roomUuids.isEmpty()) {
+            emptyMap()
+        } else {
+            chatMessageRepository.findLatestMessagesByRoomUuids(roomUuids)
+                .associateBy { it.room.uuid }
+        }
+
+        val roomSummaries = rooms.map { room ->
+            val latestMessage = latestMessageByRoomUuid[room.uuid]
+            val unreadCount = getUnreadCount(room.uuid, requesterUuid)
+
+            ChatRoomSummaryResponse(
+                roomUuid = room.uuid,
+                partyUuid = room.party.uuid,
+                partyName = room.party.name,
+                lastMessage = latestMessage?.body,
+                lastMessageAt = latestMessage?.createdAt,
+                unreadCount = unreadCount,
+            )
+        }.sortedWith(
+            compareByDescending<ChatRoomSummaryResponse> { it.lastMessageAt }
+                .thenByDescending { it.roomUuid.toString() }
+        )
+
+        log.info(
+            "Chat room list completed. requesterUuid={}, roomCount={}",
+            requesterUuid,
+            roomSummaries.size,
+        )
+
+        return GetChatRoomsResponse(rooms = roomSummaries)
     }
 
     private fun validateReadPermission(

@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.chat
 
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatMessagesResponse
+import com.dogGetDrunk.meetjyou.chat.dto.GetChatRoomsResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetUnreadCountResponse
 import org.slf4j.LoggerFactory
 import org.springframework.core.env.Environment
@@ -54,6 +55,19 @@ class ChatReadController(
         )
 
         return ResponseEntity.ok(GetUnreadCountResponse(unreadCount = unreadCount))
+    }
+
+    @GetMapping("/api/v1/chat/rooms")
+    fun getChatRooms(
+        @RequestHeader("X-Debug-User-UUID", required = false) debugUserUuidHeader: String?,
+    ): ResponseEntity<GetChatRoomsResponse> {
+        val requesterUuid = resolveRequesterUuid(debugUserUuidHeader)
+
+        val response = chatReadService.getChatRooms(
+            requesterUuid = requesterUuid,
+        )
+
+        return ResponseEntity.ok(response)
     }
 
     private fun resolveRequesterUuid(debugUserUuidHeader: String?): UUID {

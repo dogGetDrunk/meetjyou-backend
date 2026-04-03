@@ -40,5 +40,21 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
         """
     )
     fun findAllWithUserByPartyUuid(@Param("partyUuid") partyUuid: UUID): List<UserParty>
+
+    @Query(
+        """
+        select up
+        from UserParty up
+        join fetch up.party
+        where up.user.uuid = :userUuid
+          and up.memberStatus = :memberStatus
+        """
+    )
+    fun findAllWithPartyByUserUuidAndMemberStatus(
+        @Param("userUuid") userUuid: UUID,
+        @Param("memberStatus") memberStatus: MemberStatus,
+    ): List<UserParty>
+
     fun deleteAllByParty_Uuid(partyUuid: UUID): Boolean
+
 }

@@ -45,6 +45,28 @@ interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
         pageable: Pageable,
     ): List<ChatMessage>
 
+    @Query(
+        """
+        select cm
+        from ChatMessage cm
+        join fetch cm.room
+        where cm.room.uuid in :roomUuids
+          and not exists (
+            select 1
+            from ChatMessage newer
+            where newer.room.uuid = cm.room.uuid
+              and (
+                newer.createdAt > cm.createdAt
+                or (newer.createdAt = cm.createdAt and newer.id > cm.id)
+              )
+          )
+        """
+    )
+    fun findLatestMessagesByRoomUuids(
+        @Param("roomUuids") roomUuids: Collection<UUID>,
+    ): List<ChatMessage>
+
+
     fun countByRoom_UuidAndSender_UuidNot(
         roomUuid: UUID,
         senderUuid: UUID,
