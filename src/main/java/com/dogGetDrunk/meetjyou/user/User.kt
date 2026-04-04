@@ -12,7 +12,7 @@ import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
 import java.time.LocalDate
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 @Entity
@@ -38,10 +38,10 @@ class User(
     var thumbImgUrl: String? = null
     var notified: Boolean = true
     @CreationTimestamp
-    val createdAt: LocalDateTime = LocalDateTime.now()
-    val lastLoginAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: Instant = Instant.now()
+    val lastLoginAt: Instant = Instant.now()
     @UpdateTimestamp
-    val updatedAt: LocalDateTime = LocalDateTime.now()
+    val updatedAt: Instant = Instant.now()
     @Enumerated(EnumType.STRING)
     var status: UserStatus = UserStatus.NORMAL
 }

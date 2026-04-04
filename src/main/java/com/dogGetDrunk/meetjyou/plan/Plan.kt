@@ -10,13 +10,13 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.JdbcTypeCode
 import java.sql.Types
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 @Entity
 class Plan(
-    var itinStart: LocalDateTime,
-    var itinFinish: LocalDateTime,
+    var itinStart: Instant,
+    var itinFinish: Instant,
     var location: String,
     var centerLat: Double,
     var centerLng: Double,

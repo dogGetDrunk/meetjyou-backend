@@ -13,7 +13,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
-import org.threeten.bp.LocalDateTime
+import org.threeten.bp.Instant
 import java.sql.Types
 import java.util.UUID
 
@@ -38,7 +38,7 @@ class NotificationOutbox(
 
     var attempts: Int = 0,
 
-    var availableAt: LocalDateTime = LocalDateTime.now(),
+    var availableAt: Instant = Instant.now(),
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,7 +48,7 @@ class NotificationOutbox(
     val uuid: UUID = UUID.randomUUID()
 
     @CreationTimestamp
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: Instant = Instant.now()
 
     enum class DeliveryStatus { PENDING, SENDING, SENT, FAILED, DEAD }
 }

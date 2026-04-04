@@ -1,20 +1,20 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
 import com.dogGetDrunk.meetjyou.post.Post
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 data class UpdatePostResponse(
     val uuid: UUID,
     val title: String,
     val content: String,
-    val createdAt: LocalDateTime,
-    val lastEditedAt: LocalDateTime,
+    val createdAt: Instant,
+    val lastEditedAt: Instant,
     val postStatus: Int,
     val authorUuid: UUID,
     val isInstant: Boolean,
-    val itinStart: LocalDateTime,
-    val itinFinish: LocalDateTime,
+    val itinStart: Instant,
+    val itinFinish: Instant,
     val location: String,
     val capacity: Int,
     val joined: Int,

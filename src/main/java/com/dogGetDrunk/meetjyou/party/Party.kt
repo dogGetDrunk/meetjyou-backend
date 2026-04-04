@@ -15,13 +15,13 @@ import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 @Entity
 class Party(
-    var itinStart: LocalDateTime,
-    var itinFinish: LocalDateTime,
+    var itinStart: Instant,
+    var itinFinish: Instant,
     var destination: String,
     var joined: Int,
     var capacity: Int,
@@ -34,9 +34,9 @@ class Party(
     @JdbcTypeCode(Types.VARCHAR)
     val uuid: UUID = UUID.randomUUID()
     @CreationTimestamp
-    var createdAt: LocalDateTime = LocalDateTime.now()
+    var createdAt: Instant = Instant.now()
     @UpdateTimestamp
-    var lastEditedAt: LocalDateTime = LocalDateTime.now()
+    var lastEditedAt: Instant = Instant.now()
     @Enumerated(EnumType.STRING)
     var progressStatus = PartyProgressStatus.PLANNING
     @Enumerated(EnumType.STRING)

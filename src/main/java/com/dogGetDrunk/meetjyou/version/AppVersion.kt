@@ -7,7 +7,7 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.annotations.CreationTimestamp
-import java.time.LocalDateTime
+import java.time.Instant
 
 @Entity
 @Table(name = "app_version")
@@ -23,5 +23,5 @@ class AppVersion(
     val id: Long = 0
 
     @CreationTimestamp
-    val releasedAt: LocalDateTime = LocalDateTime.now()
+    val releasedAt: Instant = Instant.now()
 }

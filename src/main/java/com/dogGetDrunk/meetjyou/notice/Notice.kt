@@ -9,7 +9,7 @@ import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 @Entity
@@ -26,8 +26,8 @@ class Notice(
     val uuid: UUID = UUID.randomUUID()
 
     @CreationTimestamp
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: Instant = Instant.now()
 
     @UpdateTimestamp
-    val lastEditedAt: LocalDateTime = LocalDateTime.now()
+    val lastEditedAt: Instant = Instant.now()
 }
