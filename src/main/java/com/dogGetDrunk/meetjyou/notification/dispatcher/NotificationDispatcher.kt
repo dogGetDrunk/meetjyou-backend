@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.LocalDateTime
+import java.time.Instant
 import kotlin.math.min
 
 @Service
@@ -83,12 +83,12 @@ class NotificationDispatcher(
 
             else -> {
                 val delay = backoffSeconds[min(nextAttempts, backoffSeconds.size - 1)]
-                mark(item, DeliveryStatus.PENDING, nextAttempts, LocalDateTime.now().plusSeconds(delay))
+                mark(item, DeliveryStatus.PENDING, nextAttempts, Instant.now().plusSeconds(delay))
             }
         }
     }
 
-    private fun mark(item: NotificationOutbox, status: DeliveryStatus, attempts: Int, nextAt: LocalDateTime?) {
+    private fun mark(item: NotificationOutbox, status: DeliveryStatus, attempts: Int, nextAt: Instant?) {
         outboxRepository.updateResult(item.id, status, attempts, nextAt)
     }
 }

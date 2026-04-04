@@ -1,13 +1,13 @@
 package com.dogGetDrunk.meetjyou.plan.dto
 
 import com.dogGetDrunk.meetjyou.plan.Plan
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 data class UpdatePlanResponse(
     val uuid: UUID,
-    val itinStart: LocalDateTime,
-    val itinFinish: LocalDateTime,
+    val itinStart: Instant,
+    val itinFinish: Instant,
     val destination: String,
     val centerLat: Double,
     val centerLng: Double,

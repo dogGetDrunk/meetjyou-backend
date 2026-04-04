@@ -1,14 +1,14 @@
 package com.dogGetDrunk.meetjyou.notice.dto
 
 import com.dogGetDrunk.meetjyou.notice.Notice
-import java.time.LocalDateTime
+import java.time.Instant
 
 data class NoticeResponse(
     val uuid: String,
     val title: String,
     val body: String,
-    val createdAt: LocalDateTime,
-    val lastEditedAt: LocalDateTime
+    val createdAt: Instant,
+    val lastEditedAt: Instant
 ) {
     companion object {
         fun from(notice: Notice): NoticeResponse {

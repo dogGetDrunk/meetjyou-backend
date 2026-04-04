@@ -1,10 +1,10 @@
 package com.dogGetDrunk.meetjyou.plan.dto
 
-import java.time.LocalDateTime
+import java.time.Instant
 
 data class CreatePlanRequest(
-    val itinStart: LocalDateTime,
-    val itinFinish: LocalDateTime,
+    val itinStart: Instant,
+    val itinFinish: Instant,
     val location: String,
     val centerLat: Double,
     val centerLng: Double,

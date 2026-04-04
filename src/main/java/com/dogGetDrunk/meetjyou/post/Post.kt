@@ -13,7 +13,7 @@ import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 @Entity
@@ -22,8 +22,8 @@ class Post(
     var isInstant: Boolean,
     var title: String,
     var content: String,
-    var itinStart: LocalDateTime,
-    var itinFinish: LocalDateTime,
+    var itinStart: Instant,
+    var itinFinish: Instant,
     var location: String,
     var capacity: Int,
 ) {
@@ -34,9 +34,9 @@ class Post(
     @JdbcTypeCode(Types.VARCHAR)
     val uuid: UUID = UUID.randomUUID()
     @CreationTimestamp
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: Instant = Instant.now()
     @UpdateTimestamp
-    val lastEditedAt: LocalDateTime = LocalDateTime.now()
+    val lastEditedAt: Instant = Instant.now()
     @ManyToOne
     lateinit var author: User
     @ManyToOne

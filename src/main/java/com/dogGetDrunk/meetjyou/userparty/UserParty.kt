@@ -13,7 +13,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
-import java.time.LocalDateTime
+import java.time.Instant
 
 @Entity
 class UserParty(
@@ -34,7 +34,7 @@ class UserParty(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0
     @CreationTimestamp
-    val joinedAt: LocalDateTime = LocalDateTime.now()
+    val joinedAt: Instant = Instant.now()
     @Enumerated(EnumType.STRING)
     var memberStatus = MemberStatus.JOINED
 }

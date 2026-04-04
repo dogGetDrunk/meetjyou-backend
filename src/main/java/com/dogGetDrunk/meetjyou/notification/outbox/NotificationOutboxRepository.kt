@@ -35,6 +35,6 @@ interface NotificationOutboxRepository : JpaRepository<NotificationOutbox, Long>
         @Param("id") id: Long,
         @Param("status") status: DeliveryStatus,
         @Param("attempts") attempts: Int,
-        @Param("availableAt") availableAt: java.time.LocalDateTime?,
+        @Param("availableAt") availableAt: java.time.Instant?,
     )
 }
