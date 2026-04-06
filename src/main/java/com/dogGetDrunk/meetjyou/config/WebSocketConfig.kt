@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.config
 
+import com.dogGetDrunk.meetjyou.chat.connection.ChatOutboundInterceptor
 import com.dogGetDrunk.meetjyou.chat.connection.ChatStompInterceptor
 import com.dogGetDrunk.meetjyou.config.property.WebSocketProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -15,6 +16,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableConfigurationProperties(WebSocketProperties::class)
 class WebSocketConfig(
     private val chatStompInterceptor: ChatStompInterceptor,
+    private val chatOutboundInterceptor: ChatOutboundInterceptor,
     private val webSocketProperties: WebSocketProperties,
 ) : WebSocketMessageBrokerConfigurer {
 
@@ -30,5 +32,9 @@ class WebSocketConfig(
 
     override fun configureClientInboundChannel(registration: ChannelRegistration) {
         registration.interceptors(chatStompInterceptor)
+    }
+
+    override fun configureClientOutboundChannel(registration: ChannelRegistration) {
+        registration.interceptors(chatOutboundInterceptor)
     }
 }

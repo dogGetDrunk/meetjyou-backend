@@ -2,10 +2,8 @@ package com.dogGetDrunk.meetjyou.chat.connection
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
-import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
-import org.springframework.core.env.Environment
 import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
 import org.springframework.messaging.simp.stomp.StompCommand
@@ -20,7 +18,6 @@ class ChatStompInterceptor(
     private val jwtProvider: JwtProvider,
     private val chatRoomRepository: ChatRoomRepository,
     private val userPartyRepository: UserPartyRepository,
-    private val environment: Environment,
 ) : ChannelInterceptor {
 
     private val log = LoggerFactory.getLogger(ChatStompInterceptor::class.java)
@@ -107,21 +104,7 @@ class ChatStompInterceptor(
                 }
         }
 
-        if (isDevProfile()) {
-            val debugUserUuid = accessor.getFirstNativeHeader("X-Debug-User-UUID")
-                ?.let { rawUserUuid -> runCatching { UUID.fromString(rawUserUuid) }.getOrNull() }
-
-            if (debugUserUuid != null) {
-                log.warn(
-                    "Debug user UUID was used for STOMP CONNECT because JWT was missing. roomUuid={}, userUuid={}",
-                    roomUuid,
-                    debugUserUuid,
-                )
-                return debugUserUuid
-            }
-        }
-
-        log.warn("STOMP CONNECT rejected because neither JWT nor debug user UUID was provided. roomUuid={}", roomUuid)
+        log.warn("STOMP CONNECT rejected because Authorization header was missing. roomUuid={}", roomUuid)
         throw IllegalArgumentException("Authentication information is missing.")
     }
 
@@ -130,13 +113,9 @@ class ChatStompInterceptor(
         partyUuid: UUID,
         userUuid: UUID,
     ) {
-        val hasPermission = userPartyRepository.existsByParty_UuidAndUser_UuidAndMemberStatus(
-            partyUuid = partyUuid,
-            userUuid = userUuid,
-            memberStatus = MemberStatus.JOINED,
-        )
+        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
 
-        if (!hasPermission) {
+        if (membership?.isActiveMember() != true) {
             log.warn(
                 "Chat access denied because user does not belong to the party. roomUuid={}, partyUuid={}, userUuid={}",
                 roomUuid,
@@ -148,12 +127,8 @@ class ChatStompInterceptor(
     }
 
     private fun extractRoomUuidFromDestination(destination: String): UUID? {
-        val roomUuid = destination.removePrefix(CHAT_SUBSCRIBE_PREFIX)
+        val roomUuid = destination.removePrefix(CHAT_SUBSCRIBE_PREFIX).substringBefore("/")
         return runCatching { UUID.fromString(roomUuid) }.getOrNull()
-    }
-
-    private fun isDevProfile(): Boolean {
-        return environment.activeProfiles.contains("dev")
     }
 
     private class ChatPrincipal(

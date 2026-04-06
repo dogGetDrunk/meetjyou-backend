@@ -1,10 +1,11 @@
 package com.dogGetDrunk.meetjyou.chat.participant
 
+import com.dogGetDrunk.meetjyou.chat.connection.ChatSessionTracker
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
+import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.user.UserRepository
-import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -18,6 +19,7 @@ class ChatParticipantService(
     private val chatRoomRepository: ChatRoomRepository,
     private val userRepository: UserRepository,
     private val userPartyRepository: UserPartyRepository,
+    private val chatSessionTracker: ChatSessionTracker,
 ) {
 
     private val log = LoggerFactory.getLogger(ChatParticipantService::class.java)
@@ -45,51 +47,21 @@ class ChatParticipantService(
         participant.lastReadAt = Instant.now()
         chatParticipantRepository.save(participant)
 
-        log.info("Chat room entry marked as read. roomUuid={}, userUuid={}", roomUuid, userUuid)
+        log.info("Chat room entry tracked. roomUuid={}, userUuid={}", roomUuid, userUuid)
     }
 
     @Transactional
-    fun markReadForUsers(
+    fun removeParticipant(
         roomUuid: UUID,
-        userUuids: Set<UUID>,
-        readAt: Instant,
+        userUuid: UUID,
     ) {
-        if (userUuids.isEmpty()) {
-            return
-        }
-
-        val room = chatRoomRepository.findByUuid(roomUuid)
-            ?: throw ChatRoomNotFoundException(roomUuid.toString())
-
-        val existingParticipants = chatParticipantRepository.findAllByRoom_UuidAndUser_UuidIn(roomUuid, userUuids)
-        val existingByUserUuid = existingParticipants.associateBy { it.user.uuid }
-
-        val participantsToSave = userUuids.mapNotNull { userUuid ->
-            val existing = existingByUserUuid[userUuid]
-
-            if (existing != null) {
-                existing.lastReadAt = readAt
-                existing
-            } else {
-                val user = userRepository.findByUuid(userUuid)
-                    ?: return@mapNotNull null
-
-                ChatParticipant(
-                    user = user,
-                    room = room,
-                    lastReadAt = readAt,
-                )
-            }
-        }
-
-        chatParticipantRepository.saveAll(participantsToSave)
-
-        log.info(
-            "Chat read timestamp updated for users. roomUuid={}, userCount={}, readAt={}",
-            roomUuid,
-            participantsToSave.size,
-            readAt,
+        chatParticipantRepository.deleteByUser_UuidAndRoom_Uuid(
+            userUuid = userUuid,
+            roomUuid = roomUuid,
         )
+        chatSessionTracker.disconnectUser(roomUuid, userUuid)
+
+        log.info("Chat participant removed. roomUuid={}, userUuid={}", roomUuid, userUuid)
     }
 
     private fun validateMembership(
@@ -99,19 +71,15 @@ class ChatParticipantService(
         val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
             ?: throw ChatRoomNotFoundException(roomUuid.toString())
 
-        val hasPermission = userPartyRepository.existsByParty_UuidAndUser_UuidAndMemberStatus(
-            partyUuid = partyUuid,
-            userUuid = userUuid,
-            memberStatus = MemberStatus.JOINED,
-        )
+        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
 
-        if (!hasPermission) {
+        if (membership?.isActiveMember() != true) {
             log.warn(
                 "Chat participant access denied because user does not belong to the party. roomUuid={}, userUuid={}",
                 roomUuid,
                 userUuid,
             )
-            throw IllegalArgumentException("User does not have permission to enter this chat room.")
+            throw ChatRoomAccessDeniedException(userUuid.toString())
         }
     }
 }

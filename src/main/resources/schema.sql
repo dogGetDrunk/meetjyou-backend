@@ -56,7 +56,7 @@ CREATE TABLE post
     location       VARCHAR(50),
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    post_status    TINYINT      NOT NULL DEFAULT 1,
+    status         VARCHAR(32)  NOT NULL DEFAULT 'RECRUITING',
     is_plan_public BOOLEAN      NULL,
     author_id      INT          NOT NULL,
     party_id       INT,
@@ -205,12 +205,13 @@ CREATE TABLE terms
 
 CREATE TABLE user_party
 (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    role          CHAR(10)    NOT NULL,
-    joined_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    member_status VARCHAR(20) NOT NULL DEFAULT 'JOINED',
-    party_id      INT         NOT NULL,
-    user_id       INT         NOT NULL
+    id                   INT AUTO_INCREMENT PRIMARY KEY,
+    role                 CHAR(10)    NOT NULL,
+    joined_at            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    member_status        VARCHAR(20) NOT NULL DEFAULT 'JOINED',
+    last_read_message_id BIGINT      NULL,
+    party_id             INT         NOT NULL,
+    user_id              INT         NOT NULL
 );
 
 CREATE TABLE user_terms

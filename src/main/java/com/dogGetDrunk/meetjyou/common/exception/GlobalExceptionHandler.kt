@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.common.exception
 import com.dogGetDrunk.meetjyou.common.exception.business.AccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.DuplicateException
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
+import com.dogGetDrunk.meetjyou.common.exception.business.auth.AuthException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NotFoundException
 import org.slf4j.LoggerFactory
@@ -51,6 +52,15 @@ class GlobalExceptionHandler {
     @ExceptionHandler(CustomJwtException::class)
     fun handleCustomJwtException(e: CustomJwtException): ResponseEntity<ErrorResponse> {
         log.info("Handling CustomJwtException.", e)
+
+        val status = HttpStatus.UNAUTHORIZED
+        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
+        return ResponseEntity(errorResponse, status)
+    }
+
+    @ExceptionHandler(AuthException::class)
+    fun handleAuthException(e: AuthException): ResponseEntity<ErrorResponse> {
+        log.info("Handling AuthException.", e)
 
         val status = HttpStatus.UNAUTHORIZED
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)

@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.common.util
 
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
+import com.dogGetDrunk.meetjyou.common.exception.business.auth.UnauthenticatedException
 import org.springframework.security.core.context.SecurityContextHolder
 import java.util.UUID
 
@@ -18,9 +19,9 @@ object SecurityUtil {
 
     private fun getPrincipal(): CustomUserPrincipal {
         val authentication = SecurityContextHolder.getContext().authentication
-            ?: throw IllegalStateException("인증 정보가 없습니다.")
+            ?: throw UnauthenticatedException("current-user")
 
         return authentication.principal as? CustomUserPrincipal
-            ?: throw IllegalStateException("인증 주체가 CustomUserPrincipal이 아닙니다.")
+            ?: throw UnauthenticatedException("current-user")
     }
 }

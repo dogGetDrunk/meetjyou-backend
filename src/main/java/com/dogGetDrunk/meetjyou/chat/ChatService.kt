@@ -5,7 +5,6 @@ import com.dogGetDrunk.meetjyou.chat.message.ChatMessage
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRequest
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageResponse
-import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatMessageTooLongException
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
@@ -15,8 +14,9 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundE
 import com.dogGetDrunk.meetjyou.notification.NotificationPayload
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.event.NotificationEvent
+import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
+import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
-import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -30,9 +30,10 @@ class ChatService(
     private val chatRoomRepository: ChatRoomRepository,
     private val messagingTemplate: SimpMessagingTemplate,
     private val userRepository: UserRepository,
+    private val partyRepository: PartyRepository,
     private val userPartyRepository: UserPartyRepository,
     private val chatSessionTracker: ChatSessionTracker,
-    private val chatParticipantService: ChatParticipantService,
+    private val chatReadService: ChatReadService,
     private val publisher: ApplicationEventPublisher,
 ) {
 
@@ -70,7 +71,12 @@ class ChatService(
             senderUuid,
         )
 
-        val response = ChatMessageResponse.of(savedMessage)
+        val unreadCount = chatMessageRepository.countUnreadByPartyUuidAndMessageId(
+            partyUuid = partyUuid,
+            messageId = savedMessage.id,
+            senderUuid = senderUuid,
+        )
+        val response = ChatMessageResponse.of(savedMessage, unreadCount)
 
         messagingTemplate.convertAndSend("/sub/chat/room/${room.uuid}", response)
 
@@ -84,10 +90,10 @@ class ChatService(
             add(senderUuid)
         }
 
-        chatParticipantService.markReadForUsers(
+        chatReadService.markLatestMessageAsReadForUsers(
             roomUuid = room.uuid,
             userUuids = readUsers,
-            readAt = savedMessage.createdAt,
+            messageId = savedMessage.id,
         )
 
         val receivers = userPartyRepository.findAllWithUserByPartyUuid(partyUuid)
@@ -133,13 +139,11 @@ class ChatService(
     }
 
     private fun validateMessageSendPermission(partyUuid: UUID, senderUuid: UUID) {
-        val hasPermission = userPartyRepository.existsByParty_UuidAndUser_UuidAndMemberStatus(
-            partyUuid = partyUuid,
-            userUuid = senderUuid,
-            memberStatus = MemberStatus.JOINED,
-        )
+        val party = partyRepository.findByUuid(partyUuid)
+            ?: throw ChatRoomNotFoundException(partyUuid.toString())
+        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, senderUuid)
 
-        if (!hasPermission) {
+        if (party.progressStatus == PartyProgressStatus.COMPLETED || membership?.isActiveMember() != true) {
             log.warn(
                 "User does not have permission to send message to this chat room. partyUuid={}, senderUuid={}",
                 partyUuid,

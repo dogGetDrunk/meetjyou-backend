@@ -25,7 +25,6 @@ data class CreatePostRequest(
     val capacity: Int,
     @field:Valid
     val companionSpec: CompanionSpec?,
-    val authorUuid: UUID,
     val planUuid: UUID?,
     val isPlanPublic: Boolean?,
 ) {

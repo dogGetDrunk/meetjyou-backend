@@ -141,7 +141,7 @@ class OracleObjectStorageController(
     ): ResponseEntity<List<ParResponse>> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
 
-        if (!partyService.verifyPartyLeader(partyUuid, userUuid)) {
+        if (!partyService.verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
 
@@ -180,7 +180,7 @@ class OracleObjectStorageController(
     ): ResponseEntity<Unit> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
 
-        if (!partyService.verifyPartyLeader(partyUuid, userUuid)) {
+        if (!partyService.verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
 

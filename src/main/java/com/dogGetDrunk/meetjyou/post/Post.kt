@@ -5,6 +5,8 @@ import com.dogGetDrunk.meetjyou.plan.Plan
 import com.dogGetDrunk.meetjyou.user.User
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -45,7 +47,12 @@ class Post(
     var plan: Plan? = null
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
     var isPlanPublic: Boolean? = null
-    var postStatus: Int = 0
+    @Enumerated(EnumType.STRING)
+    var status: PostStatus = PostStatus.RECRUITING
     var views: Int = 0
     var joined: Int = 1
+
+    fun completeRecruitment() {
+        status = PostStatus.RECRUITMENT_COMPLETED
+    }
 }

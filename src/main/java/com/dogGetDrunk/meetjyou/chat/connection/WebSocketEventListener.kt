@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.chat.connection
 
+import com.dogGetDrunk.meetjyou.chat.ChatReadService
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
@@ -13,6 +14,7 @@ import java.util.UUID
 class WebSocketEventListener(
     private val chatSessionTracker: ChatSessionTracker,
     private val chatParticipantService: ChatParticipantService,
+    private val chatReadService: ChatReadService,
 ) {
 
     private val log = LoggerFactory.getLogger(WebSocketEventListener::class.java)
@@ -32,6 +34,7 @@ class WebSocketEventListener(
 
         chatSessionTracker.connectUser(roomUuid, userUuid)
         chatParticipantService.enterRoom(roomUuid, userUuid)
+        chatReadService.markLatestMessageAsRead(roomUuid, userUuid)
 
         log.info("WebSocket connection established. roomUuid={}, userUuid={}", roomUuid, userUuid)
     }

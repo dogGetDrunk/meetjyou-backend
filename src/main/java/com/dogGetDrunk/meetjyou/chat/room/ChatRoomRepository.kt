@@ -9,6 +9,7 @@ import java.util.UUID
 @Repository
 interface ChatRoomRepository : JpaRepository<ChatRoom, Long> {
     fun findByUuid(uuid: UUID): ChatRoom?
+    fun findByParty_Uuid(partyUuid: UUID): ChatRoom?
 
     @Query(
         """

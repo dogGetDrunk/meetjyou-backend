@@ -37,4 +37,21 @@ class UserParty(
     val joinedAt: Instant = Instant.now()
     @Enumerated(EnumType.STRING)
     var memberStatus = MemberStatus.JOINED
+    var lastReadMessageId: Long? = null
+
+    fun ban() {
+        memberStatus = MemberStatus.BANNED
+    }
+
+    fun leave() {
+        memberStatus = MemberStatus.LEFT
+    }
+
+    fun isActiveMember(): Boolean = memberStatus == MemberStatus.JOINED
+
+    fun updateLastReadMessageId(lastReadMessageId: Long) {
+        if (this.lastReadMessageId == null || this.lastReadMessageId!! < lastReadMessageId) {
+            this.lastReadMessageId = lastReadMessageId
+        }
+    }
 }

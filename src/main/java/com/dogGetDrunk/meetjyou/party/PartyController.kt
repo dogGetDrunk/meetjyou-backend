@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -93,6 +94,33 @@ class PartyController(
     ): UpdatePartyResponse {
         val userUuid = SecurityUtil.getCurrentUserUuid()
         return partyService.updateParty(partyUuid, userUuid, request)
+    }
+
+    @Operation(summary = "파티 종료", description = "HOST가 파티를 종료하고 연결된 모집글을 마감 처리합니다.")
+    @PostMapping("/{partyUuid}/complete")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun completeParty(@PathVariable partyUuid: UUID) {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        partyService.completeParty(partyUuid, userUuid)
+    }
+
+    @Operation(summary = "파티원 강퇴", description = "HOST가 특정 파티원을 강퇴합니다.")
+    @PostMapping("/{partyUuid}/members/{targetUserUuid}/ban")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun banMember(
+        @PathVariable partyUuid: UUID,
+        @PathVariable targetUserUuid: UUID,
+    ) {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        partyService.banMember(partyUuid, userUuid, targetUserUuid)
+    }
+
+    @Operation(summary = "파티 탈퇴", description = "MEMBER가 현재 파티에서 탈퇴합니다.")
+    @PostMapping("/{partyUuid}/leave")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun leaveParty(@PathVariable partyUuid: UUID) {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        partyService.leaveParty(partyUuid, userUuid)
     }
 
     @Operation(summary = "파티 삭제", description = "파티 UUID로 특정 파티를 삭제합니다.")

@@ -3,10 +3,9 @@ package com.dogGetDrunk.meetjyou.chat
 import com.dogGetDrunk.meetjyou.chat.dto.ChatRoomSummaryResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatMessagesResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatRoomsResponse
+import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageResponse
-import com.dogGetDrunk.meetjyou.chat.message.RoomUnreadCountProjection
-import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantRepository
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatMessageNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
@@ -17,7 +16,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -25,12 +23,12 @@ class ChatReadService(
     private val chatMessageRepository: ChatMessageRepository,
     private val chatRoomRepository: ChatRoomRepository,
     private val userPartyRepository: UserPartyRepository,
-    private val chatParticipantRepository: ChatParticipantRepository,
+    private val chatRoomEventBroadcaster: ChatRoomEventBroadcaster,
 ) {
 
     private val log = LoggerFactory.getLogger(ChatReadService::class.java)
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getMessages(
         roomUuid: UUID,
         requesterUuid: UUID,
@@ -75,9 +73,19 @@ class ChatReadService(
         }
 
         val ascendingMessages = messages.asReversed()
-        val messageResponses = ascendingMessages.map(ChatMessageResponse::of)
+        val messageResponses = toChatMessageResponses(ascendingMessages)
 
         val nextCursor = messages.lastOrNull()?.uuid
+
+        if (beforeMessageUuid == null) {
+            ascendingMessages.lastOrNull()?.let { latestMessage ->
+                updateLastReadPosition(
+                    roomUuid = roomUuid,
+                    requesterUuid = requesterUuid,
+                    messageId = latestMessage.id,
+                )
+            }
+        }
 
         log.info(
             "Chat messages read completed. roomUuid={}, requesterUuid={}, messageCount={}, nextCursor={}",
@@ -109,20 +117,20 @@ class ChatReadService(
 
         validateReadPermission(partyUuid, requesterUuid)
 
-        val participant = chatParticipantRepository.findByUser_UuidAndRoom_Uuid(
+        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(
+            partyUuid = partyUuid,
             userUuid = requesterUuid,
-            roomUuid = roomUuid,
-        )
+        ) ?: throw ChatRoomAccessDeniedException(requesterUuid.toString())
 
-        val unreadCount = if (participant?.lastReadAt == null) {
+        val unreadCount = if (membership.lastReadMessageId == null) {
             chatMessageRepository.countByRoom_UuidAndSender_UuidNot(
                 roomUuid = roomUuid,
                 senderUuid = requesterUuid,
             )
         } else {
-            chatMessageRepository.countByRoom_UuidAndCreatedAtAfterAndSender_UuidNot(
+            chatMessageRepository.countByRoom_UuidAndIdGreaterThanAndSender_UuidNot(
                 roomUuid = roomUuid,
-                createdAt = participant.lastReadAt!!,
+                id = membership.lastReadMessageId!!,
                 senderUuid = requesterUuid,
             )
         }
@@ -206,35 +214,34 @@ class ChatReadService(
             return emptyMap()
         }
 
-        val participants = roomUuids.associateWith { roomUuid ->
-            chatParticipantRepository.findByUser_UuidAndRoom_Uuid(
-                userUuid = requesterUuid,
-                roomUuid = roomUuid,
-            )
-        }
+        val memberships = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(
+            userUuid = requesterUuid,
+            memberStatus = MemberStatus.JOINED,
+        ).filter { it.party.uuid in roomUuids }
+            .associateBy { it.party.uuid }
 
-        val roomUuidsWithoutLastReadAt = participants
-            .filterValues { participant -> participant?.lastReadAt == null }
+        val roomUuidsWithoutLastReadMessageId = memberships
+            .filterValues { membership -> membership.lastReadMessageId == null }
             .keys
 
         val unreadMap = mutableMapOf<UUID, Long>()
 
-        if (roomUuidsWithoutLastReadAt.isNotEmpty()) {
-            chatMessageRepository.countUnreadByRoomUuidsWithoutLastReadAt(
-                roomUuids = roomUuidsWithoutLastReadAt,
+        if (roomUuidsWithoutLastReadMessageId.isNotEmpty()) {
+            chatMessageRepository.countUnreadByRoomUuidsWithoutLastReadMessageId(
+                roomUuids = roomUuidsWithoutLastReadMessageId,
                 requesterUuid = requesterUuid,
             ).forEach { projection ->
                 unreadMap[projection.getRoomUuid()] = projection.getUnreadCount()
             }
         }
 
-        participants.forEach { (roomUuid, participant) ->
-            val lastReadAt = participant?.lastReadAt ?: return@forEach
+        memberships.forEach { (roomUuid, membership) ->
+            val lastReadMessageId = membership.lastReadMessageId ?: return@forEach
 
-            val projection = chatMessageRepository.countUnreadByRoomUuidAfterLastReadAt(
+            val projection = chatMessageRepository.countUnreadByRoomUuidAfterLastReadMessageId(
                 roomUuid = roomUuid,
                 requesterUuid = requesterUuid,
-                lastReadAt = lastReadAt,
+                lastReadMessageId = lastReadMessageId,
             )
 
             unreadMap[roomUuid] = projection?.getUnreadCount() ?: 0L
@@ -247,19 +254,131 @@ class ChatReadService(
         partyUuid: UUID,
         requesterUuid: UUID,
     ) {
-        val hasPermission = userPartyRepository.existsByParty_UuidAndUser_UuidAndMemberStatus(
-            partyUuid = partyUuid,
-            userUuid = requesterUuid,
-            memberStatus = MemberStatus.JOINED,
-        )
+        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, requesterUuid)
 
-        if (!hasPermission) {
+        if (membership?.isActiveMember() != true) {
             log.warn(
                 "User does not have permission to read chat data. partyUuid={}, requesterUuid={}",
                 partyUuid,
                 requesterUuid,
             )
             throw ChatRoomAccessDeniedException(requesterUuid.toString())
+        }
+    }
+
+    @Transactional
+    fun markLatestMessageAsRead(
+        roomUuid: UUID,
+        requesterUuid: UUID,
+    ) {
+        val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
+            ?: throw ChatRoomNotFoundException(roomUuid.toString())
+
+        validateReadPermission(partyUuid, requesterUuid)
+
+        val latestMessage = chatMessageRepository.findLatestMessagesWithSenderAndRoom(
+            roomUuid = roomUuid,
+            pageable = PageRequest.of(0, 1),
+        ).firstOrNull() ?: return
+
+        updateLastReadPosition(roomUuid, requesterUuid, latestMessage.id)
+    }
+
+    @Transactional
+    fun markAsRead(
+        roomUuid: UUID,
+        requesterUuid: UUID,
+        messageUuid: UUID?,
+    ) {
+        val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
+            ?: throw ChatRoomNotFoundException(roomUuid.toString())
+
+        validateReadPermission(partyUuid, requesterUuid)
+
+        val targetMessageId = if (messageUuid == null) {
+            chatMessageRepository.findLatestMessagesWithSenderAndRoom(
+                roomUuid = roomUuid,
+                pageable = PageRequest.of(0, 1),
+            ).firstOrNull()?.id
+        } else {
+            val message = chatMessageRepository.findWithSenderAndRoomByUuid(messageUuid)
+                ?: throw ChatMessageNotFoundException(messageUuid.toString())
+
+            if (message.room.uuid != roomUuid) {
+                throw ChatMessageNotFoundException(messageUuid.toString())
+            }
+
+            message.id
+        } ?: return
+
+        updateLastReadPosition(roomUuid, requesterUuid, targetMessageId)
+    }
+
+    @Transactional
+    fun markLatestMessageAsReadForUsers(
+        roomUuid: UUID,
+        userUuids: Set<UUID>,
+        messageId: Long,
+    ) {
+        if (userUuids.isEmpty()) {
+            return
+        }
+
+        userUuids.forEach { userUuid ->
+            runCatching {
+                updateLastReadPosition(roomUuid, userUuid, messageId)
+            }.onFailure { throwable ->
+                log.debug(
+                    "Read position update skipped. roomUuid={}, userUuid={}, reason={}",
+                    roomUuid,
+                    userUuid,
+                    throwable.message,
+                )
+            }
+        }
+    }
+
+    private fun updateLastReadPosition(
+        roomUuid: UUID,
+        requesterUuid: UUID,
+        messageId: Long,
+    ) {
+        val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
+            ?: throw ChatRoomNotFoundException(roomUuid.toString())
+        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, requesterUuid)
+            ?: throw ChatRoomAccessDeniedException(requesterUuid.toString())
+
+        if (!membership.isActiveMember()) {
+            throw ChatRoomAccessDeniedException(requesterUuid.toString())
+        }
+
+        val previousLastReadMessageId = membership.lastReadMessageId
+        membership.updateLastReadMessageId(messageId)
+
+        if (membership.lastReadMessageId != null && membership.lastReadMessageId != previousLastReadMessageId) {
+            chatRoomEventBroadcaster.broadcastChatReadUpdated(
+                roomUuid = roomUuid,
+                partyUuid = partyUuid,
+                readerUserUuid = requesterUuid,
+                previousLastReadMessageId = previousLastReadMessageId,
+                currentLastReadMessageId = membership.lastReadMessageId!!,
+            )
+        }
+    }
+
+    private fun toChatMessageResponses(messages: List<com.dogGetDrunk.meetjyou.chat.message.ChatMessage>): List<ChatMessageResponse> {
+        if (messages.isEmpty()) {
+            return emptyList()
+        }
+
+        val unreadCountByMessageId = chatMessageRepository.countUnreadByMessageIds(messages.map { it.id })
+            .associate { it.getMessageId() to it.getUnreadCount() }
+
+        return messages.map { message ->
+            ChatMessageResponse.of(
+                chatMessage = message,
+                unreadCount = unreadCountByMessageId[message.id] ?: 0L,
+            )
         }
     }
 
