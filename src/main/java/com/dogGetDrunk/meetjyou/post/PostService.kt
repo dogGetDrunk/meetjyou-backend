@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.post
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
@@ -21,6 +22,7 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.toCompanionSpec
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -41,8 +43,9 @@ class PostService(
 
     @Transactional
     fun createPost(request: CreatePostRequest): CreatePostResponse {
-        val author = userRepository.findByUuid(request.authorUuid)
-            ?: throw UserNotFoundException(request.authorUuid)
+        val authorUuid = SecurityUtil.getCurrentUserUuid()
+        val author = userRepository.findByUuid(authorUuid)
+            ?: throw UserNotFoundException(authorUuid)
 
         if (request.planUuid != null) {
             if (!planRepository.existsByUuid(request.planUuid)) {
@@ -120,6 +123,13 @@ class PostService(
             throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
         }
 
+        if (post.party?.progressStatus == PartyProgressStatus.COMPLETED) {
+            throw InvalidInputException(
+                value = postUuid.toString(),
+                message = "Post linked to a completed party is read-only.",
+            )
+        }
+
         if (request.planUuid != null) {
             if (!planRepository.existsByUuid(request.planUuid)) {
                 throw PlanNotFoundException(request.planUuid)
@@ -155,6 +165,13 @@ class PostService(
 
         if (userUuid != post.author.uuid) {
             throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
+        }
+
+        if (post.party?.progressStatus == PartyProgressStatus.COMPLETED) {
+            throw InvalidInputException(
+                value = postUuid.toString(),
+                message = "Post linked to a completed party is read-only.",
+            )
         }
 
         compPreferenceRepository.deleteAllByPost(post)

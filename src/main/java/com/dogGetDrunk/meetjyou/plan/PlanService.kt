@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.plan
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
@@ -25,8 +26,9 @@ class PlanService(
 
     @Transactional
     fun createPlan(request: CreatePlanRequest): CreatePlanResponse {
-        val user = userRepository.findByUuid(SecurityUtil.getCurrentUserUuid())
-            ?: throw UserNotFoundException(SecurityUtil.getCurrentUserUuid())
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val user = userRepository.findByUuid(currentUserUuid)
+            ?: throw UserNotFoundException(currentUserUuid)
 
         val plan = Plan(
             itinStart = request.itinStart,
@@ -66,6 +68,11 @@ class PlanService(
     fun updatePlan(planUuid: UUID, request: UpdatePlanRequest): UpdatePlanResponse {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (plan.owner.uuid != currentUserUuid) {
+            throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
+        }
 
         plan.apply {
             itinStart = request.itinStart
@@ -84,6 +91,11 @@ class PlanService(
     fun deletePlan(planUuid: UUID) {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (plan.owner.uuid != currentUserUuid) {
+            throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
+        }
 
         planRepository.delete(plan)
         log.info("Plan deleted: uuid=$planUuid")

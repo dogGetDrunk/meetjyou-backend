@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
 import com.dogGetDrunk.meetjyou.post.Post
+import com.dogGetDrunk.meetjyou.post.PostStatus
 import java.time.Instant
 import java.util.UUID
 
@@ -10,7 +11,7 @@ data class UpdatePostResponse(
     val content: String,
     val createdAt: Instant,
     val lastEditedAt: Instant,
-    val postStatus: Int,
+    val postStatus: PostStatus,
     val authorUuid: UUID,
     val isInstant: Boolean,
     val itinStart: Instant,
@@ -30,7 +31,7 @@ data class UpdatePostResponse(
                 content = post.content,
                 createdAt = post.createdAt,
                 lastEditedAt = post.lastEditedAt,
-                postStatus = post.postStatus,
+                postStatus = post.status,
                 authorUuid = post.author.uuid,
                 isInstant = post.isInstant,
                 itinStart = post.itinStart,

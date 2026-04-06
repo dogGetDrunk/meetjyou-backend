@@ -41,12 +41,14 @@ class ChatSwaggerDocController {
     @PostMapping("/message")
     fun sendMessageDoc(@RequestBody request: ChatMessageRequest): ChatMessageResponse {
         return ChatMessageResponse(
+            messageId = 123,
             uuid = "example-uuid",
             senderNickname = "nickname",
             senderUuid = request.roomUuid.toString(),
             roomUuid = request.roomUuid.toString(),
             body = request.message,
-            createdAt = Instant.now()
+            createdAt = Instant.now(),
+            unreadCount = 3,
         )
     }
 }

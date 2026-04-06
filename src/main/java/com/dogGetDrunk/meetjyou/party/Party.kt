@@ -44,4 +44,9 @@ class Party(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
     var plan: Plan? = null
+
+    fun complete() {
+        progressStatus = PartyProgressStatus.COMPLETED
+        recruitmentStatus = PartyRecruitmentStatus.CLOSED
+    }
 }
