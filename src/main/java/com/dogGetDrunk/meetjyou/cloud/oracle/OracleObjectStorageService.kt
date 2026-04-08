@@ -2,12 +2,15 @@ package com.dogGetDrunk.meetjyou.cloud.oracle
 
 import com.dogGetDrunk.meetjyou.cloud.oracle.dto.ParResponse
 import com.dogGetDrunk.meetjyou.config.OracleProps
+import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.Caffeine
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.objectstorage.model.CreatePreauthenticatedRequestDetails
 import com.oracle.bmc.objectstorage.requests.CreatePreauthenticatedRequestRequest
 import com.oracle.bmc.objectstorage.requests.DeleteObjectRequest
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Date
@@ -19,6 +22,11 @@ class OracleObjectStorageService(
 ) {
     private val log = LoggerFactory.getLogger(OracleObjectStorageService::class.java)
 
+    private val downloadParCache: Cache<String, ParResponse> = Caffeine.newBuilder()
+        .expireAfterWrite(Duration.ofMinutes(maxOf(props.parExpirationMinutes * 4 / 5, 1L)))
+        .maximumSize(1024)
+        .build()
+
     fun createUploadPar(objectKey: String): ParResponse {
         return createPar(
             objectKey = objectKey,
@@ -29,15 +37,23 @@ class OracleObjectStorageService(
     }
 
     fun createDownloadPar(objectKey: String): ParResponse {
-        return createPar(
+        downloadParCache.getIfPresent(objectKey)?.let { cached ->
+            log.debug("Download PAR cache hit. objectKey={}", objectKey)
+            return cached
+        }
+
+        val par = createPar(
             objectKey = objectKey,
             accessType = CreatePreauthenticatedRequestDetails.AccessType.ObjectRead,
             httpMethod = "GET",
             operation = "download",
         )
+        downloadParCache.put(objectKey, par)
+        return par
     }
 
     fun deleteObject(objectKey: String): Boolean {
+        downloadParCache.invalidate(objectKey)
         return try {
             val deleteRequest = DeleteObjectRequest.builder()
                 .namespaceName(props.namespace)
