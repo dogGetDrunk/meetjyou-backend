@@ -33,7 +33,7 @@ class PlanService(
         val plan = Plan(
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
-            location = request.location,
+            destination = request.location,
             centerLat = request.centerLat,
             centerLng = request.centerLng,
             memo = request.memo,
@@ -64,6 +64,14 @@ class PlanService(
             .map { GetPlanResponse.of(it) }
     }
 
+    @Transactional(readOnly = true)
+    fun getMyPlans(pageable: Pageable): Page<GetPlanResponse> {
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+
+        return planRepository.findAllByOwner_Uuid(currentUserUuid, pageable)
+            .map { GetPlanResponse.of(it) }
+    }
+
     @Transactional
     fun updatePlan(planUuid: UUID, request: UpdatePlanRequest): UpdatePlanResponse {
         val plan = planRepository.findByUuid(planUuid)
@@ -77,10 +85,11 @@ class PlanService(
         plan.apply {
             itinStart = request.itinStart
             itinFinish = request.itinFinish
-            location = request.location
+            destination = request.location
             centerLat = request.centerLat
             centerLng = request.centerLng
             memo = request.memo
+            favorite = request.favorite
         }
 
         log.info("Plan updated: $plan")

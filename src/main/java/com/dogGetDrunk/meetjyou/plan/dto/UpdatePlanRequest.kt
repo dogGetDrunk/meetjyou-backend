@@ -8,5 +8,6 @@ data class UpdatePlanRequest(
     val location: String,
     val centerLat: Double,
     val centerLng: Double,
-    val memo: String?
+    val memo: String?,
+    val favorite: Boolean,
 )

@@ -43,6 +43,7 @@ enum class ErrorCode(
 
     // Plan
     PLAN_NOT_FOUND("Plan not found"),
+    MARKER_NOT_FOUND("Marker not found"),
 
     // Party
     PARTY_NOT_FOUND("Party not found"),

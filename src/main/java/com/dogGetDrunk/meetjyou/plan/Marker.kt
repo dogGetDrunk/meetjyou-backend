@@ -1,6 +1,5 @@
 package com.dogGetDrunk.meetjyou.plan
 
-import com.dogGetDrunk.meetjyou.user.User
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
@@ -14,20 +13,22 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
-class Plan(
-    var itinStart: Instant,
-    var itinFinish: Instant,
-    var destination: String,
-    var centerLat: Double,
-    var centerLng: Double,
-    var favorite: Boolean = false,
+class Marker(
+    var lat: Double,
+    var lng: Double,
+    var date: Instant,
+    var dayNum: Int,
+    var idx: Int,
+
+    @Column(length = 100)
+    var place: String,
 
     @Column(length = 500)
     var memo: String? = null,
 
     @ManyToOne
-    @JoinColumn(name = "owner_id")
-    var owner: User
+    @JoinColumn(name = "plan_id")
+    var plan: Plan,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

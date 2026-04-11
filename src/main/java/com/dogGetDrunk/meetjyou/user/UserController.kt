@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.plan.PlanService
+import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.user.dto.AdvancedUserResponse
@@ -12,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
@@ -34,6 +37,7 @@ import java.util.UUID
 class UserController(
     private val userService: UserService,
     private val postService: PostService,
+    private val planService: PlanService,
 ) {
     @Operation(
         summary = "유저의 기본 정보 조회",
@@ -172,6 +176,21 @@ class UserController(
         response["isDuplicate"] = userService.isDuplicateNickname(nickname)
 
         return ResponseEntity.ok(response)
+    }
+
+    @Operation(summary = "내 여행 계획 목록 조회", description = "현재 로그인한 사용자의 여행 계획 목록을 조회합니다.")
+    @ApiResponses(
+        value = [ApiResponse(
+            responseCode = "200",
+            description = "조회 성공"
+        )]
+    )
+    @GetMapping("/me/plans")
+    fun getMyPlans(
+        @ParameterObject
+        @PageableDefault(size = 10, sort = ["itinStart"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): Page<GetPlanResponse> {
+        return planService.getMyPlans(pageable)
     }
 
     @Operation(summary = "회원 탈퇴", description = "현재는 DELETE, 추후 PATCH로 변경될 수 있음.")

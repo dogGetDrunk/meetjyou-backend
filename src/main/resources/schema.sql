@@ -109,27 +109,31 @@ CREATE TABLE chat_participant
 CREATE TABLE plan
 (
     id          INT AUTO_INCREMENT PRIMARY KEY,
-    uuid        CHAR(36)        NOT NULL UNIQUE,
-    itin_start  TIMESTAMP       NOT NULL,
-    itin_finish TIMESTAMP       NOT NULL,
-    location    VARCHAR(50)     NOT NULL,
-    center_lat  DECIMAL(13, 10) NOT NULL,
-    center_lng  DECIMAL(13, 10) NOT NULL,
+    uuid        CHAR(36)       NOT NULL UNIQUE,
+    itin_start  TIMESTAMP      NOT NULL,
+    itin_finish TIMESTAMP      NOT NULL,
+    destination VARCHAR(50)    NOT NULL,
+    center_lat  DECIMAL(10, 8) NOT NULL,
+    center_lng  DECIMAL(11, 8) NOT NULL,
     memo        VARCHAR(500),
-    owner_id    INT             NOT NULL
+    favorite    BOOLEAN        NOT NULL DEFAULT FALSE,
+    owner_id    INT            NOT NULL,
+    FOREIGN KEY (owner_id) REFERENCES user (id)
 );
 
 CREATE TABLE marker
 (
     id      INT AUTO_INCREMENT PRIMARY KEY,
-    uuid    CHAR(36)        NOT NULL UNIQUE,
-    lat     DECIMAL(13, 10) NOT NULL,
-    lng     DECIMAL(13, 10) NOT NULL,
-    date    TIMESTAMP       NOT NULL,
-    idx     INT             NOT NULL,
-    place   VARCHAR(50),
+    uuid    CHAR(36)       NOT NULL UNIQUE,
+    lat     DECIMAL(10, 8) NOT NULL,
+    lng     DECIMAL(11, 8) NOT NULL,
+    date    TIMESTAMP      NOT NULL,
+    day_num INT            NOT NULL,
+    idx     INT            NOT NULL,
+    place   VARCHAR(100)   NOT NULL,
     memo    VARCHAR(500),
-    plan_id INT             NOT NULL
+    plan_id INT            NOT NULL,
+    FOREIGN KEY (plan_id) REFERENCES plan (id)
 );
 
 CREATE TABLE notification
@@ -315,6 +319,8 @@ ALTER TABLE push_token
     ADD FOREIGN KEY (app_version_id) REFERENCES app_version (id) ON DELETE CASCADE;
 ALTER TABLE notification_outbox
     ADD FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE;
+
+CREATE INDEX idx_marker_plan_day_idx ON marker (plan_id, day_num, idx);
 
 
 -- TODO: TINYINT -> BOOLEAN으로 변경할 것
