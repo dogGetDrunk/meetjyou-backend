@@ -6,7 +6,6 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
-import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.JdbcTypeCode
 import java.sql.Types
@@ -17,7 +16,7 @@ import java.util.UUID
 class Plan(
     var itinStart: Instant,
     var itinFinish: Instant,
-    var location: String,
+    var destination: String,
     var centerLat: Double,
     var centerLng: Double,
 

@@ -33,7 +33,7 @@ class PlanService(
         val plan = Plan(
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
-            location = request.location,
+            destination = request.location,
             centerLat = request.centerLat,
             centerLng = request.centerLng,
             memo = request.memo,
@@ -77,7 +77,7 @@ class PlanService(
         plan.apply {
             itinStart = request.itinStart
             itinFinish = request.itinFinish
-            location = request.location
+            destination = request.location
             centerLat = request.centerLat
             centerLng = request.centerLng
             memo = request.memo

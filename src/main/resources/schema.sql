@@ -112,7 +112,7 @@ CREATE TABLE plan
     uuid        CHAR(36)        NOT NULL UNIQUE,
     itin_start  TIMESTAMP       NOT NULL,
     itin_finish TIMESTAMP       NOT NULL,
-    location    VARCHAR(50)     NOT NULL,
+    destination VARCHAR(50)     NOT NULL,
     center_lat  DECIMAL(13, 10) NOT NULL,
     center_lng  DECIMAL(13, 10) NOT NULL,
     memo        VARCHAR(500),

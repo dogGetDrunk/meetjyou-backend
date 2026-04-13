@@ -19,7 +19,7 @@ data class GetPlanResponse(
             uuid = plan.uuid,
             itinStart = plan.itinStart,
             itinFinish = plan.itinFinish,
-            destination = plan.location,
+            destination = plan.destination,
             centerLat = plan.centerLat,
             centerLng = plan.centerLng,
             memo = plan.memo,
