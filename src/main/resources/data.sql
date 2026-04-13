@@ -107,7 +107,7 @@ VALUES (1, 2),
        (3, 38);
 
 -- plans
-INSERT INTO plan (uuid, itin_start, itin_finish, location, center_lat, center_lng, memo, owner_id)
+INSERT INTO plan (uuid, itin_start, itin_finish, destination, center_lat, center_lng, memo, owner_id)
 VALUES ('aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaa1', DATE_ADD(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 9 DAY), '서울',
         37.5665000000, 126.9780000000, '서울 2박 3일 먹방 여행', 1),
        ('aaaa2222-aaaa-aaaa-aaaa-aaaaaaaaaaa2', DATE_ADD(NOW(), INTERVAL 14 DAY), DATE_ADD(NOW(), INTERVAL 16 DAY), '부산',
@@ -116,14 +116,14 @@ VALUES ('aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaa1', DATE_ADD(NOW(), INTERVAL 7 DAY),
         33.4996000000, 126.5312000000, '제주 드라이브 여행', 3);
 
 -- markers
-INSERT INTO marker (uuid, lat, lng, date, idx, place, memo, plan_id)
-VALUES ('bbbb1111-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 37.5704000000, 126.9920000000, DATE_ADD(NOW(), INTERVAL 7 DAY), 1, '인사동',
+INSERT INTO marker (uuid, lat, lng, date, day_num, idx, place, memo, plan_id)
+VALUES ('bbbb1111-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 37.5704000000, 126.9920000000, DATE_ADD(NOW(), INTERVAL 7 DAY), 1, 1, '인사동',
         '점심 후 산책', 1),
-       ('bbbb1112-bbbb-bbbb-bbbb-bbbbbbbbbbb2', 37.5512000000, 126.9882000000, DATE_ADD(NOW(), INTERVAL 8 DAY), 2, '남산타워',
+       ('bbbb1112-bbbb-bbbb-bbbb-bbbbbbbbbbb2', 37.5512000000, 126.9882000000, DATE_ADD(NOW(), INTERVAL 8 DAY), 2, 2, '남산타워',
         '야경 보기', 1),
-       ('bbbb2221-bbbb-bbbb-bbbb-bbbbbbbbbbb3', 35.1587000000, 129.1603000000, DATE_ADD(NOW(), INTERVAL 14 DAY), 1, '해운대',
+       ('bbbb2221-bbbb-bbbb-bbbb-bbbbbbbbbbb3', 35.1587000000, 129.1603000000, DATE_ADD(NOW(), INTERVAL 14 DAY), 1, 1, '해운대',
         '해변 산책', 2),
-       ('bbbb3331-bbbb-bbbb-bbbb-bbbbbbbbbbb4', 33.4507000000, 126.5707000000, DATE_ADD(NOW(), INTERVAL 21 DAY), 1, '한라산',
+       ('bbbb3331-bbbb-bbbb-bbbb-bbbbbbbbbbb4', 33.4507000000, 126.5707000000, DATE_ADD(NOW(), INTERVAL 21 DAY), 1, 1, '한라산',
         '가벼운 트레킹', 3);
 
 -- parties

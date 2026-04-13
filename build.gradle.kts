@@ -82,6 +82,7 @@ dependencies {
 
 //    runtimeOnly("com.mysql:mysql-connector-j")
     implementation("com.mysql:mysql-connector-j")
+    implementation("org.flywaydb:flyway-mysql")
 
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

@@ -2,6 +2,10 @@ logging:
   level:
     org.springframework.security: DEBUG
 
+spring:
+  flyway:
+    clean-enabled: true
+
 dev:
   bypass:
     enabled: true
