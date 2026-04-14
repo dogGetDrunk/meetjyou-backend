@@ -55,6 +55,6 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
         @Param("memberStatus") memberStatus: MemberStatus,
     ): List<UserParty>
 
-    fun deleteAllByParty_Uuid(partyUuid: UUID): Boolean
+    fun deleteAllByParty_Uuid(partyUuid: UUID): Int
 
 }

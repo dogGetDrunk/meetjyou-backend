@@ -61,7 +61,7 @@ class UserService(
         }
 
         log.info("Processing user withdrawal (user uuid: {})", uuid.toString())
-        if (userRepository.deleteByUuid(uuid)) {
+        if (userRepository.deleteByUuid(uuid) > 0) {
             log.info("User withdrawal completed (user uuid: {})", uuid.toString())
         } else {
             log.error("Error occurred during user withdrawal (user uuid: {})", uuid.toString())
