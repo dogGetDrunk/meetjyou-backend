@@ -14,6 +14,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew test --tests "FullyQualifiedClass.methodName"  # single test
 ```
 
+## Testing
+
+- 새로운 기능을 구현한 이후엔 반드시 해당 기능을 검증하는 테스트 코드를 추가할 것
+- 기능 추가 또는 코드 수정 후 최종 반영 전 항상 `./gradlew test`로 전체 테스트를 실행해 오류가 없는지 확인할 것
+
 ## Code Style
 
 - No wildcard imports
