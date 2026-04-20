@@ -11,3 +11,9 @@ app:
     allowed-origin-patterns:
       - "http://localhost:*"
       - "http://127.0.0.1:*"
+
+spring:
+  sql:
+    init:
+      mode: always
+      continue-on-error: true

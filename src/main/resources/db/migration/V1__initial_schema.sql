@@ -1,27 +1,4 @@
-SET foreign_key_checks = 0;
-DROP TABLE IF EXISTS user;
-DROP TABLE IF EXISTS post;
-DROP TABLE IF EXISTS party;
-DROP TABLE IF EXISTS chat_room;
-DROP TABLE IF EXISTS chat_message;
-DROP TABLE IF EXISTS chat_participant;
-DROP TABLE IF EXISTS plan;
-DROP TABLE IF EXISTS marker;
-DROP TABLE IF EXISTS notification;
-DROP TABLE IF EXISTS notice;
-DROP TABLE IF EXISTS preference;
-DROP TABLE IF EXISTS user_preference;
-DROP TABLE IF EXISTS comp_preference;
-DROP TABLE IF EXISTS party_application;
-DROP TABLE IF EXISTS terms;
-DROP TABLE IF EXISTS user_party;
-DROP TABLE IF EXISTS user_terms;
-DROP TABLE IF EXISTS app_version;
-DROP TABLE IF EXISTS push_token;
-DROP TABLE IF EXISTS notification_outbox;
-SET foreign_key_checks = 1;
-
-CREATE TABLE user
+CREATE TABLE IF NOT EXISTS user
 (
     id            INT AUTO_INCREMENT PRIMARY KEY,
     uuid          CHAR(36)     NOT NULL UNIQUE,
@@ -31,7 +8,7 @@ CREATE TABLE user
     external_id   VARCHAR(100) NOT NULL UNIQUE,
     role          VARCHAR(10)  NOT NULL DEFAULT 'USER',
     bio           VARCHAR(50),
-    participation INT          NOT NULL DEFAULT 0, -- 참여 횟수
+    participation INT          NOT NULL DEFAULT 0,
     status        VARCHAR(10)  NOT NULL DEFAULT 'NORMAL',
     img_url       VARCHAR(500),
     thumb_img_url VARCHAR(500),
@@ -41,7 +18,7 @@ CREATE TABLE user
     updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE post
+CREATE TABLE IF NOT EXISTS post
 (
     id             INT AUTO_INCREMENT PRIMARY KEY,
     uuid           CHAR(36)     NOT NULL UNIQUE,
@@ -63,7 +40,7 @@ CREATE TABLE post
     plan_id        INT
 );
 
-CREATE TABLE party
+CREATE TABLE IF NOT EXISTS party
 (
     id                 INT AUTO_INCREMENT PRIMARY KEY,
     uuid               CHAR(36)    NOT NULL UNIQUE,
@@ -80,13 +57,13 @@ CREATE TABLE party
     plan_id            INT         NULL
 );
 
-CREATE TABLE chat_room
+CREATE TABLE IF NOT EXISTS chat_room
 (
     room_id INT PRIMARY KEY,
     uuid    CHAR(36) NOT NULL UNIQUE
 );
 
-CREATE TABLE chat_message
+CREATE TABLE IF NOT EXISTS chat_message
 (
     id         BIGINT AUTO_INCREMENT PRIMARY KEY,
     uuid       CHAR(36)      NOT NULL UNIQUE,
@@ -96,7 +73,7 @@ CREATE TABLE chat_message
     created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE chat_participant
+CREATE TABLE IF NOT EXISTS chat_participant
 (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id      INT       NOT NULL,
@@ -106,7 +83,7 @@ CREATE TABLE chat_participant
     UNIQUE (user_id, room_id)
 );
 
-CREATE TABLE plan
+CREATE TABLE IF NOT EXISTS plan
 (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     uuid        CHAR(36)       NOT NULL UNIQUE,
@@ -121,7 +98,7 @@ CREATE TABLE plan
     FOREIGN KEY (owner_id) REFERENCES user (id)
 );
 
-CREATE TABLE marker
+CREATE TABLE IF NOT EXISTS marker
 (
     id      INT AUTO_INCREMENT PRIMARY KEY,
     uuid    CHAR(36)       NOT NULL UNIQUE,
@@ -136,7 +113,7 @@ CREATE TABLE marker
     FOREIGN KEY (plan_id) REFERENCES plan (id)
 );
 
-CREATE TABLE notification
+CREATE TABLE IF NOT EXISTS notification
 (
     id           INT AUTO_INCREMENT PRIMARY KEY,
     uuid         CHAR(36)     NOT NULL UNIQUE,
@@ -148,7 +125,7 @@ CREATE TABLE notification
     user_id      INT          NOT NULL
 );
 
-CREATE TABLE notice
+CREATE TABLE IF NOT EXISTS notice
 (
     id             INT AUTO_INCREMENT PRIMARY KEY,
     uuid           CHAR(36)      NOT NULL UNIQUE,
@@ -158,28 +135,28 @@ CREATE TABLE notice
     last_edited_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE preference
+CREATE TABLE IF NOT EXISTS preference
 (
     id   INT AUTO_INCREMENT PRIMARY KEY,
     type VARCHAR(50) NOT NULL,
     name VARCHAR(20) NOT NULL
 );
 
-CREATE TABLE user_preference
+CREATE TABLE IF NOT EXISTS user_preference
 (
     id            INT AUTO_INCREMENT PRIMARY KEY,
     user_id       INT NOT NULL,
     preference_id INT NOT NULL
 );
 
-CREATE TABLE comp_preference
+CREATE TABLE IF NOT EXISTS comp_preference
 (
     id            INT AUTO_INCREMENT PRIMARY KEY,
     post_id       INT NOT NULL,
     preference_id INT NOT NULL
 );
 
-CREATE TABLE party_application
+CREATE TABLE IF NOT EXISTS party_application
 (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     title      VARCHAR(50) NOT NULL,
@@ -190,7 +167,7 @@ CREATE TABLE party_application
     user_id    INT         NOT NULL
 );
 
-CREATE TABLE terms
+CREATE TABLE IF NOT EXISTS terms
 (
     id                 INT AUTO_INCREMENT PRIMARY KEY,
     uuid               CHAR(36)     NOT NULL UNIQUE,
@@ -207,7 +184,7 @@ CREATE TABLE terms
     UNIQUE KEY uk_terms_type_version (type, version)
 );
 
-CREATE TABLE user_party
+CREATE TABLE IF NOT EXISTS user_party
 (
     id                   INT AUTO_INCREMENT PRIMARY KEY,
     role                 CHAR(10)    NOT NULL,
@@ -218,7 +195,7 @@ CREATE TABLE user_party
     user_id              INT         NOT NULL
 );
 
-CREATE TABLE user_terms
+CREATE TABLE IF NOT EXISTS user_terms
 (
     id        INT AUTO_INCREMENT PRIMARY KEY,
     user_id   INT       NOT NULL,
@@ -227,7 +204,7 @@ CREATE TABLE user_terms
     UNIQUE KEY uk_user_terms_user_id_terms_id (user_id, terms_id)
 );
 
-CREATE TABLE app_version
+CREATE TABLE IF NOT EXISTS app_version
 (
     id           INT AUTO_INCREMENT PRIMARY KEY,
     version      VARCHAR(20)  NOT NULL UNIQUE,
@@ -236,39 +213,36 @@ CREATE TABLE app_version
     released_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 사용자-디바이스 FCM 토큰
-CREATE TABLE push_token
+CREATE TABLE IF NOT EXISTS push_token
 (
     id              BIGINT AUTO_INCREMENT PRIMARY KEY,
     uuid            CHAR(36)     NOT NULL UNIQUE,
     token           VARCHAR(255) NOT NULL UNIQUE,
     platform        VARCHAR(32)  NOT NULL,
     device_model    VARCHAR(64),
-    is_active       BOOLEAN      NOT NULL DEFAULT TRUE, -- 토큰 유효 여부
+    is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
     last_updated_at TIMESTAMP    NULL,
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     user_id         INT          NOT NULL,
     app_version_id  INT          NOT NULL
 );
 
--- 알림 아웃박스
-CREATE TABLE notification_outbox
+CREATE TABLE IF NOT EXISTS notification_outbox
 (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
-    uuid         CHAR(36)     NOT NULL UNIQUE,                    -- 만나쥬 규칙: Long + UUID
-    type         VARCHAR(64)  NOT NULL,                           -- CHAT_MESSAGE, PARTY_JOIN_REQUEST, ...
+    uuid         CHAR(36)     NOT NULL UNIQUE,
+    type         VARCHAR(64)  NOT NULL,
     title        TEXT         NULL,
     body         TEXT         NULL,
-    data_json    JSON         NOT NULL,                           -- 딥링크 등 key-value 데이터
-    dedup_key    VARCHAR(100) NULL,                               -- 멱등 처리용
-    status       VARCHAR(32)  NOT NULL DEFAULT 'PENDING',         -- PENDING, SENDING, SENT, FAILED, DEAD
+    data_json    JSON         NOT NULL,
+    dedup_key    VARCHAR(100) NULL,
+    status       VARCHAR(32)  NOT NULL DEFAULT 'PENDING',
     attempts     INT          NOT NULL DEFAULT 0,
-    available_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 백오프 후 재시도 시각
+    available_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     user_id      INT          NOT NULL
 );
 
--- Foreign key 설정은 동일하게 유지
 ALTER TABLE post
     ADD FOREIGN KEY (author_id) REFERENCES user (id);
 ALTER TABLE post
@@ -321,6 +295,3 @@ ALTER TABLE notification_outbox
     ADD FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE;
 
 CREATE INDEX idx_marker_plan_day_idx ON marker (plan_id, day_num, idx);
-
-
--- TODO: TINYINT -> BOOLEAN으로 변경할 것
