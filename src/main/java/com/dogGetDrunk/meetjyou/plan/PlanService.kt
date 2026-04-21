@@ -20,6 +20,7 @@ import java.util.UUID
 @Service
 class PlanService(
     private val planRepository: PlanRepository,
+    private val markerRepository: MarkerRepository,
     private val userRepository: UserRepository,
 ) {
     private val log = LoggerFactory.getLogger(PlanService::class.java)
@@ -41,17 +42,33 @@ class PlanService(
         )
 
         planRepository.save(plan)
-        log.info("New plan created: $plan")
 
-        return CreatePlanResponse.of(plan)
+        val markers = request.markers.map { req ->
+            Marker(
+                lat = req.lat,
+                lng = req.lng,
+                date = req.date,
+                dayNum = req.dayNum,
+                idx = req.idx,
+                place = req.place,
+                memo = req.memo,
+                plan = plan,
+            )
+        }
+
+        markerRepository.saveAll(markers)
+        log.info("New plan created: uuid=${plan.uuid} markers=${markers.size}")
+
+        return CreatePlanResponse.of(plan, markers)
     }
 
     @Transactional(readOnly = true)
     fun getPlanByUuid(planUuid: UUID): GetPlanResponse {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
+        val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
 
-        return GetPlanResponse.of(plan)
+        return GetPlanResponse.of(plan, markers)
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +78,7 @@ class PlanService(
         }
 
         return planRepository.findAllByOwner_Uuid(userUuid, pageable)
-            .map { GetPlanResponse.of(it) }
+            .map { GetPlanResponse.of(it, markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(it.uuid)) }
     }
 
     @Transactional(readOnly = true)
@@ -69,7 +86,7 @@ class PlanService(
         val currentUserUuid = SecurityUtil.getCurrentUserUuid()
 
         return planRepository.findAllByOwner_Uuid(currentUserUuid, pageable)
-            .map { GetPlanResponse.of(it) }
+            .map { GetPlanResponse.of(it, markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(it.uuid)) }
     }
 
     @Transactional
@@ -92,7 +109,7 @@ class PlanService(
             favorite = request.favorite
         }
 
-        log.info("Plan updated: $plan")
+        log.info("Plan updated: uuid=$planUuid")
         return UpdatePlanResponse.of(plan)
     }
 
@@ -106,6 +123,7 @@ class PlanService(
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
         }
 
+        markerRepository.deleteAllByPlan(plan)
         planRepository.delete(plan)
         log.info("Plan deleted: uuid=$planUuid")
     }

@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.plan.dto
 
+import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.Plan
 import java.time.Instant
 import java.util.UUID
@@ -14,9 +15,10 @@ data class CreatePlanResponse(
     val memo: String?,
     val favorite: Boolean,
     val userUuid: UUID,
+    val markers: List<MarkerResponse>,
 ) {
     companion object {
-        fun of(plan: Plan) = CreatePlanResponse(
+        fun of(plan: Plan, markers: List<Marker>) = CreatePlanResponse(
             uuid = plan.uuid,
             itinStart = plan.itinStart,
             itinFinish = plan.itinFinish,
@@ -26,6 +28,7 @@ data class CreatePlanResponse(
             memo = plan.memo,
             favorite = plan.favorite,
             userUuid = plan.owner.uuid,
+            markers = markers.map { MarkerResponse.of(it) },
         )
     }
 }
