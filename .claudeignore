@@ -1,0 +1,18 @@
+# Build artifacts — no source value
+build/
+.gradle/
+out/
+
+# IDE config — irrelevant to Claude
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Playground / scratch
+playground.sql
+
+# Secrets (never read)
+src/main/resources/application-secrets.yml
+src/main/resources/firebase/

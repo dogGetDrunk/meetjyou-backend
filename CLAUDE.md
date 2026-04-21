@@ -48,5 +48,16 @@ com.dogGetDrunk.meetjyou/
 **Key patterns:**
 - `DevBypassAuthFilter` — skips JWT in `dev` profile
 - Notification outbox — events written to `notification_outbox` in same transaction, dispatched async
-- Schema managed via `schema.sql` + `data.sql` (no migration tool); `ddl-auto: none`
+- Schema managed via Flyway (`db/migration/V*.sql`); `ddl-auto: none`
 - Most endpoints are currently `permit-all` (authorization enforcement is a TODO)
+
+## Compact Instructions
+
+When compacting, preserve:
+- Current task goal and any pending TODOs
+- File paths and class names touched this session
+- Test results (pass/fail counts, failing test names)
+- Key decisions made (e.g., chosen approach, rejected alternatives)
+- Any error messages not yet resolved
+
+Drop: file contents already saved, repeated tool call outputs, resolved errors.
