@@ -2,8 +2,12 @@ package com.dogGetDrunk.meetjyou.plan
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.post.PostRepository
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
+import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
@@ -22,6 +26,8 @@ class PlanService(
     private val planRepository: PlanRepository,
     private val markerRepository: MarkerRepository,
     private val userRepository: UserRepository,
+    private val postRepository: PostRepository,
+    private val userPartyRepository: UserPartyRepository,
 ) {
     private val log = LoggerFactory.getLogger(PlanService::class.java)
 
@@ -66,8 +72,18 @@ class PlanService(
     fun getPlanByUuid(planUuid: UUID): GetPlanResponse {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
-        val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
 
+        val canRead = plan.owner.uuid == currentUserUuid
+            || postRepository.existsByPlan_UuidAndIsPlanPublicTrue(planUuid)
+            || userPartyRepository.existsByParty_Plan_UuidAndUser_UuidAndMemberStatus(
+                planUuid, currentUserUuid, MemberStatus.JOINED,
+            )
+        if (!canRead) {
+            throw PlanReadAccessDeniedException(planUuid, currentUserUuid)
+        }
+
+        val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
         return GetPlanResponse.of(plan, markers)
     }
 

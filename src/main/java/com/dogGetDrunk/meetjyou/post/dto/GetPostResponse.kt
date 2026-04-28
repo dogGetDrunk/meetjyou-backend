@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
+import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostStatus
 import java.time.Instant
@@ -23,9 +24,10 @@ data class GetPostResponse(
     val companionSpec: CompanionSpec?,
     val planUuid: UUID?,
     val isPlanPublic: Boolean?,
+    val plan: GetPlanResponse?,
 ) {
     companion object {
-        fun of(post: Post, companionSpec: CompanionSpec?): GetPostResponse {
+        fun of(post: Post, companionSpec: CompanionSpec?, plan: GetPlanResponse? = null): GetPostResponse {
             return GetPostResponse(
                 uuid = post.uuid,
                 title = post.title,
@@ -44,6 +46,7 @@ data class GetPostResponse(
                 companionSpec = companionSpec,
                 planUuid = post.plan?.uuid,
                 isPlanPublic = post.isPlanPublic,
+                plan = plan,
             )
         }
     }
