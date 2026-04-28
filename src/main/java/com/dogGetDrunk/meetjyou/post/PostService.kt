@@ -9,7 +9,9 @@ import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessD
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
+import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
+import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.dto.CompanionSpec
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
@@ -38,6 +40,7 @@ class PostService(
     private val preferenceRepository: PreferenceRepository,
     private val partyService: PartyService,
     private val planRepository: PlanRepository,
+    private val markerRepository: MarkerRepository,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
 
@@ -85,7 +88,7 @@ class PostService(
     fun getPostByUuid(postUuid: UUID): GetPostResponse {
         val post = postRepository.findByUuid(postUuid)
             ?: throw PostNotFoundException(postUuid)
-        return GetPostResponse.of(post, compPreferenceRepository.findAllByPost(post).toCompanionSpec())
+        return buildGetPostResponse(post)
     }
 
     @Transactional(readOnly = true)
@@ -95,9 +98,7 @@ class PostService(
         }
 
         return postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
-            .map { post ->
-                GetPostResponse.of(post, compPreferenceRepository.findAllByPost(post).toCompanionSpec())
-            }
+            .map { buildGetPostResponse(it) }
     }
 
     @Transactional(readOnly = true)
@@ -108,9 +109,7 @@ class PostService(
     @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<GetPostResponse> {
         return postRepository.findAll(pageable)
-            .map { post ->
-                GetPostResponse.of(post, compPreferenceRepository.findAllByPost(post).toCompanionSpec())
-            }
+            .map { buildGetPostResponse(it) }
     }
 
     @Transactional
@@ -178,6 +177,15 @@ class PostService(
         postRepository.delete(post)
 
         log.info("Post deleted: uuid=$postUuid")
+    }
+
+    private fun buildGetPostResponse(post: Post): GetPostResponse {
+        val companionSpec = compPreferenceRepository.findAllByPost(post).toCompanionSpec()
+        val plan = if (post.isPlanPublic == true && post.plan != null) {
+            val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(post.plan!!.uuid)
+            GetPlanResponse.of(post.plan!!, markers)
+        } else null
+        return GetPostResponse.of(post, companionSpec, plan)
     }
 
     private fun saveCompPreference(post: Post, companionSpec: CompanionSpec?) {
