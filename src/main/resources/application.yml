@@ -82,9 +82,15 @@ auth:
     clients:
       android: ${GOOGLE_CLIENT_ID_ANDROID}
       web: ${GOOGLE_CLIENT_ID_WEB}
+      ios: ${GOOGLE_CLIENT_ID_IOS}
     # jwks-uri: ${GOOGLE_JWKS_URI}
     # clock-skew-seconds: ${GOOGLE_CLOCK_SKEW_SECONDS}
     # jwk-cache-ttl-minutes: ${GOOGLE_JWK_CACHE_TTL_MINUTES}
+  apple:
+    issuer: ${APPLE_ISSUER}
+    jwks-uri: ${APPLE_JWKS_URI}
+    client-id: ${APPLE_CLIENT_ID}
+    clock-skew-seconds: ${APPLE_CLOCK_SKEW_SECONDS}
 
 dev:
   bypass:
