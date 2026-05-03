@@ -76,6 +76,11 @@ jobs:
             GOOGLE_ISSUER=${{ secrets.GOOGLE_ISSUER }}
             GOOGLE_CLIENT_ID_ANDROID=${{ secrets.GOOGLE_CLIENT_ID_ANDROID }}
             GOOGLE_CLIENT_ID_WEB=${{ secrets.GOOGLE_CLIENT_ID_WEB }}
+            APPLE_ISSUER=${{ secrets.APPLE_ISSUER }}
+            APPLE_JWKS_URI=${{ secrets.APPLE_JWKS_URI }}
+            APPLE_CLIENT_ID=${{ secrets.APPLE_CLIENT_ID }}
+            APPLE_CLOCK_SKEW_SECONDS=${{ secrets.APPLE_CLOCK_SKEW_SECONDS }}
+            APPLE_JWK_CACHE_TTL_MINUTES=${{ secrets.APPLE_JWK_CACHE_TTL_MINUTES }}
             COMPOSE_PROJECT_NAME=meetjyou
             EOF
 
