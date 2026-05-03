@@ -8,4 +8,5 @@ data class AppleOidcProperties(
     val jwksUri: String,
     val clientId: String,
     val clockSkewSeconds: Long,
+    val jwkCacheTtlMinutes: Long,
 )

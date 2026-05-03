@@ -91,6 +91,7 @@ auth:
     jwks-uri: ${APPLE_JWKS_URI}
     client-id: ${APPLE_CLIENT_ID}
     clock-skew-seconds: ${APPLE_CLOCK_SKEW_SECONDS}
+    jwk-cache-ttl-minutes: ${APPLE_JWK_CACHE_TTL_MINUTES}
 
 dev:
   bypass:
