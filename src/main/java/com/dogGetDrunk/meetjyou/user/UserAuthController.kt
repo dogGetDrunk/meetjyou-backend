@@ -142,7 +142,7 @@ class UserAuthController(
     @PostMapping("/refresh")
     fun refreshToken(
         @RequestHeader("Authorization") authorizationHeader: String,
-        @RequestBody requestDto: RefreshTokenRequest,
+        @Valid @RequestBody requestDto: RefreshTokenRequest,
     ): ResponseEntity<TokenResponse> {
         val refreshToken = authorizationHeader.substring("Bearer ".length)
         val tokenResponseDto = userAuthService.refreshToken(refreshToken, requestDto)
