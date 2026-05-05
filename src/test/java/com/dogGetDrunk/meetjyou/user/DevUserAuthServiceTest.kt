@@ -1,6 +1,8 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.auth.jwt.GeneratedRefreshToken
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
+import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.user.dto.DevRegisterRequest
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
@@ -14,6 +16,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.unmockkAll
 import io.mockk.verify
+import java.time.LocalDateTime
 import java.util.UUID
 
 class DevUserAuthServiceTest : BehaviorSpec() {
@@ -21,12 +24,16 @@ class DevUserAuthServiceTest : BehaviorSpec() {
     // mock은 class-level val로 선언하고 beforeEach로 상태만 초기화한다.
     private val userRepository: UserRepository = mockk(relaxed = true)
     private val jwtProvider: JwtProvider = mockk(relaxed = true)
-    private val sut = DevUserAuthService(userRepository, jwtProvider)
+    private val refreshTokenRepository: RefreshTokenRepository = mockk(relaxed = true)
+    private val sut = DevUserAuthService(userRepository, jwtProvider, refreshTokenRepository)
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
     init {
-        beforeEach { clearAllMocks() }
+        beforeEach {
+            clearAllMocks()
+            every { refreshTokenRepository.save(any()) } answers { firstArg() }
+        }
         afterSpec { unmockkAll() }
 
         // ── registerOrLogin ──────────────────────────────────────────────────
@@ -42,7 +49,11 @@ class DevUserAuthServiceTest : BehaviorSpec() {
                     every { userRepository.findByEmail(email) } returns null
                     every { userRepository.save(capture(capturedUser)) } returns newUser
                     every { jwtProvider.generateAccessToken(any(), any()) } returns "access-token"
-                    every { jwtProvider.generateRefreshToken(any(), any()) } returns "refresh-token"
+                    every { jwtProvider.generateRefreshToken(any(), any()) } returns GeneratedRefreshToken(
+                        token = "refresh-token",
+                        jti = UUID.randomUUID(),
+                        expiresAt = LocalDateTime.now().plusDays(30),
+                    )
 
                     val result = sut.registerOrLogin(request)
 
@@ -65,7 +76,11 @@ class DevUserAuthServiceTest : BehaviorSpec() {
 
                     every { userRepository.findByEmail(email) } returns existingUser
                     every { jwtProvider.generateAccessToken(existingUser.uuid, existingUser.email) } returns "access-token"
-                    every { jwtProvider.generateRefreshToken(existingUser.uuid, existingUser.email) } returns "refresh-token"
+                    every { jwtProvider.generateRefreshToken(existingUser.uuid, existingUser.email) } returns GeneratedRefreshToken(
+                        token = "refresh-token",
+                        jti = UUID.randomUUID(),
+                        expiresAt = LocalDateTime.now().plusDays(30),
+                    )
 
                     val result = sut.registerOrLogin(request)
 
@@ -87,7 +102,11 @@ class DevUserAuthServiceTest : BehaviorSpec() {
 
                     every { userRepository.findByUuid(user.uuid) } returns user
                     every { jwtProvider.generateAccessToken(user.uuid, user.email) } returns "access-token"
-                    every { jwtProvider.generateRefreshToken(user.uuid, user.email) } returns "refresh-token"
+                    every { jwtProvider.generateRefreshToken(user.uuid, user.email) } returns GeneratedRefreshToken(
+                        token = "refresh-token",
+                        jti = UUID.randomUUID(),
+                        expiresAt = LocalDateTime.now().plusDays(30),
+                    )
 
                     val result = sut.getTokenForUser(user.uuid)
 

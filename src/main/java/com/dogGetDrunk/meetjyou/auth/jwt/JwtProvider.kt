@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.auth.jwt
 
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.io.Decoders
@@ -8,6 +9,8 @@ import io.jsonwebtoken.security.MacAlgorithm
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.Date
 import java.util.UUID
 import javax.crypto.SecretKey
@@ -27,8 +30,24 @@ class JwtProvider(
         return generateToken(userUuid, email, accessTokenExpiration)
     }
 
-    fun generateRefreshToken(userUuid: UUID, email: String): String {
-        return generateToken(userUuid, email, refreshTokenExpiration)
+    fun generateRefreshToken(userUuid: UUID, email: String): GeneratedRefreshToken {
+        val jti = UUID.randomUUID()
+        val now = Date()
+        val expiry = Date(now.time + refreshTokenExpiration)
+        val token = Jwts.builder()
+            .issuer(issuer)
+            .subject(email)
+            .claim("userUuid", userUuid.toString())
+            .id(jti.toString())
+            .issuedAt(now)
+            .expiration(expiry)
+            .signWith(secretKey, algorithm)
+            .compact()
+        return GeneratedRefreshToken(
+            token = token,
+            jti = jti,
+            expiresAt = LocalDateTime.ofInstant(expiry.toInstant(), ZoneId.systemDefault()),
+        )
     }
 
     private fun generateToken(userUuid: UUID, email: String, expirationMillis: Long): String {
@@ -62,6 +81,9 @@ class JwtProvider(
     fun getUserUuid(token: String): UUID = UUID.fromString(getClaims(token)["userUuid"].toString())
 
     fun getExpiration(token: String): Date = getClaims(token).expiration
+
+    fun getJti(token: String): String =
+        getClaims(token).id ?: throw InvalidJwtException(message = "Missing jti claim")
 
     private fun getClaims(token: String): Claims =
         Jwts.parser()
