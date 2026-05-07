@@ -1,14 +1,17 @@
 package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
+import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshToken
+import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.auth.social.AccessToken
 import com.dogGetDrunk.meetjyou.auth.social.IdToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
-import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import org.slf4j.LoggerFactory
@@ -22,6 +25,7 @@ class UserAuthService(
     private val userService: UserService,
     private val jwtProvider: JwtProvider,
     private val termsService: TermsService,
+    private val refreshTokenRepository: RefreshTokenRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -51,14 +55,12 @@ class UserAuthService(
         val user = userService.createUser(request, principal)
         termsService.saveUserTerms(user, agreedTerms)
 
-        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email)
-        val refreshToken = jwtProvider.generateRefreshToken(user.uuid, user.email)
-
         log.info("User registered successfully. uuid: {}, email: {}", user.uuid, user.email)
 
-        return TokenResponse(user.uuid, user.email, accessToken, refreshToken)
+        return issueTokenPair(user)
     }
 
+    @Transactional
     fun loginViaSocial(request: LoginRequest, nonce: String? = null): TokenResponse {
         val token = if (!request.idToken.isNullOrBlank()) {
             IdToken(request.idToken)
@@ -80,21 +82,64 @@ class UserAuthService(
         }
 
         val user = userRepository.findByAuthProviderAndExternalId(principal.authProvider, principal.subject)!!
-        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email)
-        val refreshToken = jwtProvider.generateRefreshToken(user.uuid, user.email)
 
         log.info("User logged in successfully. uuid: {}, email: {}", user.uuid, user.email)
 
-        return TokenResponse(user.uuid, user.email, accessToken, refreshToken)
+        return issueTokenPair(user)
     }
 
-    fun refreshToken(refreshToken: String, request: RefreshTokenRequest): TokenResponse {
-        jwtProvider.validateToken(refreshToken)
+    @Transactional
+    fun refreshToken(rawRefreshToken: String): TokenResponse {
+        if (!jwtProvider.validateToken(rawRefreshToken)) {
+            throw InvalidJwtException(message = "Invalid refresh token")
+        }
 
-        val newAccessToken = jwtProvider.generateAccessToken(request.uuid, request.email)
-        val newRefreshToken = jwtProvider.generateRefreshToken(request.uuid, request.email)
+        val jti = jwtProvider.getJti(rawRefreshToken)
+        val record = refreshTokenRepository.findByJti(jti)
+            ?: throw InvalidJwtException(message = "Refresh token record not found")
 
-        return TokenResponse(request.uuid, request.email, newAccessToken, newRefreshToken)
+        if (!record.isValid) {
+            throw InvalidJwtException(message = "Refresh token is revoked or expired")
+        }
+
+        val userUuid = jwtProvider.getUserUuid(rawRefreshToken)
+        val email = jwtProvider.getUsername(rawRefreshToken)
+        val user = userRepository.findByUuid(userUuid)
+            ?: throw UserNotFoundException(userUuid, message = "User not found during token refresh")
+
+        if (user.email != email) {
+            throw IncorrectJwtSubjectException(email, message = "Email claim does not match user record")
+        }
+
+        record.revoke()
+        log.info("Refresh token rotated. uuid: {}", user.uuid)
+        return issueTokenPair(user)
+    }
+
+    @Transactional
+    fun logout(rawRefreshToken: String) {
+        if (!jwtProvider.validateToken(rawRefreshToken)) {
+            throw InvalidJwtException(message = "Invalid refresh token")
+        }
+
+        val jti = jwtProvider.getJti(rawRefreshToken)
+        val record = refreshTokenRepository.findByJti(jti)
+            ?: throw InvalidJwtException(message = "Refresh token record not found")
+
+        record.revoke()
+        log.info("User logged out, refresh token revoked. jti: {}", jti)
+    }
+
+    private fun issueTokenPair(user: User): TokenResponse {
+        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email)
+        val generated = jwtProvider.generateRefreshToken(user.uuid, user.email)
+        refreshTokenRepository.save(
+            RefreshToken(
+                jti = generated.jti.toString(),
+                user = user,
+                expiresAt = generated.expiresAt,
+            )
+        )
+        return TokenResponse(user.uuid, user.email, accessToken, generated.token)
     }
 }
-

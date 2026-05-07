@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 data class CreatePostRequest(
@@ -29,9 +30,10 @@ data class CreatePostRequest(
     val isPlanPublic: Boolean?,
 ) {
 
-    @AssertTrue(message = "일정 시작 시각은 현재 시각 이후여야 합니다.")
+    @AssertTrue(message = "일정 시작 시각은 현재 시각 이후여야 합니다. (Buffer = 2 min)")
     fun isItinStartAfterNow(): Boolean =
-        itinStart.isAfter(Instant.now())
+        !itinStart.truncatedTo(ChronoUnit.MINUTES)
+            .isBefore(Instant.now().truncatedTo(ChronoUnit.MINUTES).minus(2, ChronoUnit.MINUTES))
 
     @AssertTrue(message = "일정 종료 시각은 일정 시작 시각 이후여야 합니다.")
     fun isItinFinishAfterItinStart(): Boolean =

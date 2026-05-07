@@ -3,7 +3,6 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.NonceResponse
-import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import io.swagger.v3.oas.annotations.Operation
@@ -142,11 +141,33 @@ class UserAuthController(
     @PostMapping("/refresh")
     fun refreshToken(
         @RequestHeader("Authorization") authorizationHeader: String,
-        @RequestBody requestDto: RefreshTokenRequest,
     ): ResponseEntity<TokenResponse> {
-        val refreshToken = authorizationHeader.substring("Bearer ".length)
-        val tokenResponseDto = userAuthService.refreshToken(refreshToken, requestDto)
+        val refreshToken = authorizationHeader.removePrefix("Bearer ")
+        return ResponseEntity.ok(userAuthService.refreshToken(refreshToken))
+    }
 
-        return ResponseEntity.ok(tokenResponseDto)
+    @Operation(summary = "로그아웃", description = "리프레시 토큰을 무효화하여 로그아웃한다.")
+    @ApiResponses(
+        value = [ApiResponse(
+            responseCode = "204",
+            description = "로그아웃 성공"
+        ), ApiResponse(
+            responseCode = "401",
+            description = "유효하지 않은 토큰",
+            content = arrayOf(
+                Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )
+            )
+        )]
+    )
+    @PostMapping("/logout")
+    fun logout(
+        @RequestHeader("Authorization") authorizationHeader: String,
+    ): ResponseEntity<Void> {
+        val refreshToken = authorizationHeader.removePrefix("Bearer ")
+        userAuthService.logout(refreshToken)
+        return ResponseEntity.noContent().build()
     }
 }

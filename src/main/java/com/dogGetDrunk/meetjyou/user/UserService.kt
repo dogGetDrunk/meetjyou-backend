@@ -26,6 +26,10 @@ class UserService(
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
+    companion object {
+        private const val PREFERENCE_NOT_FOUND = "Preference not found in DB: name={}, type={}"
+    }
+
     @Transactional
     fun createUser(request: RegistrationRequest, principal: SocialPrincipal): User {
         val createdUser = userRepository.save(
@@ -39,13 +43,13 @@ class UserService(
             }
         )
 
-        saveUserPreference(createdUser, request.gender.name)
-        saveUserPreference(createdUser, request.age.name)
+        saveUserPreference(createdUser, request.gender.name, PreferenceType.GENDER)
+        saveUserPreference(createdUser, request.age.name, PreferenceType.AGE)
 
-        request.personalities.forEach { saveUserPreference(createdUser, it.name) }
-        request.travelStyles.forEach { saveUserPreference(createdUser, it.name) }
-        request.diet.forEach { saveUserPreference(createdUser, it.name) }
-        request.etc.forEach { saveUserPreference(createdUser, it.name) }
+        request.personalities.forEach { saveUserPreference(createdUser, it.name, PreferenceType.PERSONALITY) }
+        request.travelStyles.forEach { saveUserPreference(createdUser, it.name, PreferenceType.TRAVEL_STYLE) }
+        request.diet.forEach { saveUserPreference(createdUser, it.name, PreferenceType.DIET) }
+        request.etc.forEach { saveUserPreference(createdUser, it.name, PreferenceType.ETC) }
 
         log.info("User saved successfully. uuid: {}, email: {}", createdUser.uuid, createdUser.email)
 
@@ -131,27 +135,27 @@ class UserService(
         return userRepository.existsByNickname(nickname)
     }
 
-    fun saveUserPreference(user: User, preferenceName: String) {
-        preferenceRepository.findByName(preferenceName)?.let { preference ->
+    fun saveUserPreference(user: User, preferenceName: String, type: PreferenceType) {
+        preferenceRepository.findByNameAndType(preferenceName, type)?.let { preference ->
             userPreferenceRepository.save(UserPreference(user, preference))
-        }
+        } ?: log.warn(PREFERENCE_NOT_FOUND, preferenceName, type)
     }
 
     fun updateUserPreferences(user: User, preferenceNames: List<String>, type: PreferenceType) {
         userPreferenceRepository.deleteByUserIdAndType(user.id, type)
         preferenceNames.forEach { preferenceName ->
-            preferenceRepository.findByName(preferenceName)?.let { preference ->
+            preferenceRepository.findByNameAndType(preferenceName, type)?.let { preference ->
                 userPreferenceRepository.save(UserPreference(user, preference))
-            }
+            } ?: log.warn(PREFERENCE_NOT_FOUND, preferenceName, type)
         }
     }
 
     fun updateUserPreference(user: User, preferenceName: String?, type: PreferenceType) {
         preferenceName?.let {
-            preferenceRepository.findByName(it)?.let { preference ->
+            preferenceRepository.findByNameAndType(it, type)?.let { preference ->
                 userPreferenceRepository.deleteByUserIdAndType(user.id, type)
                 userPreferenceRepository.save(UserPreference(user, preference))
-            }
+            } ?: log.warn(PREFERENCE_NOT_FOUND, it, type)
         }
     }
 

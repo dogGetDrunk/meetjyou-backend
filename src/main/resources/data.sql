@@ -4,7 +4,7 @@
 -- =========================================================
 
 -- policy data: preference
-INSERT INTO preference (type, name)
+INSERT IGNORE INTO preference (type, name)
 VALUES ('GENDER', 'M'),
        ('GENDER', 'F'),
        ('GENDER', 'O'),
