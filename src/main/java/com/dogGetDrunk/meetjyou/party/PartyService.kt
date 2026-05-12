@@ -1,6 +1,14 @@
 package com.dogGetDrunk.meetjyou.party
 
+import com.dogGetDrunk.meetjyou.common.exception.business.party.HostBanNotAllowedException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.HostLeaveNotAllowedException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberBanException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberLeaveException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyFullException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyRecruitmentClosedException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.SelfBanNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
@@ -11,12 +19,15 @@ import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyResponse
+import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
+import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.PartyRole
 import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
@@ -92,6 +103,46 @@ class PartyService(
     @Transactional(readOnly = true)
     fun getPartiesByUserUuid(userUuid: UUID, pageable: Pageable): Page<GetPartyResponse> {
         return userPartyRepository.findAllByUser_Uuid(userUuid, pageable).map { GetPartyResponse.of(it.party) }
+    }
+
+    @Transactional(readOnly = true)
+    fun getMyParties(userUuid: UUID): List<GetMyPartyResponse> {
+        val memberships = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(userUuid, MemberStatus.JOINED)
+        val partyUuids = memberships.map { it.party.uuid }
+        val roomByPartyUuid = chatRoomRepository.findAllWithPartyByPartyUuidIn(partyUuids)
+            .associateBy { it.party.uuid }
+        return memberships.mapNotNull { userParty ->
+            val chatRoom = roomByPartyUuid[userParty.party.uuid] ?: return@mapNotNull null
+            GetMyPartyResponse.of(userParty, chatRoom)
+        }
+    }
+
+    @Transactional
+    fun joinParty(partyUuid: UUID, userUuid: UUID): JoinPartyResponse {
+        log.info("Party join requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
+
+        val party = requireParty(partyUuid)
+
+        if (party.recruitmentStatus != PartyRecruitmentStatus.OPEN) {
+            throw PartyRecruitmentClosedException(partyUuid)
+        }
+
+        if (party.joined >= party.capacity) {
+            throw PartyFullException(partyUuid)
+        }
+
+        if (userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid) != null) {
+            throw PartyJoinNotAllowedException(partyUuid, userUuid)
+        }
+
+        val user = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
+        userPartyRepository.save(UserParty(party, user, PartyRole.MEMBER))
+
+        val chatRoom = chatRoomRepository.findByParty_Uuid(partyUuid)
+        chatRoom?.let { chatParticipantService.enterRoom(it.uuid, userUuid) }
+
+        log.info("Party join completed. partyUuid={}, userUuid={}", partyUuid, userUuid)
+        return JoinPartyResponse(partyUuid = partyUuid, roomUuid = chatRoom?.uuid)
     }
 
     @Transactional(readOnly = true)
@@ -190,27 +241,18 @@ class PartyService(
         requireActiveHostMembership(partyUuid, userUuid)
 
         if (userUuid == targetUserUuid) {
-            throw InvalidInputException(
-                value = targetUserUuid.toString(),
-                message = "Host cannot ban themselves.",
-            )
+            throw SelfBanNotAllowedException(userUuid)
         }
 
         val targetMembership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, targetUserUuid)
             ?: throw UserNotFoundException(targetUserUuid)
 
         if (targetMembership.role == PartyRole.HOST) {
-            throw InvalidInputException(
-                value = targetUserUuid.toString(),
-                message = "Host cannot be banned.",
-            )
+            throw HostBanNotAllowedException(targetUserUuid)
         }
 
         if (!targetMembership.isActiveMember()) {
-            throw InvalidInputException(
-                value = targetUserUuid.toString(),
-                message = "Only active members can be banned.",
-            )
+            throw InactiveMemberBanException(targetUserUuid)
         }
 
         targetMembership.ban()
@@ -246,17 +288,11 @@ class PartyService(
             ?: throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
 
         if (membership.role == PartyRole.HOST) {
-            throw InvalidInputException(
-                value = userUuid.toString(),
-                message = "Host cannot leave a party and must complete it instead.",
-            )
+            throw HostLeaveNotAllowedException(partyUuid, userUuid)
         }
 
         if (!membership.isActiveMember()) {
-            throw InvalidInputException(
-                value = userUuid.toString(),
-                message = "Only active members can leave the party.",
-            )
+            throw InactiveMemberLeaveException(userUuid)
         }
 
         membership.leave()

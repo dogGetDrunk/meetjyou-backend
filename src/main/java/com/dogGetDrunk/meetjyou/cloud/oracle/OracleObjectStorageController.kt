@@ -10,6 +10,7 @@ import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImgService
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.post.PostService
+import com.dogGetDrunk.meetjyou.user.UserService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
@@ -30,6 +31,7 @@ class OracleObjectStorageController(
     private val partyImgService: PartyImgService,
     private val postService: PostService,
     private val partyService: PartyService,
+    private val userService: UserService,
 ) {
     @Operation(
         summary = "유저 프로필 이미지 업로드 PAR URL 생성",
@@ -71,6 +73,7 @@ class OracleObjectStorageController(
     fun deleteUserProfileImg(): ResponseEntity<Unit> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
         userImgService.deleteUserProfileImg(userUuid)
+        userService.clearProfileImage()
         return ResponseEntity.noContent().build()
     }
 

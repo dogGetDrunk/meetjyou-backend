@@ -1,11 +1,17 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.notification.preference.NotificationPreferenceService
+import com.dogGetDrunk.meetjyou.notification.preference.dto.NotificationSettingsResponse
+import com.dogGetDrunk.meetjyou.notification.preference.dto.UpdateNotificationSettingsRequest
+import com.dogGetDrunk.meetjyou.party.PartyService
+import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
 import com.dogGetDrunk.meetjyou.plan.PlanService
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.user.dto.AdvancedUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
+import com.dogGetDrunk.meetjyou.user.dto.UpdateMarketingConsentRequest
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
@@ -23,12 +29,14 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.ErrorResponse
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import java.util.UUID
 
 @RestController
@@ -38,6 +46,8 @@ class UserController(
     private val userService: UserService,
     private val postService: PostService,
     private val planService: PlanService,
+    private val partyService: PartyService,
+    private val notificationPreferenceService: NotificationPreferenceService,
 ) {
     @Operation(
         summary = "유저의 기본 정보 조회",
@@ -213,5 +223,56 @@ class UserController(
     @DeleteMapping("/me")
     fun withdraw() {
         userService.withdrawUser()
+    }
+
+    @Operation(summary = "내 파티 목록 조회", description = "현재 로그인한 사용자가 참여 중인 파티 목록을 채팅방 정보와 함께 조회합니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "200", description = "조회 성공")])
+    @GetMapping("/me/parties")
+    fun getMyParties(): ResponseEntity<List<GetMyPartyResponse>> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        return ResponseEntity.ok(partyService.getMyParties(userUuid))
+    }
+
+    @Operation(summary = "내 모집글 목록 조회", description = "현재 로그인한 사용자가 작성한 모집글 목록을 조회합니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "200", description = "조회 성공")])
+    @GetMapping("/me/posts")
+    fun getMyPosts(
+        @ParameterObject
+        @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): Page<GetPostResponse> {
+        val uuid = SecurityUtil.getCurrentUserUuid()
+        return postService.getPostByAuthorUuid(uuid, pageable)
+    }
+
+    @Operation(summary = "프로필 이미지 업로드 확정", description = "OCI에 이미지 업로드 완료 후 호출하여 DB에 이미지 경로를 저장합니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "200", description = "확정 성공")])
+    @PutMapping("/me/profile-image")
+    fun confirmProfileImage(): ResponseEntity<BasicUserResponse> {
+        userService.confirmProfileImage()
+        val uuid = SecurityUtil.getCurrentUserUuid()
+        return ResponseEntity.ok(userService.getUserProfile(uuid))
+    }
+
+    @Operation(summary = "마케팅 정보 수신 동의 변경")
+    @ApiResponses(value = [ApiResponse(responseCode = "204", description = "변경 성공")])
+    @PatchMapping("/me/marketing-consent")
+    fun updateMarketingConsent(@RequestBody request: UpdateMarketingConsentRequest): ResponseEntity<Unit> {
+        userService.updateMarketingConsent(request.consented)
+        return ResponseEntity.noContent().build()
+    }
+
+    @Operation(summary = "푸시 알림 설정 조회", description = "전체 알림 토글 및 카테고리별 알림 설정을 조회합니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "200", description = "조회 성공")])
+    @GetMapping("/me/notification-settings")
+    fun getNotificationSettings(): ResponseEntity<NotificationSettingsResponse> {
+        return ResponseEntity.ok(notificationPreferenceService.getSettings())
+    }
+
+    @Operation(summary = "푸시 알림 설정 변경", description = "전체 알림 토글 및 카테고리별 알림 설정을 변경합니다. 각 필드는 optional — 전달한 항목만 변경됩니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "204", description = "변경 성공")])
+    @PutMapping("/me/notification-settings")
+    fun updateNotificationSettings(@RequestBody request: UpdateNotificationSettingsRequest): ResponseEntity<Unit> {
+        notificationPreferenceService.updateSettings(request)
+        return ResponseEntity.noContent().build()
     }
 }

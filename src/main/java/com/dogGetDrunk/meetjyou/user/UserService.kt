@@ -4,6 +4,8 @@ import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
+import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
@@ -23,6 +25,7 @@ class UserService(
     private val preferenceRepository: PreferenceRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
     private val jwtProvider: JwtProvider,
+    private val defaultProfileImageProvider: DefaultProfileImageProvider,
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
@@ -99,10 +102,44 @@ class UserService(
         val user = userRepository.findByUuid(uuid)
             ?: throw UserNotFoundException(uuid)
 
+        return toBasicUserResponse(user)
+    }
+
+    @Transactional(readOnly = true)
+    fun getAllUsersProfile(): List<BasicUserResponse> {
+        return userRepository.findAll().map { toBasicUserResponse(it) }
+    }
+
+    @Transactional
+    fun confirmProfileImage() {
+        val uuid = SecurityUtil.getCurrentUserUuid()
+        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        user.imgUrl = ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(uuid)
+        user.thumbImgUrl = ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(uuid)
+    }
+
+    @Transactional
+    fun clearProfileImage() {
+        val uuid = SecurityUtil.getCurrentUserUuid()
+        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        user.imgUrl = null
+        user.thumbImgUrl = null
+    }
+
+    @Transactional
+    fun updateMarketingConsent(consented: Boolean) {
+        val uuid = SecurityUtil.getCurrentUserUuid()
+        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        user.marketingConsented = consented
+    }
+
+    private fun toBasicUserResponse(user: User): BasicUserResponse {
+        val thumbImgUrl = user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
         return BasicUserResponse(
             uuid = user.uuid,
             nickname = user.nickname,
             bio = user.bio,
+            thumbImgUrl = thumbImgUrl,
             gender = getPreferenceName(user.id, PreferenceType.GENDER),
             age = getPreferenceName(user.id, PreferenceType.AGE),
             personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
@@ -110,25 +147,8 @@ class UserService(
             diet = getPreferenceName(user.id, PreferenceType.DIET),
             etc = getPreferenceNames(user.id, PreferenceType.ETC),
             authProvider = user.authProvider,
+            marketingConsented = user.marketingConsented,
         )
-    }
-
-    @Transactional(readOnly = true)
-    fun getAllUsersProfile(): List<BasicUserResponse> {
-        return userRepository.findAll().map { user ->
-            BasicUserResponse(
-                uuid = user.uuid,
-                nickname = user.nickname,
-                bio = user.bio,
-                gender = getPreferenceName(user.id, PreferenceType.GENDER),
-                age = getPreferenceName(user.id, PreferenceType.AGE),
-                personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
-                travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
-                diet = getPreferenceName(user.id, PreferenceType.DIET),
-                etc = getPreferenceNames(user.id, PreferenceType.ETC),
-                authProvider = user.authProvider,
-            )
-        }
     }
 
     fun isDuplicateNickname(nickname: String): Boolean {
