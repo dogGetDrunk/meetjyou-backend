@@ -7,11 +7,13 @@ data class BasicUserResponse(
     val uuid: UUID,
     val nickname: String,
     val bio: String?,
+    val thumbImgUrl: String?,
     val gender: String,
     val age: String,
     val personalities: List<String>,
     val travelStyles: List<String>,
     val diet: String,
     val etc: List<String>,
-    val authProvider: AuthProvider
+    val authProvider: AuthProvider,
+    val marketingConsented: Boolean,
 )

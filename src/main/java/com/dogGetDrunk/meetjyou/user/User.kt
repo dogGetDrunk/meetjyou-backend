@@ -37,6 +37,7 @@ class User(
     var imgUrl: String? = null
     var thumbImgUrl: String? = null
     var notified: Boolean = true
+    var marketingConsented: Boolean = false
     @CreationTimestamp
     val createdAt: Instant = Instant.now()
     val lastLoginAt: Instant = Instant.now()

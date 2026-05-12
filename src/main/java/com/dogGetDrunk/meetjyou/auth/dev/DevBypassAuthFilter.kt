@@ -24,7 +24,8 @@ class DevBypassAuthFilter(
     private val matcher = OrRequestMatcher(
         AntPathRequestMatcher("/api/v1/parties/**"),
         AntPathRequestMatcher("/api/v1/posts/**"),
-        AntPathRequestMatcher("/api/v1/plans/**")
+        AntPathRequestMatcher("/api/v1/plans/**"),
+        AntPathRequestMatcher("/api/v1/users/**"),
     )
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {

@@ -1,0 +1,2 @@
+ALTER TABLE user
+    ADD COLUMN marketing_consented BOOLEAN NOT NULL DEFAULT FALSE;
