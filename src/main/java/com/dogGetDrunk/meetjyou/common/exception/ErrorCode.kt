@@ -47,6 +47,14 @@ enum class ErrorCode(
 
     // Party
     PARTY_NOT_FOUND("Party not found"),
+    PARTY_RECRUITMENT_CLOSED("Party recruitment is closed"),
+    PARTY_FULL("Party is at full capacity"),
+    PARTY_JOIN_NOT_ALLOWED("Cannot join this party"),
+    PARTY_SELF_BAN_NOT_ALLOWED("Cannot ban yourself"),
+    PARTY_HOST_BAN_NOT_ALLOWED("Cannot ban the host"),
+    PARTY_INACTIVE_MEMBER_BAN("Target member is not active"),
+    PARTY_HOST_LEAVE_NOT_ALLOWED("Host cannot leave the party"),
+    PARTY_INACTIVE_MEMBER_LEAVE("Member is not active"),
 
     // Image
     IMAGE_UPLOAD_FAILED("Image upload failed"),

@@ -3,6 +3,8 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.notification.preference.NotificationPreferenceService
 import com.dogGetDrunk.meetjyou.notification.preference.dto.NotificationSettingsResponse
 import com.dogGetDrunk.meetjyou.notification.preference.dto.UpdateNotificationSettingsRequest
+import com.dogGetDrunk.meetjyou.party.PartyService
+import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
 import com.dogGetDrunk.meetjyou.plan.PlanService
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.PostService
@@ -44,6 +46,7 @@ class UserController(
     private val userService: UserService,
     private val postService: PostService,
     private val planService: PlanService,
+    private val partyService: PartyService,
     private val notificationPreferenceService: NotificationPreferenceService,
 ) {
     @Operation(
@@ -220,6 +223,14 @@ class UserController(
     @DeleteMapping("/me")
     fun withdraw() {
         userService.withdrawUser()
+    }
+
+    @Operation(summary = "내 파티 목록 조회", description = "현재 로그인한 사용자가 참여 중인 파티 목록을 채팅방 정보와 함께 조회합니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "200", description = "조회 성공")])
+    @GetMapping("/me/parties")
+    fun getMyParties(): ResponseEntity<List<GetMyPartyResponse>> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        return ResponseEntity.ok(partyService.getMyParties(userUuid))
     }
 
     @Operation(summary = "내 모집글 목록 조회", description = "현재 로그인한 사용자가 작성한 모집글 목록을 조회합니다.")

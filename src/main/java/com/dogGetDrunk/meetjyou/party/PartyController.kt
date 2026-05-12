@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
+import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import io.swagger.v3.oas.annotations.Operation
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -94,6 +96,13 @@ class PartyController(
     ): UpdatePartyResponse {
         val userUuid = SecurityUtil.getCurrentUserUuid()
         return partyService.updateParty(partyUuid, userUuid, request)
+    }
+
+    @Operation(summary = "파티 가입", description = "현재 로그인한 유저가 파티에 참여합니다.")
+    @PostMapping("/{partyUuid}/join")
+    fun joinParty(@PathVariable partyUuid: UUID): ResponseEntity<JoinPartyResponse> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        return ResponseEntity.status(HttpStatus.CREATED).body(partyService.joinParty(partyUuid, userUuid))
     }
 
     @Operation(summary = "파티 종료", description = "HOST가 파티를 종료하고 연결된 모집글을 마감 처리합니다.")
