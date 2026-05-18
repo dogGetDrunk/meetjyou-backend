@@ -5,7 +5,10 @@ import com.dogGetDrunk.meetjyou.common.exception.business.party.HostLeaveNotAllo
 import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberBanException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberLeaveException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyFullException
-import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinNotAllowedException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlreadyMemberException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlreadyPendingException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinBannedException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRequestNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyRecruitmentClosedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.SelfBanNotAllowedException
@@ -15,13 +18,21 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundE
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
+import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinNotAllowedException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRejectedCooldownException
+import com.dogGetDrunk.meetjyou.notification.NotificationPayload
+import com.dogGetDrunk.meetjyou.notification.NotificationType
+import com.dogGetDrunk.meetjyou.notification.event.NotificationEvent
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
+import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
+import com.dogGetDrunk.meetjyou.party.dto.PendingJoinRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
@@ -32,10 +43,13 @@ import com.dogGetDrunk.meetjyou.userparty.PartyRole
 import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @Service
@@ -48,6 +62,7 @@ class PartyService(
     private val chatRoomEventBroadcaster: ChatRoomEventBroadcaster,
     private val userPartyRepository: UserPartyRepository,
     private val userRepository: UserRepository,
+    private val publisher: ApplicationEventPublisher,
 ) {
     private val log = LoggerFactory.getLogger(PartyService::class.java)
 
@@ -78,9 +93,12 @@ class PartyService(
         post.party = party
         userPartyRepository.save(UserParty(party, owner, PartyRole.HOST))
 
-        log.info("Party created: uuid=${party.uuid}, name=${party.name}")
+        val chatRoom = ChatRoom(party = party)
+        chatRoomRepository.save(chatRoom)
 
-        return CreatePartyResponse.of(party)
+        log.info("Party created: uuid=${party.uuid}, name=${party.name}, roomUuid=${chatRoom.uuid}")
+
+        return CreatePartyResponse.of(party, chatRoom)
     }
 
     @Transactional(readOnly = true)
@@ -118,7 +136,7 @@ class PartyService(
     }
 
     @Transactional
-    fun joinParty(partyUuid: UUID, userUuid: UUID): JoinPartyResponse {
+    fun requestJoinParty(partyUuid: UUID, userUuid: UUID): JoinPartyResponse {
         log.info("Party join requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
 
         val party = requireParty(partyUuid)
@@ -131,18 +149,120 @@ class PartyService(
             throw PartyFullException(partyUuid)
         }
 
-        if (userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid) != null) {
-            throw PartyJoinNotAllowedException(partyUuid, userUuid)
+        val existing = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
+        when (existing?.memberStatus) {
+            MemberStatus.PENDING  -> throw PartyJoinAlreadyPendingException(partyUuid, userUuid)
+            MemberStatus.JOINED   -> throw PartyJoinAlreadyMemberException(partyUuid, userUuid)
+            MemberStatus.BANNED   -> throw PartyJoinBannedException(partyUuid, userUuid)
+            MemberStatus.LEFT     -> throw PartyJoinNotAllowedException(partyUuid, userUuid)
+            MemberStatus.REJECTED -> {
+                if (existing.statusChangedAt.isAfter(Instant.now().minus(24, ChronoUnit.HOURS))) {
+                    throw PartyJoinRejectedCooldownException(partyUuid, userUuid)
+                }
+                existing.pending()
+            }
+            null -> {
+                val user = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
+                userPartyRepository.save(UserParty(party, user, PartyRole.MEMBER).also { it.pending() })
+            }
         }
 
-        val user = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
-        userPartyRepository.save(UserParty(party, user, PartyRole.MEMBER))
+        userPartyRepository.findByParty_UuidAndRole(partyUuid, PartyRole.HOST)?.let { host ->
+            val applicant = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
+            publisher.publishEvent(
+                NotificationEvent(
+                    userUuid = host.user.uuid,
+                    payload = NotificationPayload(
+                        type = NotificationType.PARTY_JOIN_REQUEST,
+                        bodyArgs = mapOf("applicant" to applicant.nickname),
+                        data = mapOf("partyUuid" to partyUuid.toString()),
+                        dedupKey = "join_request:${partyUuid}:${userUuid}",
+                    ),
+                )
+            )
+        }
 
-        val chatRoom = chatRoomRepository.findByParty_Uuid(partyUuid)
-        chatRoom?.let { chatParticipantService.enterRoom(it.uuid, userUuid) }
+        log.info("Party join request submitted. partyUuid={}, userUuid={}", partyUuid, userUuid)
+        return JoinPartyResponse(partyUuid = partyUuid, status = "PENDING")
+    }
 
-        log.info("Party join completed. partyUuid={}, userUuid={}", partyUuid, userUuid)
-        return JoinPartyResponse(partyUuid = partyUuid, roomUuid = chatRoom?.uuid)
+    @Transactional
+    fun approveJoinRequest(partyUuid: UUID, hostUuid: UUID, applicantUuid: UUID) {
+        log.info("Join request approval requested. partyUuid={}, hostUuid={}, applicantUuid={}", partyUuid, hostUuid, applicantUuid)
+
+        requireActiveHostMembership(partyUuid, hostUuid)
+
+        val party = requireParty(partyUuid)
+        if (party.joined >= party.capacity) {
+            throw PartyFullException(partyUuid)
+        }
+
+        val request = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid)
+            ?.takeIf { it.memberStatus == MemberStatus.PENDING }
+            ?: throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
+
+        request.approve()
+
+        chatRoomRepository.findByParty_Uuid(partyUuid)?.let { chatRoom ->
+            chatParticipantService.enterRoom(chatRoom.uuid, applicantUuid)
+        }
+
+        publisher.publishEvent(
+            NotificationEvent(
+                userUuid = applicantUuid,
+                payload = NotificationPayload(
+                    type = NotificationType.PARTY_JOIN_ACCEPTED,
+                    data = mapOf("partyUuid" to partyUuid.toString()),
+                    dedupKey = "join_accepted:${partyUuid}:${applicantUuid}",
+                ),
+            )
+        )
+
+        log.info("Join request approved. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)
+    }
+
+    @Transactional
+    fun rejectJoinRequest(partyUuid: UUID, hostUuid: UUID, applicantUuid: UUID) {
+        log.info("Join request rejection requested. partyUuid={}, hostUuid={}, applicantUuid={}", partyUuid, hostUuid, applicantUuid)
+
+        requireActiveHostMembership(partyUuid, hostUuid)
+
+        val request = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid)
+            ?.takeIf { it.memberStatus == MemberStatus.PENDING }
+            ?: throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
+
+        request.reject()
+
+        publisher.publishEvent(
+            NotificationEvent(
+                userUuid = applicantUuid,
+                payload = NotificationPayload(
+                    type = NotificationType.PARTY_JOIN_REJECTED,
+                    data = mapOf("partyUuid" to partyUuid.toString()),
+                    dedupKey = "join_rejected:${partyUuid}:${applicantUuid}",
+                ),
+            )
+        )
+
+        log.info("Join request rejected. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)
+    }
+
+    @Transactional(readOnly = true)
+    fun getPendingJoinRequests(partyUuid: UUID, hostUuid: UUID): GetPendingJoinRequestsResponse {
+        requireActiveHostMembership(partyUuid, hostUuid)
+
+        val pending = userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(partyUuid, MemberStatus.PENDING)
+
+        return GetPendingJoinRequestsResponse(
+            partyUuid = partyUuid,
+            requests = pending.map { up ->
+                PendingJoinRequest(
+                    userUuid = up.user.uuid,
+                    nickname = up.user.nickname,
+                    requestedAt = up.joinedAt,
+                )
+            },
+        )
     }
 
     @Transactional(readOnly = true)

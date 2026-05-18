@@ -143,9 +143,9 @@ VALUES ('HOST', 'JOINED', 1, 1, NULL),
        ('HOST', 'JOINED', 2, 2, NULL);
 
 -- chat rooms
-INSERT INTO chat_room (room_id, uuid)
-VALUES (1, 'dddd1111-dddd-dddd-dddd-ddddddddddd1'),
-       (2, 'dddd2222-dddd-dddd-dddd-ddddddddddd2');
+INSERT INTO chat_room (room_id, uuid, created_at, last_message_at)
+VALUES (1, 'dddd1111-dddd-dddd-dddd-ddddddddddd1', NOW(), NOW()),
+       (2, 'dddd2222-dddd-dddd-dddd-ddddddddddd2', NOW(), NOW());
 
 -- chat participants
 INSERT INTO chat_participant (user_id, room_id, last_read_at)

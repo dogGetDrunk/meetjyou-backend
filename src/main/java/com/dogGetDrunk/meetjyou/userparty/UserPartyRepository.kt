@@ -8,6 +8,18 @@ import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface UserPartyRepository : JpaRepository<UserParty, Long> {
+
+    fun findByParty_UuidAndRole(partyUuid: UUID, role: PartyRole): UserParty?
+
+    @Query("""
+        select up from UserParty up
+        join fetch up.user
+        where up.party.uuid = :partyUuid and up.memberStatus = :memberStatus
+    """)
+    fun findAllWithUserByPartyUuidAndMemberStatus(
+        @Param("partyUuid") partyUuid: UUID,
+        @Param("memberStatus") memberStatus: MemberStatus,
+    ): List<UserParty>
     fun findByParty_UuidAndUser_Uuid(
         partyUuid: UUID,
         userUuid: UUID

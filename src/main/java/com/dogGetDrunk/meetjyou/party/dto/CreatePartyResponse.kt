@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.party.dto
 
+import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
+import com.dogGetDrunk.meetjyou.chat.room.dto.ChatRoomResponse
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
 import com.dogGetDrunk.meetjyou.party.PartyRecruitmentStatus
@@ -18,9 +20,10 @@ data class CreatePartyResponse(
     val progressStatus: PartyProgressStatus,
     val recruitmentStatus: PartyRecruitmentStatus,
     val planUuid: UUID?,
+    val chatRoom: ChatRoomResponse,
 ) {
     companion object {
-        fun of(party: Party) = CreatePartyResponse(
+        fun of(party: Party, chatRoom: ChatRoom) = CreatePartyResponse(
             uuid = party.uuid,
             itinStart = party.itinStart,
             itinFinish = party.itinFinish,
@@ -32,6 +35,7 @@ data class CreatePartyResponse(
             progressStatus = party.progressStatus,
             recruitmentStatus = party.recruitmentStatus,
             planUuid = party.plan?.uuid,
+            chatRoom = ChatRoomResponse.of(chatRoom),
         )
     }
 }

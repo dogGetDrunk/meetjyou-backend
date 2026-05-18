@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
+import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
@@ -98,11 +99,11 @@ class PartyController(
         return partyService.updateParty(partyUuid, userUuid, request)
     }
 
-    @Operation(summary = "파티 가입", description = "현재 로그인한 유저가 파티에 참여합니다.")
-    @PostMapping("/{partyUuid}/join")
-    fun joinParty(@PathVariable partyUuid: UUID): ResponseEntity<JoinPartyResponse> {
+    @Operation(summary = "파티 가입 신청", description = "현재 로그인한 유저가 파티 가입을 신청합니다. 호스트 승인 후 참여가 확정됩니다.")
+    @PostMapping("/{partyUuid}/join-requests")
+    fun requestJoinParty(@PathVariable partyUuid: UUID): ResponseEntity<JoinPartyResponse> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
-        return ResponseEntity.status(HttpStatus.CREATED).body(partyService.joinParty(partyUuid, userUuid))
+        return ResponseEntity.status(HttpStatus.CREATED).body(partyService.requestJoinParty(partyUuid, userUuid))
     }
 
     @Operation(summary = "파티 종료", description = "HOST가 파티를 종료하고 연결된 모집글을 마감 처리합니다.")
@@ -138,5 +139,34 @@ class PartyController(
     fun deleteParty(@PathVariable partyUuid: UUID) {
         val userUuid = SecurityUtil.getCurrentUserUuid()
         partyService.deleteParty(partyUuid, userUuid)
+    }
+
+    @Operation(summary = "참여 신청 목록 조회", description = "HOST가 대기 중인 참여 신청 목록을 조회합니다.")
+    @GetMapping("/{partyUuid}/join-requests")
+    fun getPendingJoinRequests(@PathVariable partyUuid: UUID): GetPendingJoinRequestsResponse {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        return partyService.getPendingJoinRequests(partyUuid, userUuid)
+    }
+
+    @Operation(summary = "참여 신청 승인", description = "HOST가 특정 유저의 참여 신청을 승인합니다.")
+    @PostMapping("/{partyUuid}/join-requests/{applicantUuid}/approve")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun approveJoinRequest(
+        @PathVariable partyUuid: UUID,
+        @PathVariable applicantUuid: UUID,
+    ) {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        partyService.approveJoinRequest(partyUuid, userUuid, applicantUuid)
+    }
+
+    @Operation(summary = "참여 신청 거절", description = "HOST가 특정 유저의 참여 신청을 거절합니다.")
+    @PostMapping("/{partyUuid}/join-requests/{applicantUuid}/reject")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun rejectJoinRequest(
+        @PathVariable partyUuid: UUID,
+        @PathVariable applicantUuid: UUID,
+    ) {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        partyService.rejectJoinRequest(partyUuid, userUuid, applicantUuid)
     }
 }
