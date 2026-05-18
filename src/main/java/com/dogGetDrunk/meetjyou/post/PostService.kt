@@ -79,9 +79,9 @@ class PostService(
         }
 
         log.info("New post created: $newPost")
-        partyService.createParty(CreatePartyRequest.from(newPost))
+        val partyResponse = partyService.createParty(CreatePartyRequest.from(newPost))
 
-        return CreatePostResponse.of(newPost, request.companionSpec)
+        return CreatePostResponse.of(newPost, request.companionSpec, partyResponse.chatRoom)
     }
 
     @Transactional(readOnly = true)

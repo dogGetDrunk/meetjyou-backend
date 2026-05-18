@@ -55,6 +55,11 @@ enum class ErrorCode(
     PARTY_INACTIVE_MEMBER_BAN("Target member is not active"),
     PARTY_HOST_LEAVE_NOT_ALLOWED("Host cannot leave the party"),
     PARTY_INACTIVE_MEMBER_LEAVE("Member is not active"),
+    PARTY_JOIN_ALREADY_PENDING("Join request is already pending"),
+    PARTY_JOIN_ALREADY_MEMBER("User is already a member"),
+    PARTY_JOIN_BANNED("Banned users cannot rejoin"),
+    PARTY_JOIN_REQUEST_NOT_FOUND("No pending join request found"),
+    PARTY_JOIN_REJECTED_COOLDOWN("Cannot rejoin within 24 hours of rejection"),
 
     // Image
     IMAGE_UPLOAD_FAILED("Image upload failed"),

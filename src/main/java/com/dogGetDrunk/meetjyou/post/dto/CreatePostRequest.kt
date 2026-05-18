@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.Max
@@ -31,11 +32,13 @@ data class CreatePostRequest(
 ) {
 
     @AssertTrue(message = "일정 시작 시각은 현재 시각 이후여야 합니다. (Buffer = 2 min)")
+    @Schema(hidden = true)
     fun isItinStartAfterNow(): Boolean =
         !itinStart.truncatedTo(ChronoUnit.MINUTES)
             .isBefore(Instant.now().truncatedTo(ChronoUnit.MINUTES).minus(2, ChronoUnit.MINUTES))
 
     @AssertTrue(message = "일정 종료 시각은 일정 시작 시각 이후여야 합니다.")
+    @Schema(hidden = true)
     fun isItinFinishAfterItinStart(): Boolean =
         itinFinish.isAfter(itinStart)
 }

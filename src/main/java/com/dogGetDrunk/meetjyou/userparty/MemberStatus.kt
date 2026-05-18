@@ -4,4 +4,6 @@ enum class MemberStatus {
     JOINED,
     LEFT,
     BANNED,
+    PENDING,
+    REJECTED,
 }

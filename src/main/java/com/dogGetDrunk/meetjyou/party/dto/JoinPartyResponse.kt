@@ -4,5 +4,5 @@ import java.util.UUID
 
 data class JoinPartyResponse(
     val partyUuid: UUID,
-    val roomUuid: UUID?,
+    val status: String,
 )

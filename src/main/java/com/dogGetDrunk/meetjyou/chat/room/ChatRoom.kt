@@ -8,7 +8,11 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.MapsId
 import jakarta.persistence.OneToOne
+import jakarta.persistence.PostLoad
+import jakarta.persistence.PostPersist
+import jakarta.persistence.Transient
 import org.hibernate.annotations.JdbcTypeCode
+import org.springframework.data.domain.Persistable
 import java.sql.Types
 import java.util.UUID
 
@@ -16,7 +20,7 @@ import java.util.UUID
 class ChatRoom(
 
     @Id
-    val id: Long, // Party의 id를 그대로 사용
+    val id: Long = 0,
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
@@ -26,5 +30,18 @@ class ChatRoom(
     @Column(nullable = false, unique = true)
     @JdbcTypeCode(Types.VARCHAR)
     val uuid: UUID = UUID.randomUUID()
-)
 
+) : Persistable<Long> {
+
+    @Transient
+    private var _isNew = true
+
+    override fun getId() = id
+    override fun isNew() = _isNew
+
+    @PostPersist
+    @PostLoad
+    fun markNotNew() {
+        _isNew = false
+    }
+}
