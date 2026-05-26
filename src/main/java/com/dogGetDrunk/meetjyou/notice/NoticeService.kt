@@ -3,7 +3,9 @@ package com.dogGetDrunk.meetjyou.notice
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NoticeNotFoundException
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeRequest
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeResponse
+import com.dogGetDrunk.meetjyou.notification.event.NoticeBroadcastEvent
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -11,6 +13,7 @@ import java.util.UUID
 @Service
 class NoticeService(
     private val noticeRepository: NoticeRepository,
+    private val publisher: ApplicationEventPublisher,
 ) {
     private val log = LoggerFactory.getLogger(NoticeService::class.java)
 
@@ -26,7 +29,19 @@ class NoticeService(
     @Transactional
     fun createNotice(request: NoticeRequest): NoticeResponse {
         val saved = noticeRepository.save(Notice(title = request.title, body = request.body))
-        log.info("공지사항 생성: {}", saved)
+        log.info("Notice created: uuid={}", saved.uuid)
+
+        if (request.notify) {
+            publisher.publishEvent(
+                NoticeBroadcastEvent(
+                    noticeUuid = saved.uuid,
+                    noticeTitle = saved.title,
+                    noticeBody = saved.body,
+                    critical = request.critical,
+                )
+            )
+        }
+
         return NoticeResponse.from(saved)
     }
 

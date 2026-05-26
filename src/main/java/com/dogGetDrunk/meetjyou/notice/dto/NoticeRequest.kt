@@ -10,5 +10,8 @@ data class NoticeRequest(
 
     @field:NotBlank(message = "본문은 비어 있을 수 없습니다.")
     @field:Size(max = 1000, message = "본문은 1000자 이내여야 합니다.")
-    val body: String
+    val body: String,
+
+    val notify: Boolean = false,
+    val critical: Boolean = false,
 )

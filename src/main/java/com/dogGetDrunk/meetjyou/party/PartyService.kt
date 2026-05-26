@@ -175,7 +175,13 @@ class PartyService(
                     payload = NotificationPayload(
                         type = NotificationType.PARTY_JOIN_REQUEST,
                         bodyArgs = mapOf("applicant" to applicant.nickname),
-                        data = mapOf("partyUuid" to partyUuid.toString()),
+                        data = mapOf(
+                            "partyUuid" to partyUuid.toString(),
+                            "partyName" to party.name,
+                            "applicantUuid" to userUuid.toString(),
+                            "applicantNickname" to applicant.nickname,
+                            "requestedAt" to Instant.now().toString(),
+                        ),
                         dedupKey = "join_request:${partyUuid}:${userUuid}",
                     ),
                 )
@@ -212,11 +218,32 @@ class PartyService(
                 userUuid = applicantUuid,
                 payload = NotificationPayload(
                     type = NotificationType.PARTY_JOIN_ACCEPTED,
-                    data = mapOf("partyUuid" to partyUuid.toString()),
+                    bodyArgs = mapOf("partyName" to party.name),
+                    data = mapOf(
+                        "type" to "PARTY_JOIN_ACCEPTED",
+                        "partyUuid" to partyUuid.toString(),
+                        "partyName" to party.name,
+                    ),
                     dedupKey = "join_accepted:${partyUuid}:${applicantUuid}",
                 ),
             )
         )
+
+        val applicant = userRepository.findByUuid(applicantUuid) ?: throw UserNotFoundException(applicantUuid)
+        userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(partyUuid, MemberStatus.JOINED)
+            .filter { it.user.uuid != applicantUuid }
+            .forEach { membership ->
+                publisher.publishEvent(
+                    NotificationEvent(
+                        userUuid = membership.user.uuid,
+                        payload = NotificationPayload(
+                            type = NotificationType.PARTY_MEMBER_JOINED,
+                            bodyArgs = mapOf("member" to applicant.nickname),
+                            data = mapOf("partyUuid" to partyUuid.toString()),
+                        ),
+                    )
+                )
+            }
 
         log.info("Join request approved. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)
     }
@@ -238,7 +265,12 @@ class PartyService(
                 userUuid = applicantUuid,
                 payload = NotificationPayload(
                     type = NotificationType.PARTY_JOIN_REJECTED,
-                    data = mapOf("partyUuid" to partyUuid.toString()),
+                    bodyArgs = mapOf("partyName" to request.party.name),
+                    data = mapOf(
+                        "type" to "PARTY_JOIN_REJECTED",
+                        "partyUuid" to partyUuid.toString(),
+                        "partyName" to request.party.name,
+                    ),
                     dedupKey = "join_rejected:${partyUuid}:${applicantUuid}",
                 ),
             )

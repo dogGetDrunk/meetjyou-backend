@@ -14,4 +14,5 @@ interface UserRepository : JpaRepository<User, Long> {
     fun existsByNickname(nickname: String): Boolean
     fun existsByAuthProviderAndExternalId(authProvider: AuthProvider, externalId: String): Boolean
     fun deleteByUuid(uuid: UUID): Int
+    fun findAllByStatus(status: UserStatus): List<User>
 }
