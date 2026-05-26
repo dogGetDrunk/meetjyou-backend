@@ -11,6 +11,7 @@ class NotificationTemplateFactory(
     private val partyJoinRequestTemplate: PartyJoinRequestTemplate,
     private val partyJoinAcceptedTemplate: PartyJoinAcceptedTemplate,
     private val partyJoinRejectedTemplate: PartyJoinRejectedTemplate,
+    private val partyMemberJoinedTemplate: PartyMemberJoinedTemplate,
 ) {
     fun templateOf(type: NotificationType): NotificationTemplate = when (type) {
         NotificationType.NOTICE -> noticeTemplate
@@ -19,5 +20,6 @@ class NotificationTemplateFactory(
         NotificationType.PARTY_JOIN_REQUEST -> partyJoinRequestTemplate
         NotificationType.PARTY_JOIN_ACCEPTED -> partyJoinAcceptedTemplate
         NotificationType.PARTY_JOIN_REJECTED -> partyJoinRejectedTemplate
+        NotificationType.PARTY_MEMBER_JOINED -> partyMemberJoinedTemplate
     }
 }

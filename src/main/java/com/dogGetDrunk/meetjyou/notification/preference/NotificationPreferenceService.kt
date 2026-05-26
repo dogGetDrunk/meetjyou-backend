@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.preference.dto.NotificationSettingsResponse
 import com.dogGetDrunk.meetjyou.notification.preference.dto.UpdateNotificationSettingsRequest
+import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,6 +31,14 @@ class NotificationPreferenceService(
             globalEnabled = user.notified,
             categories = categories,
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun isEnabled(user: User, type: NotificationType): Boolean {
+        if (!user.notified) {
+            return false
+        }
+        return preferenceRepository.findByUserAndNotificationType(user, type)?.enabled ?: true
     }
 
     @Transactional

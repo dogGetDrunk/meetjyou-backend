@@ -8,9 +8,5 @@ import java.util.Locale
 class NoticeTemplate : NotificationTemplate {
 
     override fun makeTitle(locale: Locale, payload: NotificationPayload): String = "[공지사항]"
-    override fun makeBody(locale: Locale, payload: NotificationPayload): String {
-        val title = payload.bodyArgs["title"] ?: "제목 없음"
-        val content = payload.bodyArgs["content"] ?: "내용 없음"
-        return "$title\n$content"
-    }
+    override fun makeBody(locale: Locale, payload: NotificationPayload): String = "새로운 공지사항이 있어요."
 }

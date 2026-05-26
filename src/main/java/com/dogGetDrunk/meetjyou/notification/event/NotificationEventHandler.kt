@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundE
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox
 import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutboxRepository
+import com.dogGetDrunk.meetjyou.notification.preference.NotificationPreferenceService
 import com.dogGetDrunk.meetjyou.notification.template.NotificationTemplateFactory
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -17,6 +18,7 @@ class NotificationEventHandler(
     private val templateFactory: NotificationTemplateFactory,
     private val outboxRepository: NotificationOutboxRepository,
     private val userRepository: UserRepository,
+    private val preferenceService: NotificationPreferenceService,
     private val objectMapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(NotificationEventHandler::class.java)
@@ -29,12 +31,18 @@ class NotificationEventHandler(
             throw UserNotFoundException(event.userUuid)
         }
 
-        // 2. 템플릿으로 title/body 생성
+        // 2. 알림 설정 확인 (전역 토글 + 타입별)
+        if (!preferenceService.isEnabled(user, event.payload.type)) {
+            log.info("Notification suppressed: type={}, userId={}", event.payload.type, user.id)
+            return
+        }
+
+        // 3. 템플릿으로 title/body 생성
         val template = templateFactory.templateOf(event.payload.type)
         val title = template.makeTitle(event.preferredLocale, event.payload)
         val body = template.makeBody(event.preferredLocale, event.payload)
 
-        // 3. Outbox에 저장
+        // 5. Outbox에 저장
         val outbox = NotificationOutbox(
             user = user,
             type = NotificationType.valueOf(event.payload.type.name),
@@ -46,7 +54,7 @@ class NotificationEventHandler(
         outboxRepository.save(outbox)
 
         log.info(
-            "Queued notification: type={}, userUuid={}, userId={}, outboxId={}",
+            "Notification queued: type={}, userUuid={}, userId={}, outboxId={}",
             event.payload.type, event.userUuid, user.id, outbox.id
         )
     }

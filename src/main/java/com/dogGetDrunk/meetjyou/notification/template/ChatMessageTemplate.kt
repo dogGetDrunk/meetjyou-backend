@@ -12,8 +12,8 @@ class ChatMessageTemplate : NotificationTemplate {
     }
 
     override fun makeBody(locale: Locale, payload: NotificationPayload): String {
-        val sender = payload.bodyArgs["sender"] ?: "누군가"
-        val preview = payload.bodyArgs["preview"] ?: ""
-        return "$sender: $preview"
+        val sender = payload.bodyArgs["senderNickname"] ?: "누군가"
+        val message = payload.bodyArgs["message"] ?: ""
+        return "$sender: $message"
     }
 }

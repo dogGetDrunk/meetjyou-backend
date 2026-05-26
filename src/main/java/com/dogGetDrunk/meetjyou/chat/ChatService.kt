@@ -109,32 +109,27 @@ class ChatService(
         )
 
         receivers.forEach { receiver ->
-            if (receiver.notified) {
-                val payload = NotificationPayload(
-                    type = NotificationType.CHAT_MESSAGE,
-                    titleArgs = mapOf("senderNickname" to sender.nickname),
-                    bodyArgs = mapOf("message" to normalizedMessage),
-                    data = mapOf(
-                        "type" to "CHAT_MESSAGE",
-                        "roomUuid" to room.uuid.toString(),
+            publisher.publishEvent(
+                NotificationEvent(
+                    userUuid = receiver.uuid,
+                    payload = NotificationPayload(
+                        type = NotificationType.CHAT_MESSAGE,
+                        bodyArgs = mapOf("senderNickname" to sender.nickname, "message" to normalizedMessage),
+                        data = mapOf(
+                            "type" to "CHAT_MESSAGE",
+                            "roomUuid" to room.uuid.toString(),
+                        ),
+                        dedupKey = "chat:${room.uuid}:${receiver.uuid}",
                     ),
-                    dedupKey = "chat:${room.uuid}:${receiver.uuid}",
                 )
+            )
 
-                publisher.publishEvent(
-                    NotificationEvent(
-                        userUuid = receiver.uuid,
-                        payload = payload,
-                    )
-                )
-
-                log.debug(
-                    "Chat notification event published. roomUuid={}, receiverUuid={}, senderUuid={}",
-                    room.uuid,
-                    receiver.uuid,
-                    senderUuid,
-                )
-            }
+            log.debug(
+                "Chat notification event published. roomUuid={}, receiverUuid={}, senderUuid={}",
+                room.uuid,
+                receiver.uuid,
+                senderUuid,
+            )
         }
     }
 

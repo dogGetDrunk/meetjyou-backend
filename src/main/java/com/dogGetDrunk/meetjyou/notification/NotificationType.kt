@@ -7,4 +7,5 @@ enum class NotificationType {
     PARTY_JOIN_REQUEST,
     PARTY_JOIN_ACCEPTED,
     PARTY_JOIN_REJECTED,
+    PARTY_MEMBER_JOINED,
 }
