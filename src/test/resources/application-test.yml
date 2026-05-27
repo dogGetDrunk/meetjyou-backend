@@ -1,0 +1,82 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
+  security:
+    user:
+      name: test
+      password: test
+
+dns:
+  url: http://localhost
+
+oracle:
+  oci:
+    bucket-name: test-bucket
+    namespace: test-namespace
+    par-expiration-minutes: 60
+    region: ap-seoul-1
+    auth:
+      mode: FILE
+      config-file-path: /tmp/fake-oci-config
+      profile: DEFAULT
+
+jwt:
+  issuer: test-issuer
+  access-expiration: 1800000
+  refresh-expiration: 2592000000000
+  secret-key: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItaW50ZWdyYXRpb24tdGVzdCE=
+
+auth:
+  kakao:
+    issuer: https://kauth.kakao.com
+    jwks-uri: https://kauth.kakao.com/oauth/keys
+    access-token-info-uri: https://kauth.kakao.com/v1/user/access_token_info
+    user-info-uri: https://kapi.kakao.com/v2/user/me
+    client-id: test-client-id
+    app-id: 12345678
+    clock-skew-seconds: 60
+    jwk-cache-ttl-minutes: 60
+  google:
+    issuer: https://accounts.google.com
+    clients:
+      android: test-android-client
+      web: test-web-client
+      ios: test-ios-client
+  apple:
+    issuer: https://appleid.apple.com
+    jwks-uri: https://appleid.apple.com/auth/keys
+    client-id: test-apple-client
+    clock-skew-seconds: 60
+    jwk-cache-ttl-minutes: 60
+
+logging:
+  level:
+    com.dogGetDrunk.meetjyou.chat: DEBUG
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG
+
+dev:
+  bypass:
+    enabled: false
+
+app:
+  websocket:
+    allowed-origin-patterns:
+      - "*"

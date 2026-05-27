@@ -99,6 +99,8 @@ dependencies {
 
     // MockK
     testImplementation("io.mockk:mockk:1.14.5")
+
+    testRuntimeOnly("com.h2database:h2")
 }
 
 tasks.withType<Test> {
