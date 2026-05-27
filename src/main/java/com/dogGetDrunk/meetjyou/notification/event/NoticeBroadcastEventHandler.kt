@@ -11,6 +11,7 @@ import com.dogGetDrunk.meetjyou.user.UserStatus
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
@@ -27,7 +28,7 @@ class NoticeBroadcastEventHandler(
     private val log = LoggerFactory.getLogger(NoticeBroadcastEventHandler::class.java)
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun on(event: NoticeBroadcastEvent) {
         val payload = NotificationPayload(
             type = NotificationType.NOTICE,

@@ -13,8 +13,8 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
-import org.threeten.bp.Instant
 import java.sql.Types
+import java.time.Instant
 import java.util.UUID
 
 @Entity
@@ -34,6 +34,7 @@ class NotificationOutbox(
 
     val dedupKey: String? = null,
 
+    @Enumerated(EnumType.STRING)
     var status: DeliveryStatus = DeliveryStatus.PENDING,
 
     var attempts: Int = 0,

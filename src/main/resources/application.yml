@@ -101,3 +101,4 @@ app:
   websocket:
     allowed-origin-patterns:
       - ${WEBSOCKET_ALLOWED_ORIGIN_PATTERN}
+      - "*"
