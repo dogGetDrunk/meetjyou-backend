@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @ControllerAdvice
 class GlobalExceptionHandler(
@@ -164,6 +165,12 @@ class GlobalExceptionHandler(
         val status = HttpStatus.FORBIDDEN
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
         return ResponseEntity(errorResponse, status)
+    }
+
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResourceFoundException(): ResponseEntity<ErrorResponse> {
+        val status = HttpStatus.NOT_FOUND
+        return ResponseEntity(ErrorResponse(status.value(), ErrorCode.NOT_FOUND), status)
     }
 
     @ExceptionHandler(Exception::class)

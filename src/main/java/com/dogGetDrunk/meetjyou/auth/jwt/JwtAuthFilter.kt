@@ -19,6 +19,13 @@ class JwtAuthFilter(
 
     val log = LoggerFactory.getLogger(JwtAuthFilter::class.java)
 
+    override fun shouldNotFilter(request: HttpServletRequest): Boolean {
+        val path = request.requestURI
+        return path == "/actuator/health"
+            || path.startsWith("/swagger-ui")
+            || path.startsWith("/v3/api-docs")
+    }
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -30,20 +37,7 @@ class JwtAuthFilter(
             return
         }
 
-        /*
-        스웨거 문서 경로는 JWT 인증 필터를 우회하도록 설정합니다.
-         */
-        val path = request.requestURI
-
-        log.info("JwtAuthFilter invoked for $path")
-        if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
-            log.info("Skipping JWT filter for Swagger path: $path")
-            filterChain.doFilter(request, response)
-            return
-        }
-        /*
-        우회 종료
-         */
+        log.info("JwtAuthFilter invoked for ${request.requestURI}")
 
         val token = jwtProvider.extractToken(request)
 
