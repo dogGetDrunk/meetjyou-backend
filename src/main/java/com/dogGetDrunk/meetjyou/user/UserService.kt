@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
@@ -71,7 +72,7 @@ class UserService(
         if (userRepository.deleteByUuid(uuid) > 0) {
             log.info("User withdrawal completed (user uuid: {})", uuid.toString())
         } else {
-            log.error("Error occurred during user withdrawal (user uuid: {})", uuid.toString())
+            log.warn("User withdrawal completed with no rows deleted (user uuid: {})", uuid.toString())
         }
     }
 
@@ -93,7 +94,7 @@ class UserService(
         updateUserPreferences(user, request.etc.map { it.name }, PreferenceType.ETC)
 
         userRepository.save(user)
-        log.info("유저 정보 수정 완료: uuid {}", user.uuid)
+        log.info("User profile updated. uuid={}", user.uuid)
         return getUserProfile(currentUserUuid)
     }
 
@@ -181,7 +182,7 @@ class UserService(
 
     fun getPreferenceName(userId: Long, type: PreferenceType): String {
         return userPreferenceRepository.findPreferenceByUserIdAndType(userId, type)?.name
-            ?: throw Exception("Preference not found") // TODO: 적절한 예외 만들기
+            ?: throw PreferenceNotFoundException(type.name)
     }
 
     private fun getPreferenceNames(userId: Long, type: PreferenceType): List<String> {
