@@ -47,6 +47,15 @@ logging:
 server:
   forward-headers-strategy: native
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 dns:
   url: ${DNS_URL}
 
@@ -102,3 +111,6 @@ app:
     allowed-origin-patterns:
       - ${WEBSOCKET_ALLOWED_ORIGIN_PATTERN}
       - "*"
+
+discord:
+  webhook-url: ${DISCORD_WEBHOOK_URL:}

@@ -19,7 +19,7 @@ class AppleJwtDecoder(
         val signed = try {
             SignedJWT.parse(token)
         } catch (e: Exception) {
-            log.error("Apple JWT 파싱 실패", e)
+            log.warn("Apple JWT parsing failed", e)
             throw InvalidJwtException()
         }
 
@@ -27,13 +27,13 @@ class AppleJwtDecoder(
 
         // 1. Verifying issuer
         if (claims.issuer != props.issuer) {
-            log.error("Apple JWT 검증 실패: 잘못된 issuer. expected={}, actual={}", props.issuer, claims.issuer)
+            log.warn("Apple JWT validation failed: invalid issuer. expected={}, actual={}", props.issuer, claims.issuer)
             throw InvalidJwtException()
         }
 
         // 2. Verifying audience
         if (!claims.audience.contains(props.clientId)) {
-            log.error("Apple JWT 검증 실패: 잘못된 audience. expected={}, actual={}", props.clientId, claims.audience)
+            log.warn("Apple JWT validation failed: invalid audience. expected={}, actual={}", props.clientId, claims.audience)
             throw InvalidJwtException()
         }
 
@@ -41,7 +41,7 @@ class AppleJwtDecoder(
         val now = Date()
         val allowedSkew = props.clockSkewSeconds * 1000
         if (claims.expirationTime.time + allowedSkew < now.time) {
-            log.error("Apple JWT 검증 실패: 토큰 만료. expirationTime={}", claims.expirationTime)
+            log.warn("Apple JWT validation failed: token expired. expirationTime={}", claims.expirationTime)
             throw InvalidJwtException(message = "Token has expired")
         }
 
@@ -50,7 +50,7 @@ class AppleJwtDecoder(
         val rsaKey = jwksCache.getRsaKeyByKid(kid) ?: throw InvalidJwtException()
         val verifier = RSASSAVerifier(rsaKey.toRSAPublicKey())
         if (!signed.verify(verifier)) {
-            log.error("Apple JWT 서명 검증 실패")
+            log.warn("Apple JWT signature verification failed")
             throw InvalidJwtException()
         }
 

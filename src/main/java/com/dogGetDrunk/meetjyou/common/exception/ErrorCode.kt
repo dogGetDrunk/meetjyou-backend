@@ -83,4 +83,7 @@ enum class ErrorCode(
     INACTIVE_TERMS_ACCESS("Inactive terms cannot be accessed"),
     INVALID_TERMS_AGREEMENT("Invalid terms agreement"),
     MISSING_REQUIRED_TERMS_AGREEMENT("Missing required terms agreement"),
+
+    // Server
+    INTERNAL_SERVER_ERROR("Internal server error"),
 }
