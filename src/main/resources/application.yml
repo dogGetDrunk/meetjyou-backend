@@ -102,3 +102,6 @@ app:
     allowed-origin-patterns:
       - ${WEBSOCKET_ALLOWED_ORIGIN_PATTERN}
       - "*"
+
+discord:
+  webhook-url: ${DISCORD_WEBHOOK_URL:}
