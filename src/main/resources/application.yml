@@ -47,6 +47,15 @@ logging:
 server:
   forward-headers-strategy: native
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 dns:
   url: ${DNS_URL}
 
