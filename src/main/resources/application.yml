@@ -4,10 +4,9 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
         jdbc:
           time_zone: UTC
   flyway:
@@ -42,7 +41,6 @@ springdoc:
 logging:
   level:
     root: INFO
-    org.hibernate.orm.jdbc.bind: trace
 
 server:
   forward-headers-strategy: native
