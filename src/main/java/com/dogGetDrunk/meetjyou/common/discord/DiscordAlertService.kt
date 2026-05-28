@@ -1,11 +1,14 @@
 package com.dogGetDrunk.meetjyou.common.discord
 
 import com.dogGetDrunk.meetjyou.config.DiscordProperties
+import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.Caffeine
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 
@@ -14,6 +17,10 @@ class DiscordAlertService(props: DiscordProperties) {
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val restClient = if (props.webhookUrl.isNotBlank()) RestClient.create(props.webhookUrl) else null
+    private val dedupCache: Cache<String, Boolean> = Caffeine.newBuilder()
+        .expireAfterWrite(Duration.ofSeconds(props.deduplicationWindowSeconds))
+        .maximumSize(200)
+        .build()
 
     fun sendAlert(
         request: HttpServletRequest,
@@ -23,6 +30,13 @@ class DiscordAlertService(props: DiscordProperties) {
         detail: String? = null
     ) {
         val client = restClient ?: return
+
+        val dedupKey = "$status:$exceptionClass:${request.method}:${request.requestURI}"
+        if (dedupCache.getIfPresent(dedupKey) != null) {
+            log.debug("Skipping duplicate Discord alert: {}", dedupKey)
+            return
+        }
+        dedupCache.put(dedupKey, true)
 
         val isServerError = status >= 500
         val color = if (isServerError) 16711680 else 16763904
