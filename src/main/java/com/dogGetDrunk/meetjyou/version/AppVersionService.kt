@@ -1,6 +1,9 @@
 package com.dogGetDrunk.meetjyou.version
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.VersionNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.version.DuplicateVersionException
+import com.dogGetDrunk.meetjyou.common.util.SemVer
+import com.dogGetDrunk.meetjyou.version.dto.VersionCheckResponse
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
@@ -10,76 +13,94 @@ class AppVersionService(
 ) {
     private val log = LoggerFactory.getLogger(AppVersionService::class.java)
 
-    fun getLatestVersion(): AppVersionDto =
-        appVersionRepository.findFirstByOrderByReleasedAtDesc()?.let { AppVersionDto.fromEntity(it) }
-            ?: throw VersionNotFoundException("최신 버전 정보가 없습니다.")
+    fun checkVersion(platform: Platform, clientVersion: String): VersionCheckResponse {
+        val versions = appVersionRepository.findAllByPlatform(platform)
+        val latest = versions.maxWithOrNull { a, b -> SemVer.compare(a.version, b.version) }
+        val minimum = versions
+            .filter { it.forceUpdate }
+            .maxWithOrNull { a, b -> SemVer.compare(a.version, b.version) }
 
-    fun isForceUpdate(currentVersion: String): Boolean =
-        appVersionRepository.findByVersion(currentVersion)?.forceUpdate
-            ?: throw VersionNotFoundException("버전 정보가 없습니다.")
+        val updateRequired = minimum != null && SemVer.compare(clientVersion, minimum.version) < 0
+        val updateAvailable = latest != null && SemVer.compare(clientVersion, latest.version) < 0
 
-
-    fun getAllVersions(): List<AppVersionDto> =
-        appVersionRepository.findAll()
-            .filterNotNull()
-            .map { AppVersionDto.fromEntity(it) }
-
-    fun addVersion(appVersionDto: AppVersionDto) {
-        val appVersion = AppVersion(
-            version = appVersionDto.version,
-            forceUpdate = appVersionDto.forceUpdate,
-            downloadUrl = appVersionDto.downloadUrl
+        return VersionCheckResponse(
+            updateRequired = updateRequired,
+            updateAvailable = updateAvailable,
+            latestVersion = latest?.version,
+            downloadUrl = latest?.downloadUrl,
         )
-        appVersionRepository.save(appVersion)
-        log.info("새 버전 등록: {}", appVersion)
     }
 
-    fun updateVersion(version: String, appVersionDto: AppVersionDto) {
-        val appVersion = appVersionRepository.findByVersion(version)
-            ?: throw VersionNotFoundException(version)
+    fun getLatestVersion(platform: Platform): AppVersionDto {
+        val versions = appVersionRepository.findAllByPlatform(platform)
+        return versions
+            .maxWithOrNull { a, b -> SemVer.compare(a.version, b.version) }
+            ?.let { AppVersionDto.fromEntity(it) }
+            ?: throw VersionNotFoundException("No version registered for platform $platform")
+    }
 
-        val prevForceUpdateSetting = appVersion.forceUpdate
-        val prevDownloadUrlSetting = appVersion.downloadUrl
+    fun getAllVersions(platform: Platform): List<AppVersionDto> =
+        appVersionRepository.findAllByPlatform(platform).map { AppVersionDto.fromEntity(it) }
 
-        appVersion.forceUpdate = appVersionDto.forceUpdate
-        appVersion.downloadUrl = appVersionDto.downloadUrl
+    fun addVersion(platform: Platform, dto: AppVersionDto) {
+        if (appVersionRepository.findByVersionAndPlatform(dto.version, platform) != null) {
+            throw DuplicateVersionException("${dto.version} (${platform.name})")
+        }
+        val appVersion = AppVersion(
+            platform = platform,
+            version = dto.version,
+            forceUpdate = dto.forceUpdate,
+            downloadUrl = dto.downloadUrl,
+        )
+        appVersionRepository.save(appVersion)
+        log.info("New version registered: {} ({})", dto.version, platform)
+    }
+
+    fun updateVersion(version: String, platform: Platform, dto: AppVersionDto) {
+        val appVersion = appVersionRepository.findByVersionAndPlatform(version, platform)
+            ?: throw VersionNotFoundException("$version (${platform.name})")
+
+        val prevForceUpdate = appVersion.forceUpdate
+        val prevDownloadUrl = appVersion.downloadUrl
+
+        appVersion.forceUpdate = dto.forceUpdate
+        appVersion.downloadUrl = dto.downloadUrl
         appVersionRepository.save(appVersion)
 
         log.info(
-            "버전 정보 수정: 강제 업데이트 설정: {} -> {}, 다운로드 url: {} -> {}",
-            prevForceUpdateSetting, appVersionDto.forceUpdate,
-            prevDownloadUrlSetting, appVersionDto.downloadUrl
+            "Version updated: forceUpdate {} -> {}, downloadUrl {} -> {} (version: {}, platform: {})",
+            prevForceUpdate, dto.forceUpdate, prevDownloadUrl, dto.downloadUrl, version, platform,
         )
     }
 
-    fun toggleForceUpdate(version: String): Boolean {
-        val appVersion = appVersionRepository.findByVersion(version)
-            ?: throw VersionNotFoundException(version)
+    fun toggleForceUpdate(version: String, platform: Platform): Boolean {
+        val appVersion = appVersionRepository.findByVersionAndPlatform(version, platform)
+            ?: throw VersionNotFoundException("$version (${platform.name})")
 
-        val originalForceUpdate = appVersion.forceUpdate
-        appVersion.forceUpdate = !originalForceUpdate
+        val original = appVersion.forceUpdate
+        appVersion.forceUpdate = !original
         appVersionRepository.save(appVersion)
 
-        log.info("강제 업데이트 여부 변경: {} -> {} (버전: {})", originalForceUpdate, !originalForceUpdate, version)
-        return !originalForceUpdate
+        log.info("Force update toggled: {} -> {} (version: {}, platform: {})", original, !original, version, platform)
+        return !original
     }
 
-    fun updateDownloadUrl(version: String, newUrl: String) {
-        val appVersion = appVersionRepository.findByVersion(version)
-            ?: throw VersionNotFoundException(version)
+    fun updateDownloadUrl(version: String, platform: Platform, newUrl: String) {
+        val appVersion = appVersionRepository.findByVersionAndPlatform(version, platform)
+            ?: throw VersionNotFoundException("$version (${platform.name})")
 
         val oldUrl = appVersion.downloadUrl
         appVersion.downloadUrl = newUrl
         appVersionRepository.save(appVersion)
 
-        log.info("다운로드 url 변경: {} -> {} (버전: {})", oldUrl, newUrl, version)
+        log.info("Download URL updated: {} -> {} (version: {}, platform: {})", oldUrl, newUrl, version, platform)
     }
 
-    fun deleteVersion(version: String) {
-        val appVersion = appVersionRepository.findByVersion(version)
-            ?: throw VersionNotFoundException(version)
+    fun deleteVersion(version: String, platform: Platform) {
+        val appVersion = appVersionRepository.findByVersionAndPlatform(version, platform)
+            ?: throw VersionNotFoundException("$version (${platform.name})")
 
         appVersionRepository.delete(appVersion)
-        log.info("버전 정보 삭제: {}", version)
+        log.info("Version deleted: {} ({})", version, platform)
     }
 }

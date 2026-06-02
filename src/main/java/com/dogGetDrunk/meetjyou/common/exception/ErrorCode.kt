@@ -34,6 +34,7 @@ enum class ErrorCode(
 
     // Version
     VERSION_NOT_FOUND("Version not found"),
+    DUPLICATE_VERSION("Duplicate version for platform"),
 
     // Notice
     NOTICE_NOT_FOUND("Notice not found"),
