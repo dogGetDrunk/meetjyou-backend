@@ -23,12 +23,12 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
-@RestController
-@RequestMapping("/api/v1/plans")
+@RestControllerV1
+@RequestMapping("/plans")
 @Tag(name = "여행 계획 API", description = "여행 계획 생성, 조회, 수정, 삭제 기능을 제공합니다.")
 class PlanController(
     private val planService: PlanService,

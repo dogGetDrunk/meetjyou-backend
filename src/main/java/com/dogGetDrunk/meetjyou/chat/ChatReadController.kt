@@ -3,23 +3,25 @@ package com.dogGetDrunk.meetjyou.chat
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatMessagesResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatRoomsResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetUnreadCountResponse
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
-import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
-@RestController
+@RestControllerV1
+@RequestMapping("/chat")
 class ChatReadController(
     private val chatReadService: ChatReadService,
 ) {
 
-    @GetMapping("/api/v1/chat/rooms/{roomUuid}/messages")
+    @GetMapping("/rooms/{roomUuid}/messages")
     fun getMessages(
         @PathVariable roomUuid: UUID,
         @RequestParam(required = false) beforeMessageUuid: UUID?,
@@ -37,7 +39,7 @@ class ChatReadController(
         return ResponseEntity.ok(response)
     }
 
-    @GetMapping("/api/v1/chat/rooms/{roomUuid}/unread-count")
+    @GetMapping("/rooms/{roomUuid}/unread-count")
     fun getUnreadCount(
         @PathVariable roomUuid: UUID,
     ): ResponseEntity<GetUnreadCountResponse> {
@@ -51,7 +53,7 @@ class ChatReadController(
         return ResponseEntity.ok(GetUnreadCountResponse(unreadCount = unreadCount))
     }
 
-    @GetMapping("/api/v1/chat/rooms")
+    @GetMapping("/rooms")
     fun getChatRooms(): ResponseEntity<GetChatRoomsResponse> {
         val requesterUuid = SecurityUtil.getCurrentUserUuid()
 
@@ -62,7 +64,7 @@ class ChatReadController(
         return ResponseEntity.ok(response)
     }
 
-    @PostMapping("/api/v1/chat/rooms/{roomUuid}/read")
+    @PostMapping("/rooms/{roomUuid}/read")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun markAsRead(
         @PathVariable roomUuid: UUID,

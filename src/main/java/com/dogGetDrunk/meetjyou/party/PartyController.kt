@@ -21,13 +21,13 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
-import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
-@RestController
-@RequestMapping("/api/v1/parties")
+@RestControllerV1
+@RequestMapping("/parties")
 @Tag(name = "파티 API", description = "여행 파티 생성, 조회, 수정, 삭제 기능 제공")
 class PartyController(
     private val partyService: PartyService,
