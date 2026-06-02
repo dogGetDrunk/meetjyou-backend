@@ -20,7 +20,7 @@ object SecurityUtil {
     private fun getPrincipal(): CustomUserPrincipal {
         val authentication = SecurityContextHolder.getContext().authentication
             ?: throw UnauthenticatedException("current-user")
-ㅁ
+
         return authentication.principal as? CustomUserPrincipal
             ?: throw UnauthenticatedException("current-user")
     }
