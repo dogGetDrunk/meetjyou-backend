@@ -145,7 +145,7 @@ class UserService(
             age = getPreferenceName(user.id, PreferenceType.AGE),
             personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
             travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
-            diet = getPreferenceName(user.id, PreferenceType.DIET),
+            diet = getPreferenceNames(user.id, PreferenceType.DIET),
             etc = getPreferenceNames(user.id, PreferenceType.ETC),
             authProvider = user.authProvider,
             marketingConsented = user.marketingConsented,

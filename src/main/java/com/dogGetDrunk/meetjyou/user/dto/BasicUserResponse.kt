@@ -12,7 +12,7 @@ data class BasicUserResponse(
     val age: String,
     val personalities: List<String>,
     val travelStyles: List<String>,
-    val diet: String,
+    val diet: List<String>,
     val etc: List<String>,
     val authProvider: AuthProvider,
     val marketingConsented: Boolean,
