@@ -4,7 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface AppVersionRepository : JpaRepository<AppVersion?, Long?> {
-    fun findFirstByOrderByReleasedAtDesc(): AppVersion?
-    fun findByVersion(version: String): AppVersion?
+interface AppVersionRepository : JpaRepository<AppVersion, Long> {
+    fun findAllByPlatform(platform: Platform): List<AppVersion>
+    fun findByVersionAndPlatform(version: String, platform: Platform): AppVersion?
 }

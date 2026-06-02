@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.notification.push
 
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.auth.UnauthenticatedException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PushTokenNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
@@ -9,6 +11,7 @@ import com.dogGetDrunk.meetjyou.notification.push.dto.PushTokenResponse
 import com.dogGetDrunk.meetjyou.notification.push.dto.RegisterPushTokenRequest
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.version.AppVersionRepository
+import com.dogGetDrunk.meetjyou.version.Platform
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -27,7 +30,8 @@ class PushTokenService(
         val user = userRepository.findByUuid(userUuid)
             ?: throw UserNotFoundException(userUuid)
 
-        val appVersion = appVersionRepository.findByVersion(request.appVersion)
+        val appVersionPlatform = request.platformEnum.toAppVersionPlatform()
+        val appVersion = appVersionRepository.findByVersionAndPlatform(request.appVersion, appVersionPlatform)
             ?: throw VersionNotFoundException(request.appVersion)
 
         val existing = pushTokenRepository.findByToken(request.token)
@@ -63,4 +67,15 @@ class PushTokenService(
 
         log.info("Deactivated push token: userUuid=${entity.user.uuid}, platform=${entity.platform}, tokenUuid=${entity.uuid}")
     }
+
+    private fun PushToken.PushPlatform.toAppVersionPlatform(): Platform =
+        when (this) {
+            PushToken.PushPlatform.IOS -> Platform.IOS
+            PushToken.PushPlatform.ANDROID -> Platform.ANDROID
+            PushToken.PushPlatform.WEB -> throw InvalidInputException(
+                errorCode = ErrorCode.INVALID_INPUT_VALUE,
+                value = "WEB",
+                message = "Web platform does not support app versioning",
+            )
+        }
 }
