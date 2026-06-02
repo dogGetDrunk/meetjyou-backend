@@ -7,6 +7,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNot
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.chat.room.dto.ChatRoomResponse
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
@@ -57,10 +58,24 @@ class PostService(
             requireNotNull(request.isPlanPublic) { "planUuid가 주어진 경우 isPlanPublic은 null일 수 없습니다." }
         }
 
+        val partyResult = partyService.createParty(
+            CreatePartyRequest(
+                itinStart = request.itinStart,
+                itinFinish = request.itinFinish,
+                destination = request.location,
+                capacity = request.capacity,
+                joined = 1,
+                name = request.title,
+                planUuid = request.planUuid,
+                ownerUuid = authorUuid,
+            )
+        )
+
         val newPost = Post(
+            party = partyResult.party,
+            isInstant = request.isInstant,
             title = request.title,
             content = request.content,
-            isInstant = request.isInstant,
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
             location = request.location,
@@ -79,9 +94,8 @@ class PostService(
         }
 
         log.info("New post created: $newPost")
-        val partyResponse = partyService.createParty(CreatePartyRequest.from(newPost))
 
-        return CreatePostResponse.of(newPost, request.companionSpec, partyResponse.chatRoom)
+        return CreatePostResponse.of(newPost, request.companionSpec, ChatRoomResponse.of(partyResult.chatRoom))
     }
 
     @Transactional(readOnly = true)

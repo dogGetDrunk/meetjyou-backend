@@ -45,7 +45,7 @@ class NotificationDispatcher(
     private fun processItem(item: NotificationOutbox) {
         val tokens = targetResolver.resolveUserTargets(item.user.id)
         if (tokens.isEmpty()) {
-            mark(item, DeliveryStatus.SENT, item.attempts + 1, null) // 토큰이 없으면 실질적으로 보낼 대상이 없어 완료 처리
+            mark(item, DeliveryStatus.SENT, item.attempts + 1, item.availableAt) // 토큰이 없으면 실질적으로 보낼 대상이 없어 완료 처리
             log.info("No tokens for userId={}, mark SENT. outboxId={}", item.user.id, item.id)
             return
         }
@@ -74,11 +74,11 @@ class NotificationDispatcher(
         val nextAttempts = item.attempts + 1
         when {
             allOk -> {
-                mark(item, DeliveryStatus.SENT, nextAttempts, null)
+                mark(item, DeliveryStatus.SENT, nextAttempts, item.availableAt)
             }
 
             anyPermanentFailure || nextAttempts >= backoffSeconds.size -> {
-                mark(item, DeliveryStatus.DEAD, nextAttempts, null)
+                mark(item, DeliveryStatus.DEAD, nextAttempts, item.availableAt)
             }
 
             else -> {

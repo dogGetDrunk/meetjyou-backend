@@ -14,7 +14,6 @@ import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyRecruitment
 import com.dogGetDrunk.meetjyou.common.exception.business.party.SelfBanNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
@@ -27,7 +26,6 @@ import com.dogGetDrunk.meetjyou.notification.NotificationPayload
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.event.NotificationEvent
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
-import com.dogGetDrunk.meetjyou.party.dto.CreatePartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
@@ -66,8 +64,10 @@ class PartyService(
 ) {
     private val log = LoggerFactory.getLogger(PartyService::class.java)
 
+    data class PartyCreationResult(val party: Party, val chatRoom: ChatRoom)
+
     @Transactional
-    fun createParty(request: CreatePartyRequest): CreatePartyResponse {
+    fun createParty(request: CreatePartyRequest): PartyCreationResult {
         log.info("Party creation request received: name=${request.name}")
         val plan = request.planUuid?.let { planUuid ->
             planRepository.findByUuid(planUuid) ?: throw PlanNotFoundException(planUuid)
@@ -75,8 +75,6 @@ class PartyService(
 
         val owner = userRepository.findByUuid(request.ownerUuid)
             ?: throw UserNotFoundException(request.ownerUuid)
-        val post = postRepository.findByUuid(request.postUuid)
-            ?: throw PostNotFoundException(request.postUuid)
 
         val party = Party(
             itinStart = request.itinStart,
@@ -90,7 +88,6 @@ class PartyService(
         }
 
         partyRepository.save(party)
-        post.party = party
         userPartyRepository.save(UserParty(party, owner, PartyRole.HOST))
 
         val chatRoom = ChatRoom(party = party)
@@ -98,7 +95,7 @@ class PartyService(
 
         log.info("Party created: uuid=${party.uuid}, name=${party.name}, roomUuid=${chatRoom.uuid}")
 
-        return CreatePartyResponse.of(party, chatRoom)
+        return PartyCreationResult(party, chatRoom)
     }
 
     @Transactional(readOnly = true)

@@ -20,6 +20,7 @@ import java.util.UUID
 
 @Entity
 class Post(
+    party: Party,
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
     var isInstant: Boolean,
     var title: String,
@@ -42,7 +43,7 @@ class Post(
     @ManyToOne
     lateinit var author: User
     @ManyToOne
-    var party: Party? = null
+    var party: Party = party
     @ManyToOne
     var plan: Plan? = null
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
