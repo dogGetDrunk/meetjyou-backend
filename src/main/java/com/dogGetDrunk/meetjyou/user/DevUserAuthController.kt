@@ -7,15 +7,15 @@ import org.springframework.context.annotation.Profile
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
 import java.net.URI
 import java.util.UUID
 
-@RestController
+@RestControllerV1
 @Profile("dev")
-@RequestMapping("/api/v1/dev/auth")
+@RequestMapping("/dev/auth")
 class DevUserAuthController(
     private val devUserAuthService: DevUserAuthService,
 ) {

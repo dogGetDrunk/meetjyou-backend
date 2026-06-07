@@ -6,11 +6,11 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 
-@RestController
-@RequestMapping("/api/v1/terms")
+@RestControllerV1
+@RequestMapping("/terms")
 @Tag(name = "약관 API", description = "약관 조회 및 약관 본문 다운로드 URL 관련 API를 제공합니다.")
 class TermsController(
     private val termsService: TermsService,

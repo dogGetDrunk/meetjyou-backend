@@ -17,13 +17,13 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.net.URI
 import java.util.UUID
 
-@RestController
-@RequestMapping("/api/v1/auth")
+@RestControllerV1
+@RequestMapping("/auth")
 @Tag(name = "User authentication controller", description = "유저 인증 관련 API")
 class UserAuthController(
     private val userAuthService: UserAuthService

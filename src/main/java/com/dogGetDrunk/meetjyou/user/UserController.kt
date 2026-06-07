@@ -33,14 +33,14 @@ import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import java.util.UUID
 
-@RestController
-@RequestMapping("/api/v1/users")
+@RestControllerV1
+@RequestMapping("/users")
 @Tag(name = "유저 정보 API")
 class UserController(
     private val userService: UserService,

@@ -13,12 +13,12 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
-@RestController
-@RequestMapping("/api/v1/plans/{planUuid}/markers")
+@RestControllerV1
+@RequestMapping("/plans/{planUuid}/markers")
 @Tag(name = "마커 API", description = "여행 계획 내 마커 조회, 일괄 교체 기능을 제공합니다.")
 class MarkerController(
     private val markerService: MarkerService,

@@ -17,12 +17,12 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
-@RestController
-@RequestMapping("/api/v1/notices")
+@RestControllerV1
+@RequestMapping("/notices")
 @Tag(name = "공지사항 API")
 class NoticeController(
     private val noticeService: NoticeService,
