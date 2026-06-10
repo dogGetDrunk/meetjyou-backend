@@ -61,6 +61,7 @@ enum class ErrorCode(
     PARTY_JOIN_BANNED("Banned users cannot rejoin"),
     PARTY_JOIN_REQUEST_NOT_FOUND("No pending join request found"),
     PARTY_JOIN_REJECTED_COOLDOWN("Cannot rejoin within 24 hours of rejection"),
+    PARTY_JOIN_CANCEL_NOT_ALLOWED("Only pending join requests can be cancelled"),
 
     // Image
     IMAGE_UPLOAD_FAILED("Image upload failed"),

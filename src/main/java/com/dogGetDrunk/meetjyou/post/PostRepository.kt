@@ -10,6 +10,7 @@ import java.util.UUID
 interface PostRepository : JpaRepository<Post, Long> {
     fun findByUuid(uuid: UUID): Post?
     fun findByParty_Uuid(partyUuid: UUID): Post?
+    fun findAllByParty_UuidIn(partyUuids: Collection<UUID>): List<Post>
     fun findAllByAuthor_Uuid(authorUuid: UUID, pageable: Pageable): Page<Post>
     override fun findAll(pageable: Pageable): Page<Post>
     fun existsByUuidAndAuthor_Uuid(uuid: UUID, authorUuid: UUID): Boolean

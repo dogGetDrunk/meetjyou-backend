@@ -1,0 +1,87 @@
+package com.dogGetDrunk.meetjyou.party
+
+import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
+import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
+import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinCancelNotAllowedException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRequestNotFoundException
+import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
+import com.dogGetDrunk.meetjyou.plan.PlanRepository
+import com.dogGetDrunk.meetjyou.post.PostRepository
+import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.support.UserFixtures
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
+import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.spec.IsolationMode
+import io.kotest.core.spec.style.BehaviorSpec
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.springframework.context.ApplicationEventPublisher
+
+class CancelJoinRequestTest : BehaviorSpec() {
+
+    private val partyRepository = mockk<PartyRepository>(relaxed = true)
+    private val postRepository = mockk<PostRepository>(relaxed = true)
+    private val planRepository = mockk<PlanRepository>(relaxed = true)
+    private val chatRoomRepository = mockk<ChatRoomRepository>(relaxed = true)
+    private val chatParticipantService = mockk<ChatParticipantService>(relaxed = true)
+    private val chatRoomEventBroadcaster = mockk<ChatRoomEventBroadcaster>(relaxed = true)
+    private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
+    private val userRepository = mockk<UserRepository>(relaxed = true)
+    private val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
+    private val sut = PartyService(
+        partyRepository, postRepository, planRepository, chatRoomRepository,
+        chatParticipantService, chatRoomEventBroadcaster, userPartyRepository,
+        userRepository, publisher,
+    )
+
+    override fun isolationMode() = IsolationMode.InstancePerLeaf
+
+    init {
+        beforeEach { clearAllMocks() }
+
+        given("cancelJoinRequest 호출 시") {
+            val user = UserFixtures.user()
+            val party = NotificationCenterFixtures.party()
+            val partyUuid = party.uuid
+            val userUuid = user.uuid
+
+            `when`("PENDING 상태인 신청이 존재하는 경우") {
+                then("레코드가 삭제된다") {
+                    val membership = NotificationCenterFixtures.pendingUserParty(party, user)
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid) } returns membership
+                    every { userPartyRepository.deleteByParty_UuidAndUser_Uuid(partyUuid, userUuid) } returns 1
+
+                    sut.cancelJoinRequest(partyUuid, userUuid)
+
+                    verify(exactly = 1) { userPartyRepository.deleteByParty_UuidAndUser_Uuid(partyUuid, userUuid) }
+                }
+            }
+
+            `when`("신청 레코드가 존재하지 않는 경우") {
+                then("PartyJoinRequestNotFoundException을 던진다") {
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid) } returns null
+
+                    shouldThrow<PartyJoinRequestNotFoundException> {
+                        sut.cancelJoinRequest(partyUuid, userUuid)
+                    }
+                }
+            }
+
+            `when`("PENDING이 아닌 상태(JOINED)인 경우") {
+                then("PartyJoinCancelNotAllowedException을 던진다") {
+                    val membership = NotificationCenterFixtures.hostUserParty(party, user)
+                    // hostUserParty has memberStatus=JOINED (default)
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid) } returns membership
+
+                    shouldThrow<PartyJoinCancelNotAllowedException> {
+                        sut.cancelJoinRequest(partyUuid, userUuid)
+                    }
+                }
+            }
+        }
+    }
+}

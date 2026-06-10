@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.notification.preference.dto.NotificationSettings
 import com.dogGetDrunk.meetjyou.notification.preference.dto.UpdateNotificationSettingsRequest
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
+import com.dogGetDrunk.meetjyou.party.dto.MyApplicationResponse
 import com.dogGetDrunk.meetjyou.plan.PlanService
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.PostService
@@ -231,6 +232,14 @@ class UserController(
     fun getMyParties(): ResponseEntity<List<GetMyPartyResponse>> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
         return ResponseEntity.ok(partyService.getMyParties(userUuid))
+    }
+
+    @Operation(summary = "내 파티 신청 목록 조회", description = "현재 로그인한 사용자가 신청한 파티 신청 목록을 상태와 함께 조회합니다.")
+    @ApiResponses(value = [ApiResponse(responseCode = "200", description = "조회 성공")])
+    @GetMapping("/me/applications")
+    fun getMyApplications(): ResponseEntity<List<MyApplicationResponse>> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        return ResponseEntity.ok(partyService.getMyApplications(userUuid))
     }
 
     @Operation(summary = "내 모집글 목록 조회", description = "현재 로그인한 사용자가 작성한 모집글 목록을 조회합니다.")

@@ -6,10 +6,13 @@ import java.util.UUID
 data class PendingJoinRequest(
     val userUuid: UUID,
     val nickname: String,
+    val thumbImgUrl: String?,
+    val applicationNote: String?,
     val requestedAt: Instant,
 )
 
 data class GetPendingJoinRequestsResponse(
     val partyUuid: UUID,
+    val postUuid: UUID?,
     val requests: List<PendingJoinRequest>,
 )

@@ -43,12 +43,18 @@ class UserParty(
     @Column(nullable = false)
     var statusChangedAt: Instant = Instant.now()
     var lastReadMessageId: Long? = null
+    @Column(length = 500)
+    var applicationNote: String? = null
+    var hostRead: Boolean = true
+    var applicantRead: Boolean = true
 
-    fun pending() { memberStatus = MemberStatus.PENDING;   statusChangedAt = Instant.now() }
-    fun approve() { memberStatus = MemberStatus.JOINED;    statusChangedAt = Instant.now() }
-    fun reject()  { memberStatus = MemberStatus.REJECTED;  statusChangedAt = Instant.now() }
+    fun pending() { memberStatus = MemberStatus.PENDING;   statusChangedAt = Instant.now(); hostRead = false }
+    fun approve() { memberStatus = MemberStatus.JOINED;    statusChangedAt = Instant.now(); applicantRead = false }
+    fun reject()  { memberStatus = MemberStatus.REJECTED;  statusChangedAt = Instant.now(); applicantRead = false }
     fun ban()     { memberStatus = MemberStatus.BANNED;    statusChangedAt = Instant.now() }
     fun leave()   { memberStatus = MemberStatus.LEFT;      statusChangedAt = Instant.now() }
+    fun markHostRead()      { hostRead = true }
+    fun markApplicantRead() { applicantRead = true }
 
     fun isActiveMember(): Boolean = memberStatus == MemberStatus.JOINED
 
