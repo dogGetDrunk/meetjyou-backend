@@ -20,6 +20,7 @@ import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinCancelNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRejectedCooldownException
 import com.dogGetDrunk.meetjyou.notification.NotificationPayload
@@ -30,6 +31,8 @@ import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
+import com.dogGetDrunk.meetjyou.party.dto.JoinRequestStatus
+import com.dogGetDrunk.meetjyou.party.dto.MyApplicationResponse
 import com.dogGetDrunk.meetjyou.party.dto.PendingJoinRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
@@ -133,7 +136,7 @@ class PartyService(
     }
 
     @Transactional
-    fun requestJoinParty(partyUuid: UUID, userUuid: UUID): JoinPartyResponse {
+    fun requestJoinParty(partyUuid: UUID, userUuid: UUID, applicationNote: String?): JoinPartyResponse {
         log.info("Party join requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
 
         val party = requireParty(partyUuid)
@@ -156,11 +159,17 @@ class PartyService(
                 if (existing.statusChangedAt.isAfter(Instant.now().minus(24, ChronoUnit.HOURS))) {
                     throw PartyJoinRejectedCooldownException(partyUuid, userUuid)
                 }
+                existing.applicationNote = applicationNote
                 existing.pending()
             }
             null -> {
                 val user = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
-                userPartyRepository.save(UserParty(party, user, PartyRole.MEMBER).also { it.pending() })
+                userPartyRepository.save(
+                    UserParty(party, user, PartyRole.MEMBER).also {
+                        it.applicationNote = applicationNote
+                        it.pending()
+                    }
+                )
             }
         }
 
@@ -187,6 +196,18 @@ class PartyService(
 
         log.info("Party join request submitted. partyUuid={}, userUuid={}", partyUuid, userUuid)
         return JoinPartyResponse(partyUuid = partyUuid, status = "PENDING")
+    }
+
+    @Transactional
+    fun cancelJoinRequest(partyUuid: UUID, userUuid: UUID) {
+        log.info("Party join cancellation requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
+        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
+            ?: throw PartyJoinRequestNotFoundException(partyUuid, userUuid)
+        if (membership.memberStatus != MemberStatus.PENDING) {
+            throw PartyJoinCancelNotAllowedException(partyUuid, userUuid)
+        }
+        userPartyRepository.deleteByParty_UuidAndUser_Uuid(partyUuid, userUuid)
+        log.info("Party join cancelled. partyUuid={}, userUuid={}", partyUuid, userUuid)
     }
 
     @Transactional
@@ -281,17 +302,44 @@ class PartyService(
         requireActiveHostMembership(partyUuid, hostUuid)
 
         val pending = userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(partyUuid, MemberStatus.PENDING)
+        val postUuid = postRepository.findByParty_Uuid(partyUuid)?.uuid
 
         return GetPendingJoinRequestsResponse(
             partyUuid = partyUuid,
+            postUuid = postUuid,
             requests = pending.map { up ->
                 PendingJoinRequest(
                     userUuid = up.user.uuid,
                     nickname = up.user.nickname,
+                    thumbImgUrl = up.user.thumbImgUrl,
+                    applicationNote = up.applicationNote,
                     requestedAt = up.joinedAt,
                 )
             },
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getMyApplications(userUuid: UUID): List<MyApplicationResponse> {
+        val applications = userPartyRepository.findAllSentApplicationsByUserUuid(userUuid)
+        val partyUuids = applications.map { it.party.uuid }
+        val postByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associateBy { it.party.uuid }
+        return applications.map { up ->
+            val status = when (up.memberStatus) {
+                MemberStatus.JOINED   -> JoinRequestStatus.ACCEPTED
+                MemberStatus.REJECTED -> JoinRequestStatus.REJECTED
+                else                  -> JoinRequestStatus.PENDING
+            }
+            MyApplicationResponse(
+                partyUuid = up.party.uuid,
+                partyName = up.party.name,
+                postUuid = postByPartyUuid[up.party.uuid]?.uuid,
+                status = status,
+                applicationNote = up.applicationNote,
+                appliedAt = up.joinedAt,
+                statusChangedAt = up.statusChangedAt,
+            )
+        }
     }
 
     @Transactional(readOnly = true)

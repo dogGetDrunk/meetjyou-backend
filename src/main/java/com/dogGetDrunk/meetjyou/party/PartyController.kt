@@ -3,11 +3,13 @@ package com.dogGetDrunk.meetjyou.party
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
+import com.dogGetDrunk.meetjyou.party.dto.JoinPartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -101,9 +103,21 @@ class PartyController(
 
     @Operation(summary = "파티 가입 신청", description = "현재 로그인한 유저가 파티 가입을 신청합니다. 호스트 승인 후 참여가 확정됩니다.")
     @PostMapping("/{partyUuid}/join-requests")
-    fun requestJoinParty(@PathVariable partyUuid: UUID): ResponseEntity<JoinPartyResponse> {
+    fun requestJoinParty(
+        @PathVariable partyUuid: UUID,
+        @Valid @RequestBody(required = false) request: JoinPartyRequest?,
+    ): ResponseEntity<JoinPartyResponse> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
-        return ResponseEntity.status(HttpStatus.CREATED).body(partyService.requestJoinParty(partyUuid, userUuid))
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(partyService.requestJoinParty(partyUuid, userUuid, request?.applicationNote))
+    }
+
+    @Operation(summary = "파티 가입 신청 취소", description = "현재 로그인한 유저가 PENDING 상태인 자신의 파티 가입 신청을 취소합니다.")
+    @DeleteMapping("/{partyUuid}/join-requests/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun cancelJoinRequest(@PathVariable partyUuid: UUID) {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        partyService.cancelJoinRequest(partyUuid, userUuid)
     }
 
     @Operation(summary = "파티 종료", description = "HOST가 파티를 종료하고 연결된 모집글을 마감 처리합니다.")

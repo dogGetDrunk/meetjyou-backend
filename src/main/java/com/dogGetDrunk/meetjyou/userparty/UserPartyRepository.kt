@@ -75,4 +75,29 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
 
     fun deleteAllByParty_Uuid(partyUuid: UUID): Int
 
+    fun deleteByParty_UuidAndUser_Uuid(partyUuid: UUID, userUuid: UUID): Int
+
+    @Query("""
+        select up from UserParty up
+        join fetch up.user
+        join fetch up.party
+        where up.party in (
+            select h.party from UserParty h
+            where h.user.uuid = :hostUuid and h.role = 'HOST' and h.memberStatus = 'JOINED'
+        )
+        and up.memberStatus = 'PENDING'
+        order by up.joinedAt desc
+    """)
+    fun findAllPendingRequestsForHost(@Param("hostUuid") hostUuid: UUID): List<UserParty>
+
+    @Query("""
+        select up from UserParty up
+        join fetch up.party
+        where up.user.uuid = :userUuid
+        and up.role = 'MEMBER'
+        and up.memberStatus in ('PENDING', 'JOINED', 'REJECTED')
+        order by up.statusChangedAt desc
+    """)
+    fun findAllSentApplicationsByUserUuid(@Param("userUuid") userUuid: UUID): List<UserParty>
+
 }
