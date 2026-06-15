@@ -19,6 +19,13 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      keepalive-time: 240000      # 4분마다 idle connection ping
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 5        # 프리티어 환경에 맞게 축소
+      minimum-idle: 2
+      connection-test-query: SELECT 1
   servlet:
     multipart:
       enabled: true
