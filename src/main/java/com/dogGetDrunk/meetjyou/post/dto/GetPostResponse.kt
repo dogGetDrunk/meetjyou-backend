@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.post.dto
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostStatus
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import java.time.Instant
 import java.util.UUID
 
@@ -26,9 +27,15 @@ data class GetPostResponse(
     val planUuid: UUID?,
     val isPlanPublic: Boolean?,
     val plan: GetPlanResponse?,
+    val myApplicationStatus: MemberStatus?,
 ) {
     companion object {
-        fun of(post: Post, companionSpec: CompanionSpec?, plan: GetPlanResponse? = null): GetPostResponse {
+        fun of(
+            post: Post,
+            companionSpec: CompanionSpec?,
+            plan: GetPlanResponse? = null,
+            myApplicationStatus: MemberStatus? = null,
+        ): GetPostResponse {
             return GetPostResponse(
                 uuid = post.uuid,
                 title = post.title,
@@ -49,6 +56,7 @@ data class GetPostResponse(
                 planUuid = post.plan?.uuid,
                 isPlanPublic = post.isPlanPublic,
                 plan = plan,
+                myApplicationStatus = myApplicationStatus,
             )
         }
     }

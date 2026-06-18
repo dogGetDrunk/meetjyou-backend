@@ -26,6 +26,7 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.toCompanionSpec
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
+import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -42,6 +43,7 @@ class PostService(
     private val partyService: PartyService,
     private val planRepository: PlanRepository,
     private val markerRepository: MarkerRepository,
+    private val userPartyRepository: UserPartyRepository,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
 
@@ -199,7 +201,11 @@ class PostService(
             val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(post.plan!!.uuid)
             GetPlanResponse.of(post.plan!!, markers)
         } else null
-        return GetPostResponse.of(post, companionSpec, plan)
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val myApplicationStatus = userPartyRepository
+            .findByParty_UuidAndUser_Uuid(post.party.uuid, currentUserUuid)
+            ?.memberStatus
+        return GetPostResponse.of(post, companionSpec, plan, myApplicationStatus)
     }
 
     private fun saveCompPreference(post: Post, companionSpec: CompanionSpec?) {
