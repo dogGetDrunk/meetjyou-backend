@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.NonceResponse
+import com.dogGetDrunk.meetjyou.user.dto.PromoteAdminRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import io.swagger.v3.oas.annotations.Operation
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpSession
 import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -169,5 +171,26 @@ class UserAuthController(
         val refreshToken = authorizationHeader.removePrefix("Bearer ")
         userAuthService.logout(refreshToken)
         return ResponseEntity.noContent().build()
+    }
+
+    @Operation(
+        summary = "관리자 권한 획득",
+        description = "올바른 passphrase를 제출하면 현재 계정을 ADMIN으로 승격하고 새 토큰을 발급합니다. " +
+            "발급된 토큰으로 즉시 관리자 기능을 사용할 수 있습니다."
+    )
+    @ApiResponses(
+        value = [ApiResponse(
+            responseCode = "200",
+            description = "승격 성공 — 새 토큰 반환",
+            content = arrayOf(Content(mediaType = "application/json", schema = Schema(implementation = TokenResponse::class)))
+        ), ApiResponse(
+            responseCode = "403",
+            description = "passphrase 불일치",
+            content = arrayOf(Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class)))
+        )]
+    )
+    @PostMapping("/promote-admin")
+    fun promoteAdmin(@Valid @RequestBody request: PromoteAdminRequest): ResponseEntity<TokenResponse> {
+        return ResponseEntity.ok(userAuthService.claimAdmin(request.passphrase))
     }
 }

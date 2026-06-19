@@ -111,6 +111,9 @@ dev:
   bypass:
     enabled: false
 
+admin:
+  claim-passphrase: ${ADMIN_CLAIM_PASSPHRASE}
+
 app:
   websocket:
     allowed-origin-patterns:

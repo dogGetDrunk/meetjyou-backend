@@ -10,13 +10,17 @@ import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjec
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
+import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 
 @Service
 class UserAuthService(
@@ -26,6 +30,7 @@ class UserAuthService(
     private val jwtProvider: JwtProvider,
     private val termsService: TermsService,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val adminProperties: AdminProperties,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -130,8 +135,22 @@ class UserAuthService(
         log.info("User logged out, refresh token revoked. jti: {}", jti)
     }
 
+    @Transactional
+    fun claimAdmin(passphrase: String): TokenResponse {
+        if (passphrase != adminProperties.claimPassphrase) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid passphrase")
+        }
+        val uuid = SecurityUtil.getCurrentUserUuid()
+        val user = userRepository.findByUuid(uuid)
+            ?: throw UserNotFoundException(uuid, message = "User not found during admin claim")
+
+        user.role = Role.ADMIN
+        log.info("User promoted to ADMIN. uuid: {}", user.uuid)
+        return issueTokenPair(user)
+    }
+
     private fun issueTokenPair(user: User): TokenResponse {
-        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email)
+        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email, user.role)
         val generated = jwtProvider.generateRefreshToken(user.uuid, user.email)
         refreshTokenRepository.save(
             RefreshToken(

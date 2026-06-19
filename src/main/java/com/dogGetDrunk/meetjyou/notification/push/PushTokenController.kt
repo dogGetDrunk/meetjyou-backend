@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.notification.push
 
 import com.dogGetDrunk.meetjyou.notification.push.dto.PushTokenResponse
 import com.dogGetDrunk.meetjyou.notification.push.dto.RegisterPushTokenRequest
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -16,7 +17,7 @@ class PushTokenController(
 ) {
 
     @PostMapping
-    fun register(@RequestBody request: RegisterPushTokenRequest): PushTokenResponse {
+    fun register(@Valid @RequestBody request: RegisterPushTokenRequest): PushTokenResponse {
         return pushTokenService.register(request)
     }
 

@@ -64,7 +64,7 @@ class ChatIntegrationTest : BehaviorSpec() {
 
             beforeEach {
                 val data = chatTestDataHelper.createTestData()
-                token = jwtProvider.generateAccessToken(data.userUuid, data.userEmail)
+                token = jwtProvider.generateAccessToken(data.userUuid, data.userEmail, com.dogGetDrunk.meetjyou.user.Role.USER)
                 roomUuid = data.roomUuid
             }
 

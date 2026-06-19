@@ -17,7 +17,6 @@ class CorsConfig(
         val config = CorsConfiguration()
 
         config.allowedOriginPatterns = listOf(
-            "*",
             dnsUrl,
             "http://localhost:*",
             "http://127.0.0.1:*"

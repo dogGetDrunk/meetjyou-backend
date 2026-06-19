@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -50,7 +51,7 @@ class PlanController(
         ]
     )
     @PostMapping
-    fun createPlan(@RequestBody request: CreatePlanRequest): CreatePlanResponse {
+    fun createPlan(@Valid @RequestBody request: CreatePlanRequest): CreatePlanResponse {
         return planService.createPlan(request)
     }
 
@@ -73,7 +74,7 @@ class PlanController(
 
     @Operation(summary = "여행 계획 수정", description = "여행 계획을 수정합니다.")
     @PutMapping("/{planUuid}")
-    fun updatePlan(@PathVariable planUuid: UUID, @RequestBody request: UpdatePlanRequest): UpdatePlanResponse {
+    fun updatePlan(@PathVariable planUuid: UUID, @Valid @RequestBody request: UpdatePlanRequest): UpdatePlanResponse {
         return planService.updatePlan(planUuid, request)
     }
 

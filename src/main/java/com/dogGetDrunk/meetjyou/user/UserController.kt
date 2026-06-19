@@ -38,6 +38,7 @@ import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import org.springframework.security.access.prepost.PreAuthorize
 import java.util.UUID
 
 @RestControllerV1
@@ -152,6 +153,7 @@ class UserController(
         return ResponseEntity.ok(updatedUser)
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping
     @ApiResponses(
         value = [ApiResponse(
@@ -265,7 +267,7 @@ class UserController(
     @Operation(summary = "마케팅 정보 수신 동의 변경")
     @ApiResponses(value = [ApiResponse(responseCode = "204", description = "변경 성공")])
     @PatchMapping("/me/marketing-consent")
-    fun updateMarketingConsent(@RequestBody request: UpdateMarketingConsentRequest): ResponseEntity<Unit> {
+    fun updateMarketingConsent(@Valid @RequestBody request: UpdateMarketingConsentRequest): ResponseEntity<Unit> {
         userService.updateMarketingConsent(request.consented)
         return ResponseEntity.noContent().build()
     }
@@ -280,7 +282,7 @@ class UserController(
     @Operation(summary = "푸시 알림 설정 변경", description = "전체 알림 토글 및 카테고리별 알림 설정을 변경합니다. 각 필드는 optional — 전달한 항목만 변경됩니다.")
     @ApiResponses(value = [ApiResponse(responseCode = "204", description = "변경 성공")])
     @PutMapping("/me/notification-settings")
-    fun updateNotificationSettings(@RequestBody request: UpdateNotificationSettingsRequest): ResponseEntity<Unit> {
+    fun updateNotificationSettings(@Valid @RequestBody request: UpdateNotificationSettingsRequest): ResponseEntity<Unit> {
         notificationPreferenceService.updateSettings(request)
         return ResponseEntity.noContent().build()
     }

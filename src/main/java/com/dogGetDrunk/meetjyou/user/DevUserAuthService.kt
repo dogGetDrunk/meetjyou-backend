@@ -58,7 +58,7 @@ class DevUserAuthService(
     }
 
     private fun issueTokenPair(user: User): TokenResponse {
-        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email)
+        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email, user.role)
         val generated = jwtProvider.generateRefreshToken(user.uuid, user.email)
         refreshTokenRepository.save(
             RefreshToken(
