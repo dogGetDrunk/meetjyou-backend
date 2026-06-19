@@ -48,7 +48,7 @@ class DevUserAuthServiceTest : BehaviorSpec() {
 
                     every { userRepository.findByEmail(email) } returns null
                     every { userRepository.save(capture(capturedUser)) } returns newUser
-                    every { jwtProvider.generateAccessToken(any(), any()) } returns "access-token"
+                    every { jwtProvider.generateAccessToken(any(), any(), any()) } returns "access-token"
                     every { jwtProvider.generateRefreshToken(any(), any()) } returns GeneratedRefreshToken(
                         token = "refresh-token",
                         jti = UUID.randomUUID(),
@@ -75,7 +75,7 @@ class DevUserAuthServiceTest : BehaviorSpec() {
                     val existingUser = UserFixtures.user(email = email, nickname = "기존유저")
 
                     every { userRepository.findByEmail(email) } returns existingUser
-                    every { jwtProvider.generateAccessToken(existingUser.uuid, existingUser.email) } returns "access-token"
+                    every { jwtProvider.generateAccessToken(existingUser.uuid, existingUser.email, any()) } returns "access-token"
                     every { jwtProvider.generateRefreshToken(existingUser.uuid, existingUser.email) } returns GeneratedRefreshToken(
                         token = "refresh-token",
                         jti = UUID.randomUUID(),
@@ -101,7 +101,7 @@ class DevUserAuthServiceTest : BehaviorSpec() {
                     val user = UserFixtures.user()
 
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { jwtProvider.generateAccessToken(user.uuid, user.email) } returns "access-token"
+                    every { jwtProvider.generateAccessToken(user.uuid, user.email, any()) } returns "access-token"
                     every { jwtProvider.generateRefreshToken(user.uuid, user.email) } returns GeneratedRefreshToken(
                         token = "refresh-token",
                         jti = UUID.randomUUID(),

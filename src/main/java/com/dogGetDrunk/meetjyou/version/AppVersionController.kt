@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -77,6 +78,7 @@ class AppVersionController(
             content = [Content(mediaType = "application/json", schema = Schema(type = "array", implementation = AppVersionDto::class))],
         )]
     )
+    @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping
     fun getAllVersions(@PathVariable platform: String): ResponseEntity<List<AppVersionDto>> =
         ResponseEntity.ok(appVersionService.getAllVersions(toPlatform(platform)))
@@ -94,6 +96,7 @@ class AppVersionController(
                 content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
             )]
     )
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping
     fun addVersion(
         @PathVariable platform: String,
@@ -113,6 +116,7 @@ class AppVersionController(
                 content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
             )]
     )
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/{version}")
     fun updateVersion(
         @PathVariable platform: String,
@@ -139,6 +143,7 @@ class AppVersionController(
             content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
         )]
     )
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/{version}/force-update")
     fun toggleForceUpdate(
         @PathVariable platform: String,
@@ -158,6 +163,7 @@ class AppVersionController(
                 content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
             )]
     )
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/{version}/download-url")
     fun updateDownloadUrl(
         @PathVariable platform: String,
@@ -178,6 +184,7 @@ class AppVersionController(
                 content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
             )]
     )
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{version}")
     fun deleteVersion(
         @PathVariable platform: String,

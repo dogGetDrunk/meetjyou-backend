@@ -8,6 +8,7 @@ import com.dogGetDrunk.meetjyou.auth.support.RefreshTokenFixtures
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.assertions.throwables.shouldThrow
@@ -29,6 +30,7 @@ class UserAuthServiceTest : BehaviorSpec() {
     private val jwtProvider = mockk<JwtProvider>(relaxed = true)
     private val termsService = mockk<TermsService>(relaxed = true)
     private val refreshTokenRepository = mockk<RefreshTokenRepository>(relaxed = true)
+    private val adminProperties = AdminProperties(claimPassphrase = "test-passphrase")
 
     private val sut = UserAuthService(
         socialVerifierRegistry,
@@ -37,6 +39,7 @@ class UserAuthServiceTest : BehaviorSpec() {
         jwtProvider,
         termsService,
         refreshTokenRepository,
+        adminProperties,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -70,7 +73,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                     every { jwtProvider.getUserUuid(rawToken) } returns user.uuid
                     every { jwtProvider.getUsername(rawToken) } returns user.email
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { jwtProvider.generateAccessToken(any(), any()) } returns "new.access.token"
+                    every { jwtProvider.generateAccessToken(any(), any(), any()) } returns "new.access.token"
                     every { jwtProvider.generateRefreshToken(any(), any()) } returns generatedRefreshToken
 
                     val result = sut.refreshToken(rawToken)

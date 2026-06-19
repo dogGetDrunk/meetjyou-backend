@@ -23,7 +23,7 @@ class User(
     var authProvider: AuthProvider,
     var externalId: String,
     @Enumerated(EnumType.STRING)
-    val role: Role = Role.USER,
+    var role: Role = Role.USER,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

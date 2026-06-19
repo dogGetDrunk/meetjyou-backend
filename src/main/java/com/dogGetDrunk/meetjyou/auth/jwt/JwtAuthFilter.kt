@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
 import org.springframework.stereotype.Component
@@ -44,9 +45,13 @@ class JwtAuthFilter(
         if (token != null && jwtProvider.validateToken(token)) {
             val userUuid: UUID = jwtProvider.getUserUuid(token)
             val email: String = jwtProvider.getUsername(token)
+            val role = jwtProvider.getRole(token)
 
-            // CustomUserPrincipal 생성
-            val principal = CustomUserPrincipal(userUuid, email)
+            val principal = CustomUserPrincipal(
+                uuid = userUuid,
+                email = email,
+                authorities = listOf(SimpleGrantedAuthority(role.name))
+            )
 
             // 인증 객체 구성
             val authentication = UsernamePasswordAuthenticationToken(

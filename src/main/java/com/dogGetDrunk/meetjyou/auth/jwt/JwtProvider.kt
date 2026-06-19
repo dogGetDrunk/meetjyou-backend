@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.auth.jwt
 
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
+import com.dogGetDrunk.meetjyou.user.Role
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.io.Decoders
@@ -26,8 +27,8 @@ class JwtProvider(
     private val secretKey: SecretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret))
     private val algorithm: MacAlgorithm = Jwts.SIG.HS256
 
-    fun generateAccessToken(userUuid: UUID, email: String): String {
-        return generateToken(userUuid, email, accessTokenExpiration)
+    fun generateAccessToken(userUuid: UUID, email: String, role: Role): String {
+        return generateToken(userUuid, email, role, accessTokenExpiration)
     }
 
     fun generateRefreshToken(userUuid: UUID, email: String): GeneratedRefreshToken {
@@ -50,7 +51,7 @@ class JwtProvider(
         )
     }
 
-    private fun generateToken(userUuid: UUID, email: String, expirationMillis: Long): String {
+    private fun generateToken(userUuid: UUID, email: String, role: Role, expirationMillis: Long): String {
         val now = Date()
         val expiry = Date(now.time + expirationMillis)
 
@@ -58,11 +59,15 @@ class JwtProvider(
             .issuer(issuer)
             .subject(email)
             .claim("userUuid", userUuid.toString())
+            .claim("role", role.name)
             .issuedAt(now)
             .expiration(expiry)
             .signWith(secretKey, algorithm)
             .compact()
     }
+
+    fun getRole(token: String): Role =
+        Role.valueOf(getClaims(token)["role"]?.toString() ?: Role.USER.name)
 
     fun extractToken(request: HttpServletRequest): String? {
         val authHeader = request.getHeader("Authorization") ?: return null

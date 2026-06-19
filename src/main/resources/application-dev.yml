@@ -18,6 +18,9 @@ dev:
   bypass:
     enabled: true
 
+admin:
+  claim-passphrase: dev-admin-passphrase
+
 app:
   websocket:
     allowed-origin-patterns:

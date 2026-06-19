@@ -95,7 +95,7 @@ class PartyController(
     @PutMapping("/{partyUuid}")
     fun updateParty(
         @PathVariable partyUuid: UUID,
-        @RequestBody request: UpdatePartyRequest,
+        @Valid @RequestBody request: UpdatePartyRequest,
     ): UpdatePartyResponse {
         val userUuid = SecurityUtil.getCurrentUserUuid()
         return partyService.updateParty(partyUuid, userUuid, request)

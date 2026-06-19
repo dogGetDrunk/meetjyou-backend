@@ -11,7 +11,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
-import org.springframework.security.web.util.matcher.OrRequestMatcher
 import org.springframework.web.filter.OncePerRequestFilter
 import java.util.UUID
 
@@ -21,12 +20,7 @@ class DevBypassAuthFilter(
 
     private val log = LoggerFactory.getLogger(DevBypassAuthFilter::class.java)
 
-    private val matcher = OrRequestMatcher(
-        AntPathRequestMatcher("/api/v1/parties/**"),
-        AntPathRequestMatcher("/api/v1/posts/**"),
-        AntPathRequestMatcher("/api/v1/plans/**"),
-        AntPathRequestMatcher("/api/v1/users/**"),
-    )
+    private val matcher = AntPathRequestMatcher("/api/v1/**")
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         if (!props.enabled) return true

@@ -82,6 +82,7 @@ jobs:
             APPLE_CLOCK_SKEW_SECONDS=${{ secrets.APPLE_CLOCK_SKEW_SECONDS }}
             APPLE_JWK_CACHE_TTL_MINUTES=${{ secrets.APPLE_JWK_CACHE_TTL_MINUTES }}
             DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}
+            ADMIN_CLAIM_PASSPHRASE=${{ secrets.ADMIN_CLAIM_PASSPHRASE }}
             COMPOSE_PROJECT_NAME=meetjyou
             EOF
 
