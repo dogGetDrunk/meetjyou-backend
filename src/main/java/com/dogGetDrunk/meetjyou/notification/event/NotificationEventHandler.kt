@@ -1,6 +1,5 @@
 package com.dogGetDrunk.meetjyou.notification.event
 
-import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox
 import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutboxRepository
@@ -25,24 +24,20 @@ class NotificationEventHandler(
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun on(event: NotificationEvent) {
-        // 1. UUID로 내부 사용자 조회
         val user = userRepository.findByUuid(event.userUuid) ?: run {
-            log.warn("User not found for UUID: ${event.userUuid}, skipping notification.")
-            throw UserNotFoundException(event.userUuid)
+            log.warn("User not found for UUID: {}, skipping notification.", event.userUuid)
+            return
         }
 
-        // 2. 알림 설정 확인 (전역 토글 + 타입별)
         if (!preferenceService.isEnabled(user, event.payload.type)) {
             log.info("Notification suppressed: type={}, userId={}", event.payload.type, user.id)
             return
         }
 
-        // 3. 템플릿으로 title/body 생성
         val template = templateFactory.templateOf(event.payload.type)
         val title = template.makeTitle(event.preferredLocale, event.payload)
         val body = template.makeBody(event.preferredLocale, event.payload)
 
-        // 5. Outbox에 저장
         val outbox = NotificationOutbox(
             user = user,
             type = NotificationType.valueOf(event.payload.type.name),

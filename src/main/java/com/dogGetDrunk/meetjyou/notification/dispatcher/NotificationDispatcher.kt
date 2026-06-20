@@ -38,7 +38,20 @@ class NotificationDispatcher(
         outboxRepository.bulkUpdateStatus(items.map { it.id }, DeliveryStatus.SENDING)
 
         for (item in items) {
-            processItem(item)
+            try {
+                processItem(item)
+            } catch (e: Exception) {
+                log.error("Failed to process outbox item id={}, marking PENDING for retry", item.id, e)
+                mark(item, DeliveryStatus.PENDING, item.attempts, item.availableAt)
+            }
+        }
+    }
+
+    @Scheduled(fixedDelay = 60_000L)
+    fun reportDeadItems() {
+        val count = outboxRepository.countByStatus(DeliveryStatus.DEAD)
+        if (count > 0) {
+            log.warn("Unresolved DEAD notification outbox items: count={}", count)
         }
     }
 
