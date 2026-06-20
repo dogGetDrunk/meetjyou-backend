@@ -37,4 +37,6 @@ interface NotificationOutboxRepository : JpaRepository<NotificationOutbox, Long>
         @Param("attempts") attempts: Int,
         @Param("availableAt") availableAt: java.time.Instant?,
     )
+
+    fun countByStatus(status: DeliveryStatus): Long
 }
