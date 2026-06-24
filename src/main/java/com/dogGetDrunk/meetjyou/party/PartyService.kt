@@ -216,7 +216,7 @@ class PartyService(
 
         requireActiveHostMembership(partyUuid, hostUuid)
 
-        val party = requireParty(partyUuid)
+        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         if (party.joined >= party.capacity) {
             throw PartyFullException(partyUuid)
         }
@@ -226,6 +226,7 @@ class PartyService(
             ?: throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
 
         request.approve()
+        party.joined++
 
         chatRoomRepository.findByParty_Uuid(partyUuid)?.let { chatRoom ->
             chatParticipantService.enterRoom(chatRoom.uuid, applicantUuid)
@@ -493,6 +494,7 @@ class PartyService(
         }
 
         membership.leave()
+        party.joined--
         removeFromChatRoom(partyUuid, userUuid)
         chatRoomRepository.findByParty_Uuid(partyUuid)?.let { chatRoom ->
             chatRoomEventBroadcaster.broadcastMemberLeft(
