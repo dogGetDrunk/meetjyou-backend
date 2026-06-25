@@ -1,10 +1,14 @@
 package com.dogGetDrunk.meetjyou.auth.jwt
 
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
+import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
+import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
+import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
@@ -16,6 +20,7 @@ import java.util.UUID
 @Component
 class JwtAuthFilter(
     private val jwtProvider: JwtProvider,
+    private val objectMapper: ObjectMapper,
 ) : OncePerRequestFilter() {
 
     val log = LoggerFactory.getLogger(JwtAuthFilter::class.java)
@@ -42,7 +47,16 @@ class JwtAuthFilter(
 
         val token = jwtProvider.extractToken(request)
 
-        if (token != null && jwtProvider.validateToken(token)) {
+        if (token != null) {
+            try {
+                jwtProvider.validateTokenOrThrow(token)
+            } catch (e: CustomJwtException) {
+                response.status = HttpServletResponse.SC_UNAUTHORIZED
+                response.contentType = MediaType.APPLICATION_JSON_VALUE
+                objectMapper.writeValue(response.writer, ErrorResponse(401, e.errorCode, e.value))
+                return
+            }
+
             val userUuid: UUID = jwtProvider.getUserUuid(token)
             val email: String = jwtProvider.getUsername(token)
             val role = jwtProvider.getRole(token)
@@ -53,7 +67,6 @@ class JwtAuthFilter(
                 authorities = listOf(SimpleGrantedAuthority(role.name))
             )
 
-            // 인증 객체 구성
             val authentication = UsernamePasswordAuthenticationToken(
                 principal,
                 null,
@@ -62,7 +75,6 @@ class JwtAuthFilter(
                 details = WebAuthenticationDetailsSource().buildDetails(request)
             }
 
-            // SecurityContextHolder에 주입
             SecurityContextHolder.getContext().authentication = authentication
         }
 
