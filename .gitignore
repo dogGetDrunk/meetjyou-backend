@@ -215,3 +215,4 @@ src/main/resources/firebase/meetjyou-firebase-adminsdk.json
 
 ### Miscellaneous ###
 /playground.sql
+/src/main/resources/data.sql
