@@ -2,22 +2,26 @@ package com.dogGetDrunk.meetjyou.common.exception
 
 data class ErrorResponse(
     val status: Int,
+    val errorCode: String,
     val message: String,
     val values: List<String?> = emptyList()
 ) {
     constructor(status: Int, errorCode: ErrorCode) : this(
         status,
+        errorCode.name,
         errorCode.message
     )
 
     constructor(status: Int, errorCode: ErrorCode, value: String?) : this(
         status,
+        errorCode.name,
         errorCode.message,
         listOf(value)
     )
 
     constructor(status: Int, errorCode: ErrorCode, values: List<String?>) : this(
         status,
+        errorCode.name,
         errorCode.message,
         values
     )
