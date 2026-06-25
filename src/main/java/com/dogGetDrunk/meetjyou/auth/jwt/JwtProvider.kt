@@ -1,8 +1,10 @@
 package com.dogGetDrunk.meetjyou.auth.jwt
 
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomExpiredJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.user.Role
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.io.Decoders
 import io.jsonwebtoken.security.Keys
@@ -79,6 +81,16 @@ class JwtProvider(
         true
     } catch (e: Exception) {
         false
+    }
+
+    fun validateTokenOrThrow(token: String) {
+        try {
+            getClaims(token)
+        } catch (e: ExpiredJwtException) {
+            throw CustomExpiredJwtException(value = null, message = "Access token expired")
+        } catch (e: Exception) {
+            throw InvalidJwtException(message = "JWT validation failed")
+        }
     }
 
     fun getUsername(token: String): String = getClaims(token).subject

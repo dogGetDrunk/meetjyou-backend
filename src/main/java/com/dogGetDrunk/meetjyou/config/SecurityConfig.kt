@@ -2,11 +2,16 @@ package com.dogGetDrunk.meetjyou.config
 
 import com.dogGetDrunk.meetjyou.auth.dev.DevBypassAuthFilter
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtAuthFilter
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.config.ApiVersionConfig.Companion.V1
+import com.fasterxml.jackson.databind.ObjectMapper
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
+import org.springframework.http.MediaType
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer
@@ -19,7 +24,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 class SecurityConfig(
     private val corsConfig: CorsConfig,
     private val jwtAuthFilter: JwtAuthFilter,
-    private val devBypassAuthFilterProvider: ObjectProvider<DevBypassAuthFilter>
+    private val devBypassAuthFilterProvider: ObjectProvider<DevBypassAuthFilter>,
+    private val objectMapper: ObjectMapper,
 ) {
 
     @Bean
@@ -57,6 +63,16 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.GET, "$V1/users/is-duplicate-nickname").permitAll()
                     // All remaining endpoints require a valid JWT
                     .anyRequest().authenticated()
+            }
+            .exceptionHandling { exceptions ->
+                exceptions.authenticationEntryPoint { _, response, _ ->
+                    response.status = HttpServletResponse.SC_UNAUTHORIZED
+                    response.contentType = MediaType.APPLICATION_JSON_VALUE
+                    objectMapper.writeValue(
+                        response.writer,
+                        ErrorResponse(401, ErrorCode.MISSING_AUTHORIZATION_HEADER)
+                    )
+                }
             }
 
         devBypassAuthFilterProvider.ifAvailable?.let { devBypassFilter ->
