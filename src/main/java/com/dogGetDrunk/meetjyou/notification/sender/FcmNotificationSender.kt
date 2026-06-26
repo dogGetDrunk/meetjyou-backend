@@ -26,11 +26,11 @@ class FcmNotificationSender : PushNotificationSender {
         return try {
             val messageId = FirebaseMessaging.getInstance()
                 .send(message)
-            log.debug("FCM sent ok: token={}, messageId={}", token, messageId)
+            log.debug("FCM sent ok: token={}, messageId={}", "${token.take(10)}...", messageId)
             SendResult(ok = true, messageId = messageId)
         } catch (e: FirebaseMessagingException) {
             val permanent = (e.errorCode.name == "UNREGISTERED" || e.errorCode.name == "INVALID_ARGUMENT")
-            log.warn("FCM send failed: token={}, code={}, permanent={}", token, e.errorCode, permanent, e)
+            log.warn("FCM send failed: token={}, code={}, permanent={}", "${token.take(10)}...", e.errorCode, permanent, e)
             SendResult(ok = false, permanent = permanent, error = e.errorCode.name)
         } catch (e: Exception) {
             log.error("FCM unexpected error", e)
