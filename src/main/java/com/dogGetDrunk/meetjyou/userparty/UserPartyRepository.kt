@@ -25,6 +25,11 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
         userUuid: UUID
     ): UserParty?
 
+    fun findAllByParty_UuidInAndUser_Uuid(
+        partyUuids: List<UUID>,
+        userUuid: UUID,
+    ): List<UserParty>
+
     fun findAllByUser_Uuid(
         userUuid: UUID,
         pageable: Pageable
