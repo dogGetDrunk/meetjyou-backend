@@ -45,7 +45,7 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                         NotificationCenterFixtures.notice("N1"),
                         NotificationCenterFixtures.notice("N2"),
                     )
-                    every { noticeRepository.findAll() } returns notices
+                    every { noticeRepository.findAllByOrderByCreatedAtDesc() } returns notices
 
                     val result = sut.getNotices(uuid)
 
@@ -60,7 +60,7 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                         NotificationCenterFixtures.notice("N1"),
                         NotificationCenterFixtures.notice("N2"),
                     )
-                    every { noticeRepository.findAll() } returns notices
+                    every { noticeRepository.findAllByOrderByCreatedAtDesc() } returns notices
                     user.lastNoticesViewedAt = notices.maxOf { it.createdAt }.plusSeconds(1)
 
                     val result = sut.getNotices(uuid)

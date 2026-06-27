@@ -9,4 +9,5 @@ interface NoticeRepository : JpaRepository<Notice, Long> {
     fun findByUuid(uuid: UUID): Notice?
     fun existsByUuid(uuid: UUID): Boolean
     fun deleteByUuid(uuid: UUID): Int
+    fun findAllByOrderByCreatedAtDesc(): List<Notice>
 }

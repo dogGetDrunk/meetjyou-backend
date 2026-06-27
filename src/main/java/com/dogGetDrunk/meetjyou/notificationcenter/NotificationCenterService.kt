@@ -31,7 +31,7 @@ class NotificationCenterService(
     @Transactional(readOnly = true)
     fun getNotices(userUuid: UUID): NoticesSectionResponse {
         val user = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
-        val notices = noticeRepository.findAll()
+        val notices = noticeRepository.findAllByOrderByCreatedAtDesc()
         val lastViewed = user.lastNoticesViewedAt
         val unreadCount = if (lastViewed == null) {
             notices.size
@@ -39,7 +39,6 @@ class NotificationCenterService(
             notices.count { it.createdAt.isAfter(lastViewed) }
         }
         val items = notices
-            .sortedByDescending { it.createdAt }
             .map { NoticeItem(uuid = it.uuid, title = it.title, body = it.body, createdAt = it.createdAt) }
         return NoticesSectionResponse(unreadCount = unreadCount, notices = items)
     }
