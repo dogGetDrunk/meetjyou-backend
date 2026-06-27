@@ -13,7 +13,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-./gradlew bootRun                                        # run (dev profile)
+SPRING_PROFILES_ACTIVE=dev,db,secrets \
+  GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/src/main/resources/firebase/meetjyou-firebase-adminsdk.json" \
+  ./gradlew bootRun                                      # run (dev profile, local)
 ./gradlew test                                           # all tests
 ./gradlew test --tests "FullyQualifiedClass.methodName"  # single test
 ```
