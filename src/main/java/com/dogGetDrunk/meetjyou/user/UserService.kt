@@ -108,7 +108,11 @@ class UserService(
 
     @Transactional(readOnly = true)
     fun getAllUsersProfile(): List<BasicUserResponse> {
-        return userRepository.findAll().map { toBasicUserResponse(it) }
+        val users = userRepository.findAll()
+        if (users.isEmpty()) return emptyList()
+        val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.map { it.id })
+            .groupBy { it.user.id }
+        return users.map { toBasicUserResponse(it, prefsMap[it.id] ?: emptyList()) }
     }
 
     @Transactional
@@ -147,6 +151,29 @@ class UserService(
             travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
             diet = getPreferenceNames(user.id, PreferenceType.DIET),
             etc = getPreferenceNames(user.id, PreferenceType.ETC),
+            authProvider = user.authProvider,
+            marketingConsented = user.marketingConsented,
+        )
+    }
+
+    private fun toBasicUserResponse(user: User, userPrefs: List<UserPreference>): BasicUserResponse {
+        val thumbImgUrl = user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
+        fun firstName(type: PreferenceType) = userPrefs
+            .firstOrNull { it.preference.type == type }?.preference?.name
+            ?: throw PreferenceNotFoundException(type.name)
+        fun nameList(type: PreferenceType) = userPrefs
+            .filter { it.preference.type == type }.map { it.preference.name }
+        return BasicUserResponse(
+            uuid = user.uuid,
+            nickname = user.nickname,
+            bio = user.bio,
+            thumbImgUrl = thumbImgUrl,
+            gender = firstName(PreferenceType.GENDER),
+            age = firstName(PreferenceType.AGE),
+            personalities = nameList(PreferenceType.PERSONALITY),
+            travelStyles = nameList(PreferenceType.TRAVEL_STYLE),
+            diet = nameList(PreferenceType.DIET),
+            etc = nameList(PreferenceType.ETC),
             authProvider = user.authProvider,
             marketingConsented = user.marketingConsented,
         )

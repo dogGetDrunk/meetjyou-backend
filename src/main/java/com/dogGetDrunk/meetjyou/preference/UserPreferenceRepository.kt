@@ -17,4 +17,6 @@ interface UserPreferenceRepository : JpaRepository<UserPreference, Long> {
 
     @Query("SELECT up.preference FROM UserPreference up WHERE up.user.id = :userId AND up.preference.type = :type")
     fun findPreferencesByUserIdAndType(@Param("userId") userId: Long, @Param("type") type: PreferenceType): List<Preference>
+
+    fun findAllByUser_IdIn(userIds: List<Long>): List<UserPreference>
 }

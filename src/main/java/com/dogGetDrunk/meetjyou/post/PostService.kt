@@ -10,6 +10,7 @@ import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.chat.room.dto.ChatRoomResponse
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
+import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
@@ -26,6 +27,7 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.toCompanionSpec
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
+import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
@@ -113,8 +115,23 @@ class PostService(
             throw UserNotFoundException(authorUuid)
         }
 
-        return postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
-            .map { buildGetPostResponse(it) }
+        val posts = postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
+        if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it) }
+
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val planUuids = posts.content.mapNotNull { if (it.isPlanPublic == true) it.plan?.uuid else null }
+        val partyUuids = posts.content.map { it.party.uuid }
+
+        val compPrefsMap = compPreferenceRepository.findAllByPostIn(posts.content).groupBy { it.post.id }
+        val markersMap = if (planUuids.isEmpty()) {
+            emptyMap()
+        } else {
+            markerRepository.findAllByPlan_UuidIn(planUuids).groupBy { it.plan.uuid }
+        }
+        val myStatusMap = userPartyRepository.findAllByParty_UuidInAndUser_Uuid(partyUuids, currentUserUuid)
+            .associateBy { it.party.uuid }
+
+        return posts.map { buildGetPostResponse(it, compPrefsMap, markersMap, myStatusMap) }
     }
 
     @Transactional(readOnly = true)
@@ -124,8 +141,25 @@ class PostService(
 
     @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<GetPostResponse> {
-        return postRepository.findAll(pageable)
-            .map { buildGetPostResponse(it) }
+        val posts = postRepository.findAll(pageable)
+        if (posts.content.isEmpty()) {
+            return posts.map { buildGetPostResponse(it) }
+        }
+
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val planUuids = posts.content.mapNotNull { if (it.isPlanPublic == true) it.plan?.uuid else null }
+        val partyUuids = posts.content.map { it.party.uuid }
+
+        val compPrefsMap = compPreferenceRepository.findAllByPostIn(posts.content).groupBy { it.post.id }
+        val markersMap = if (planUuids.isEmpty()) {
+            emptyMap()
+        }   else {
+            markerRepository.findAllByPlan_UuidIn(planUuids).groupBy { it.plan.uuid }
+        }
+        val myStatusMap = userPartyRepository.findAllByParty_UuidInAndUser_Uuid(partyUuids, currentUserUuid)
+            .associateBy { it.party.uuid }
+
+        return posts.map { buildGetPostResponse(it, compPrefsMap, markersMap, myStatusMap) }
     }
 
     @Transactional
@@ -205,6 +239,21 @@ class PostService(
         val myApplicationStatus = userPartyRepository
             .findByParty_UuidAndUser_Uuid(post.party.uuid, currentUserUuid)
             ?.memberStatus
+        return GetPostResponse.of(post, companionSpec, plan, myApplicationStatus)
+    }
+
+    private fun buildGetPostResponse(
+        post: Post,
+        compPrefsMap: Map<Long, List<CompPreference>>,
+        markersMap: Map<UUID, List<Marker>>,
+        myStatusMap: Map<UUID, UserParty>,
+    ): GetPostResponse {
+        val companionSpec = (compPrefsMap[post.id] ?: emptyList()).toCompanionSpec()
+        val plan = if (post.isPlanPublic == true && post.plan != null) {
+            val markers = markersMap[post.plan!!.uuid] ?: emptyList()
+            GetPlanResponse.of(post.plan!!, markers)
+        } else null
+        val myApplicationStatus = myStatusMap[post.party.uuid]?.memberStatus
         return GetPostResponse.of(post, companionSpec, plan, myApplicationStatus)
     }
 
