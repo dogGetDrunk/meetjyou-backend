@@ -6,10 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Meetjyou (만나쥬)** — 여행 동행 찾기 서비스. Kotlin + Spring Boot + MySQL 기반으로 Oracle OCI에 배포되어 있다.
 
+## Branch Check Protocol
+
+본격적인 작업 시작 전, 반드시 `git branch --show-current`로 현재 브랜치를 확인하고 사용자에게 알릴 것. 예상 브랜치가 아닌 경우 작업을 시작하지 말고 사용자에게 확인을 받을 것.
+
 ## Commands
 
 ```bash
-./gradlew bootRun                                        # run (dev profile)
+SPRING_PROFILES_ACTIVE=dev,db,secrets \
+  GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/src/main/resources/firebase/meetjyou-firebase-adminsdk.json" \
+  ./gradlew bootRun                                      # run (dev profile, local)
 ./gradlew test                                           # all tests
 ./gradlew test --tests "FullyQualifiedClass.methodName"  # single test
 ```

@@ -20,6 +20,7 @@ import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.springframework.context.ApplicationEventPublisher
 
 class ApproveJoinRequestTest : BehaviorSpec() {
@@ -71,6 +72,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
 
                     party.joined shouldBe joinedBefore + 1
                     pendingMembership.memberStatus shouldBe MemberStatus.JOINED
+                    verify(exactly = 2) { publisher.publishEvent(any<Any>()) } // applicant: JOIN_ACCEPTED, host: MEMBER_JOINED
                 }
             }
 
