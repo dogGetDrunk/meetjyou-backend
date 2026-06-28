@@ -22,6 +22,24 @@
             </encoder>
         </appender>
 
+        <appender name="ACCESS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/access.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/access-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                <maxFileSize>20MB</maxFileSize>
+                <maxHistory>7</maxHistory>
+                <totalSizeCap>100MB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <!-- ACCESS logger: file only, suppressed from root console -->
+        <logger name="ACCESS" level="INFO" additivity="false">
+            <appender-ref ref="ACCESS_FILE"/>
+        </logger>
+
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="ERROR_FILE"/>
@@ -29,6 +47,11 @@
     </springProfile>
 
     <springProfile name="!release">
+        <!-- ACCESS logger: console only in dev -->
+        <logger name="ACCESS" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>

@@ -18,7 +18,7 @@ class NoticeService(
     private val log = LoggerFactory.getLogger(NoticeService::class.java)
 
     fun getAllNotices(): List<NoticeResponse> {
-        return noticeRepository.findAll().map { NoticeResponse.from(it) }
+        return noticeRepository.findAllByOrderByCreatedAtDesc().map { NoticeResponse.from(it) }
     }
 
     fun getNoticeByUuid(uuid: UUID): NoticeResponse {

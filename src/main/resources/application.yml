@@ -53,13 +53,23 @@ server:
   forward-headers-strategy: native
 
 management:
+  server:
+    port: 8081
   endpoints:
     web:
       exposure:
-        include: health
+        include: health, metrics, prometheus
   endpoint:
     health:
       show-details: never
+    metrics:
+      enabled: true
+  metrics:
+    tags:
+      application: meetjyou
+    distribution:
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
 
 dns:
   url: ${DNS_URL}
