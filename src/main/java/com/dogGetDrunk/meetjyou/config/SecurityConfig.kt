@@ -8,8 +8,10 @@ import com.dogGetDrunk.meetjyou.config.ApiVersionConfig.Companion.V1
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.annotation.Order
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
@@ -27,6 +29,16 @@ class SecurityConfig(
     private val devBypassAuthFilterProvider: ObjectProvider<DevBypassAuthFilter>,
     private val objectMapper: ObjectMapper,
 ) {
+
+    @Bean
+    @Order(1)
+    fun managementSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        http
+            .securityMatcher(EndpointRequest.toAnyEndpoint())
+            .authorizeHttpRequests { it.anyRequest().permitAll() }
+            .csrf { it.disable() }
+        return http.build()
+    }
 
     @Bean
     fun webSecurityCustomizer(): WebSecurityCustomizer =
