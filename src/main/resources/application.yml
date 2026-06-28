@@ -53,6 +53,8 @@ server:
   forward-headers-strategy: native
 
 management:
+  server:
+    port: 8081
   endpoints:
     web:
       exposure:
