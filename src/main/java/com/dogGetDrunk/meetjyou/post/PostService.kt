@@ -20,6 +20,7 @@ import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostResponse
+import com.dogGetDrunk.meetjyou.post.view.PostViewService
 import com.dogGetDrunk.meetjyou.preference.CompPreference
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
@@ -46,6 +47,7 @@ class PostService(
     private val planRepository: PlanRepository,
     private val markerRepository: MarkerRepository,
     private val userPartyRepository: UserPartyRepository,
+    private val postViewService: PostViewService,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
 
@@ -106,7 +108,17 @@ class PostService(
     fun getPostByUuid(postUuid: UUID): GetPostResponse {
         val post = postRepository.findByUuid(postUuid)
             ?: throw PostNotFoundException(postUuid)
-        return buildGetPostResponse(post)
+        val views = postViewService.getViewCount(post.id)
+        val response = buildGetPostResponse(post, views)
+
+        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val currentUser = userRepository.findByUuid(currentUserUuid)
+        if (currentUser != null) {
+            runCatching { postViewService.incrementIfEligible(post.id, currentUser.id) }
+                .onFailure { log.warn("Failed to increment view count. postId={}", post.id, it) }
+        }
+
+        return response
     }
 
     @Transactional(readOnly = true)
@@ -116,7 +128,7 @@ class PostService(
         }
 
         val posts = postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
-        if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it) }
+        if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it, 0L) }
 
         val currentUserUuid = SecurityUtil.getCurrentUserUuid()
         val planUuids = posts.content.mapNotNull { if (it.isPlanPublic == true) it.plan?.uuid else null }
@@ -130,8 +142,9 @@ class PostService(
         }
         val myStatusMap = userPartyRepository.findAllByParty_UuidInAndUser_Uuid(partyUuids, currentUserUuid)
             .associateBy { it.party.uuid }
+        val viewCountMap = postViewService.getViewCounts(posts.content.map { it.id })
 
-        return posts.map { buildGetPostResponse(it, compPrefsMap, markersMap, myStatusMap) }
+        return posts.map { buildGetPostResponse(it, compPrefsMap, markersMap, myStatusMap, viewCountMap) }
     }
 
     @Transactional(readOnly = true)
@@ -143,7 +156,7 @@ class PostService(
     fun getAllPosts(pageable: Pageable): Page<GetPostResponse> {
         val posts = postRepository.findAll(pageable)
         if (posts.content.isEmpty()) {
-            return posts.map { buildGetPostResponse(it) }
+            return posts.map { buildGetPostResponse(it, 0L) }
         }
 
         val currentUserUuid = SecurityUtil.getCurrentUserUuid()
@@ -153,13 +166,14 @@ class PostService(
         val compPrefsMap = compPreferenceRepository.findAllByPostIn(posts.content).groupBy { it.post.id }
         val markersMap = if (planUuids.isEmpty()) {
             emptyMap()
-        }   else {
+        } else {
             markerRepository.findAllByPlan_UuidIn(planUuids).groupBy { it.plan.uuid }
         }
         val myStatusMap = userPartyRepository.findAllByParty_UuidInAndUser_Uuid(partyUuids, currentUserUuid)
             .associateBy { it.party.uuid }
+        val viewCountMap = postViewService.getViewCounts(posts.content.map { it.id })
 
-        return posts.map { buildGetPostResponse(it, compPrefsMap, markersMap, myStatusMap) }
+        return posts.map { buildGetPostResponse(it, compPrefsMap, markersMap, myStatusMap, viewCountMap) }
     }
 
     @Transactional
@@ -229,7 +243,7 @@ class PostService(
         log.info("Post deleted: uuid=$postUuid")
     }
 
-    private fun buildGetPostResponse(post: Post): GetPostResponse {
+    private fun buildGetPostResponse(post: Post, views: Long): GetPostResponse {
         val companionSpec = compPreferenceRepository.findAllByPost(post).toCompanionSpec()
         val plan = if (post.isPlanPublic == true && post.plan != null) {
             val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(post.plan!!.uuid)
@@ -239,7 +253,7 @@ class PostService(
         val myApplicationStatus = userPartyRepository
             .findByParty_UuidAndUser_Uuid(post.party.uuid, currentUserUuid)
             ?.memberStatus
-        return GetPostResponse.of(post, companionSpec, plan, myApplicationStatus)
+        return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
     }
 
     private fun buildGetPostResponse(
@@ -247,6 +261,7 @@ class PostService(
         compPrefsMap: Map<Long, List<CompPreference>>,
         markersMap: Map<UUID, List<Marker>>,
         myStatusMap: Map<UUID, UserParty>,
+        viewCountMap: Map<Long, Long>,
     ): GetPostResponse {
         val companionSpec = (compPrefsMap[post.id] ?: emptyList()).toCompanionSpec()
         val plan = if (post.isPlanPublic == true && post.plan != null) {
@@ -254,7 +269,8 @@ class PostService(
             GetPlanResponse.of(post.plan!!, markers)
         } else null
         val myApplicationStatus = myStatusMap[post.party.uuid]?.memberStatus
-        return GetPostResponse.of(post, companionSpec, plan, myApplicationStatus)
+        val views = viewCountMap[post.id] ?: 0L
+        return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
     }
 
     private fun saveCompPreference(post: Post, companionSpec: CompanionSpec?) {
