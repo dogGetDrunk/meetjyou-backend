@@ -20,6 +20,8 @@ import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostResponse
+import com.dogGetDrunk.meetjyou.post.dto.UpdatePostStatusRequest
+import com.dogGetDrunk.meetjyou.post.dto.UpdatePostStatusResponse
 import com.dogGetDrunk.meetjyou.post.view.PostViewService
 import com.dogGetDrunk.meetjyou.preference.CompPreference
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
@@ -218,6 +220,21 @@ class PostService(
 
         log.info("Post updated: ${post.uuid}")
         return UpdatePostResponse.of(post, request.companionSpec)
+    }
+
+    @Transactional
+    fun updatePostStatus(postUuid: UUID, request: UpdatePostStatusRequest): UpdatePostStatusResponse {
+        val post = postRepository.findByUuid(postUuid)
+            ?: throw PostNotFoundException(postUuid)
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+
+        if (userUuid != post.author.uuid) {
+            throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
+        }
+
+        post.status = request.status
+        log.info("Post status updated: uuid={} status={}", postUuid, request.status)
+        return UpdatePostStatusResponse.of(post)
     }
 
     @Transactional
