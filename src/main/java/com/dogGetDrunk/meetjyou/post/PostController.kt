@@ -6,6 +6,8 @@ import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostResponse
+import com.dogGetDrunk.meetjyou.post.dto.UpdatePostStatusRequest
+import com.dogGetDrunk.meetjyou.post.dto.UpdatePostStatusResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
@@ -20,6 +22,7 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -150,6 +153,39 @@ class PostController(
         @Valid @RequestBody updatePostRequest: UpdatePostRequest
     ): UpdatePostResponse {
         return postService.updatePost(postUuid, updatePostRequest)
+    }
+
+    @Operation(summary = "모집글 모집 상태 변경", description = "모집글의 모집 상태(RECRUITING / RECRUITMENT_COMPLETED)를 변경합니다. 작성자만 변경할 수 있습니다.")
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "상태 변경 성공",
+                content = [Content(schema = Schema(implementation = UpdatePostStatusResponse::class))]
+            ),
+            ApiResponse(
+                responseCode = "400",
+                description = "잘못된 요청 형식",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            ),
+            ApiResponse(
+                responseCode = "403",
+                description = "작성자가 아닌 사용자의 요청",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "postUuid에 해당하는 모집글을 찾을 수 없음",
+                content = [Content(schema = Schema(implementation = ErrorResponse::class))]
+            )
+        ]
+    )
+    @PatchMapping("/{postUuid}/status")
+    fun updatePostStatus(
+        @PathVariable postUuid: UUID,
+        @Valid @RequestBody request: UpdatePostStatusRequest,
+    ): UpdatePostStatusResponse {
+        return postService.updatePostStatus(postUuid, request)
     }
 
     @Operation(summary = "모집글 삭제", description = "uuid를 통해 모집글을 삭제합니다.")
