@@ -14,7 +14,7 @@ data class GetPostResponse(
     val createdAt: Instant,
     val lastEditedAt: Instant,
     val postStatus: PostStatus,
-    val views: Int,
+    val views: Long,
     val authorUuid: UUID,
     val isInstant: Boolean,
     val itinStart: Instant,
@@ -33,6 +33,7 @@ data class GetPostResponse(
         fun of(
             post: Post,
             companionSpec: CompanionSpec?,
+            views: Long = 0L,
             plan: GetPlanResponse? = null,
             myApplicationStatus: MemberStatus? = null,
         ): GetPostResponse {
@@ -43,7 +44,7 @@ data class GetPostResponse(
                 createdAt = post.createdAt,
                 lastEditedAt = post.lastEditedAt,
                 postStatus = post.status,
-                views = post.views,
+                views = views,
                 authorUuid = post.author.uuid,
                 isInstant = post.isInstant,
                 itinStart = post.itinStart,

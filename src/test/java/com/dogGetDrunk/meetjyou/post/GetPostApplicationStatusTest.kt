@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFix
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
+import com.dogGetDrunk.meetjyou.post.view.PostViewService
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
@@ -30,9 +31,10 @@ class GetPostApplicationStatusTest : BehaviorSpec() {
     private val planRepository = mockk<PlanRepository>(relaxed = true)
     private val markerRepository = mockk<MarkerRepository>(relaxed = true)
     private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
+    private val postViewService = mockk<PostViewService>(relaxed = true)
     private val sut = PostService(
         postRepository, userRepository, compPreferenceRepository, preferenceRepository,
-        partyService, planRepository, markerRepository, userPartyRepository,
+        partyService, planRepository, markerRepository, userPartyRepository, postViewService,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
