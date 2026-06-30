@@ -17,6 +17,8 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.Pageable
 
 class NotificationCenterServiceTest : BehaviorSpec() {
 
@@ -45,9 +47,11 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                         NotificationCenterFixtures.notice("N1"),
                         NotificationCenterFixtures.notice("N2"),
                     )
-                    every { noticeRepository.findAllByOrderByCreatedAtDesc() } returns notices
+                    val pageable = Pageable.ofSize(20)
+                    every { noticeRepository.count() } returns 2
+                    every { noticeRepository.findAllByOrderByCreatedAtDesc(pageable) } returns PageImpl(notices)
 
-                    val result = sut.getNotices(uuid)
+                    val result = sut.getNotices(uuid, pageable)
 
                     result.unreadCount shouldBe 2
                     result.notices.size shouldBe 2
@@ -60,10 +64,12 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                         NotificationCenterFixtures.notice("N1"),
                         NotificationCenterFixtures.notice("N2"),
                     )
-                    every { noticeRepository.findAllByOrderByCreatedAtDesc() } returns notices
+                    val pageable = Pageable.ofSize(20)
+                    every { noticeRepository.countByCreatedAtAfter(any()) } returns 0
+                    every { noticeRepository.findAllByOrderByCreatedAtDesc(pageable) } returns PageImpl(notices)
                     user.lastNoticesViewedAt = notices.maxOf { it.createdAt }.plusSeconds(1)
 
-                    val result = sut.getNotices(uuid)
+                    val result = sut.getNotices(uuid, pageable)
 
                     result.unreadCount shouldBe 0
                 }
@@ -73,7 +79,7 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                 then("UserNotFoundException을 던진다") {
                     every { userRepository.findByUuid(uuid) } returns null
 
-                    shouldThrow<UserNotFoundException> { sut.getNotices(uuid) }
+                    shouldThrow<UserNotFoundException> { sut.getNotices(uuid, Pageable.ofSize(20)) }
                 }
             }
         }
@@ -110,7 +116,7 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                     every { userPartyRepository.findAllPendingRequestsForHost(hostUuid) } returns listOf(pending)
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid)) } returns listOf(post)
 
-                    val result = sut.getReceivedApplications(hostUuid)
+                    val result = sut.getReceivedApplications(hostUuid, Pageable.ofSize(20))
 
                     result.unreadCount shouldBe 1
                     result.applications.size shouldBe 1
@@ -125,7 +131,7 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                     every { userPartyRepository.findAllPendingRequestsForHost(hostUuid) } returns emptyList()
                     every { postRepository.findAllByParty_UuidIn(emptyList()) } returns emptyList()
 
-                    val result = sut.getReceivedApplications(hostUuid)
+                    val result = sut.getReceivedApplications(hostUuid, Pageable.ofSize(20))
 
                     result.unreadCount shouldBe 0
                     result.applications shouldBe emptyList()
@@ -167,7 +173,7 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                     every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid) } returns listOf(pending)
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid)) } returns listOf(post)
 
-                    val result = sut.getSentApplications(userUuid)
+                    val result = sut.getSentApplications(userUuid, Pageable.ofSize(20))
 
                     result.pendingCount shouldBe 1
                     result.changedCount shouldBe 0
@@ -183,7 +189,7 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                     every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid) } returns listOf(accepted)
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid)) } returns listOf(post)
 
-                    val result = sut.getSentApplications(userUuid)
+                    val result = sut.getSentApplications(userUuid, Pageable.ofSize(20))
 
                     result.changedCount shouldBe 1
                     result.applications[0].status shouldBe ApplicationStatus.ACCEPTED
@@ -198,7 +204,7 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                     every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid) } returns listOf(rejected)
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid)) } returns listOf(post)
 
-                    val result = sut.getSentApplications(userUuid)
+                    val result = sut.getSentApplications(userUuid, Pageable.ofSize(20))
 
                     result.changedCount shouldBe 1
                     result.applications[0].status shouldBe ApplicationStatus.REJECTED

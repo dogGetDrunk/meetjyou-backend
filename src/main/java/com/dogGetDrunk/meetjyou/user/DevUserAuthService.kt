@@ -67,6 +67,6 @@ class DevUserAuthService(
                 expiresAt = generated.expiresAt,
             )
         )
-        return TokenResponse(user.uuid, user.email, accessToken, generated.token)
+        return TokenResponse(user.uuid, accessToken, generated.token)
     }
 }

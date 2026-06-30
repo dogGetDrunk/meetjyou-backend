@@ -10,6 +10,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.springdoc.core.annotations.ParameterObject
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -43,8 +48,11 @@ class NoticeController(
         ]
     )
     @GetMapping
-    fun getAllNotices(): ResponseEntity<List<NoticeResponse>> {
-        val result = noticeService.getAllNotices()
+    fun getAllNotices(
+        @ParameterObject
+        @PageableDefault(size = 20, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): ResponseEntity<Page<NoticeResponse>> {
+        val result = noticeService.getAllNotices(pageable)
         return ResponseEntity.ok(result)
     }
 

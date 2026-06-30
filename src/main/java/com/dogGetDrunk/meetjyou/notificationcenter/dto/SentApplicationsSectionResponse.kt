@@ -19,5 +19,6 @@ data class SentApplicationItem(
 data class SentApplicationsSectionResponse(
     val pendingCount: Int,
     val changedCount: Int,
+    val totalCount: Long,
     val applications: List<SentApplicationItem>,
 )

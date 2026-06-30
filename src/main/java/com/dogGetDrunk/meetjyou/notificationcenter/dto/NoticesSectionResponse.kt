@@ -12,5 +12,6 @@ data class NoticeItem(
 
 data class NoticesSectionResponse(
     val unreadCount: Int,
+    val totalCount: Long,
     val notices: List<NoticeItem>,
 )

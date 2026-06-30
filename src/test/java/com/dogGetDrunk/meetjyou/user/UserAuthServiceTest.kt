@@ -83,7 +83,6 @@ class UserAuthServiceTest : BehaviorSpec() {
                     result.accessToken shouldBe "new.access.token"
                     result.refreshToken shouldBe "new.refresh.token"
                     result.uuid shouldBe user.uuid
-                    result.email shouldBe user.email
                 }
             }
 

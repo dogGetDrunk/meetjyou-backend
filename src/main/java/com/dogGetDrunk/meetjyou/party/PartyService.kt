@@ -124,13 +124,14 @@ class PartyService(
     }
 
     @Transactional(readOnly = true)
-    fun getMyParties(userUuid: UUID): List<GetMyPartyResponse> {
-        val memberships = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(userUuid, MemberStatus.JOINED)
-        val partyUuids = memberships.map { it.party.uuid }
+    fun getMyParties(userUuid: UUID, pageable: Pageable): Page<GetMyPartyResponse> {
+        val membershipPage = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(userUuid, MemberStatus.JOINED, pageable)
+        val partyUuids = membershipPage.content.map { it.party.uuid }
         val roomByPartyUuid = chatRoomRepository.findAllWithPartyByPartyUuidIn(partyUuids)
             .associateBy { it.party.uuid }
-        return memberships.mapNotNull { userParty ->
-            val chatRoom = roomByPartyUuid[userParty.party.uuid] ?: return@mapNotNull null
+        return membershipPage.map { userParty ->
+            val chatRoom = roomByPartyUuid[userParty.party.uuid]
+                ?: error("ChatRoom not found for party ${userParty.party.uuid}")
             GetMyPartyResponse.of(userParty, chatRoom)
         }
     }
@@ -321,11 +322,11 @@ class PartyService(
     }
 
     @Transactional(readOnly = true)
-    fun getMyApplications(userUuid: UUID): List<MyApplicationResponse> {
-        val applications = userPartyRepository.findAllSentApplicationsByUserUuid(userUuid)
-        val partyUuids = applications.map { it.party.uuid }
+    fun getMyApplications(userUuid: UUID, pageable: Pageable): Page<MyApplicationResponse> {
+        val applicationPage = userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable)
+        val partyUuids = applicationPage.content.map { it.party.uuid }
         val postByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associateBy { it.party.uuid }
-        return applications.map { up ->
+        return applicationPage.map { up ->
             val status = when (up.memberStatus) {
                 MemberStatus.JOINED   -> JoinRequestStatus.ACCEPTED
                 MemberStatus.REJECTED -> JoinRequestStatus.REJECTED

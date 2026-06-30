@@ -12,6 +12,7 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
+import com.dogGetDrunk.meetjyou.user.dto.PublicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import com.dogGetDrunk.meetjyou.user.dto.normalizeOrNull
@@ -107,6 +108,14 @@ class UserService(
     }
 
     @Transactional(readOnly = true)
+    fun getPublicUserProfile(uuid: UUID): PublicUserResponse {
+        val user = userRepository.findByUuid(uuid)
+            ?: throw UserNotFoundException(uuid)
+
+        return toPublicUserResponse(user)
+    }
+
+    @Transactional(readOnly = true)
     fun getAllUsersProfile(): List<BasicUserResponse> {
         val users = userRepository.findAll()
         if (users.isEmpty()) return emptyList()
@@ -136,6 +145,22 @@ class UserService(
         val uuid = SecurityUtil.getCurrentUserUuid()
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
         user.marketingConsented = consented
+    }
+
+    private fun toPublicUserResponse(user: User): PublicUserResponse {
+        val thumbImgUrl = user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
+        return PublicUserResponse(
+            uuid = user.uuid,
+            nickname = user.nickname,
+            bio = user.bio,
+            thumbImgUrl = thumbImgUrl,
+            gender = getPreferenceName(user.id, PreferenceType.GENDER),
+            age = getPreferenceName(user.id, PreferenceType.AGE),
+            personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
+            travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
+            diet = getPreferenceNames(user.id, PreferenceType.DIET),
+            etc = getPreferenceNames(user.id, PreferenceType.ETC),
+        )
     }
 
     private fun toBasicUserResponse(user: User): BasicUserResponse {
