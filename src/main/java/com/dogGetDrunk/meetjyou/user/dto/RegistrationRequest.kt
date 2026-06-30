@@ -20,7 +20,7 @@ data class RegistrationRequest(
     val email: String,
     @field:Size(min = 2, max = 8)
     @field:NotBlank
-    @field:Pattern(regexp = "^[a-zA-Z0-9가-힣_]+$") // 특수문자 포함 불가
+    @field:Pattern(regexp = "^[a-zA-Z0-9가-힣_]+$")
     val nickname: String,
     @field:Size(max = 30)
     val bio: String?,

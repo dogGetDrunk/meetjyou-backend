@@ -109,7 +109,7 @@ class OracleObjectStorageService(
         check(par != null) { "Failed to create OCI PAR." }
 
         val accessUri = par.accessUri
-        val parUrl = props.parBaseUrl + accessUri
+        val parUrl = "${props.parBaseUrl}$accessUri"
 
         log.info(
             "Created OCI PAR. objectKey={}, accessType={}, httpMethod={}, expiresAt={}, parUrl={}",

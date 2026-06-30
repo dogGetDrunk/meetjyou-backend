@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.chat.dto.ChatRoomSummaryResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatMessagesResponse
 import com.dogGetDrunk.meetjyou.chat.dto.GetChatRoomsResponse
 import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
+import com.dogGetDrunk.meetjyou.chat.message.ChatMessage
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageResponse
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
@@ -370,7 +371,7 @@ class ChatReadService(
         }
     }
 
-    private fun toChatMessageResponses(messages: List<com.dogGetDrunk.meetjyou.chat.message.ChatMessage>): List<ChatMessageResponse> {
+    private fun toChatMessageResponses(messages: List<ChatMessage>): List<ChatMessageResponse> {
         if (messages.isEmpty()) {
             return emptyList()
         }

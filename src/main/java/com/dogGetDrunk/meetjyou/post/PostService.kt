@@ -6,12 +6,14 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundE
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.chat.room.dto.ChatRoomResponse
+import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
 import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
+import com.dogGetDrunk.meetjyou.plan.Plan
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.dto.CompanionSpec
@@ -28,8 +30,9 @@ import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.toCompanionSpec
-import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
+import com.dogGetDrunk.meetjyou.user.User
+import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
@@ -50,71 +53,29 @@ class PostService(
     private val markerRepository: MarkerRepository,
     private val userPartyRepository: UserPartyRepository,
     private val postViewService: PostViewService,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
 
     @Transactional
     fun createPost(request: CreatePostRequest): CreatePostResponse {
-        val authorUuid = SecurityUtil.getCurrentUserUuid()
-        val author = userRepository.findByUuid(authorUuid)
-            ?: throw UserNotFoundException(authorUuid)
-
-        if (request.planUuid != null) {
-            if (!planRepository.existsByUuid(request.planUuid)) {
-                throw PlanNotFoundException(request.planUuid)
-            }
-            requireNotNull(request.isPlanPublic) { "planUuid가 주어진 경우 isPlanPublic은 null일 수 없습니다." }
-        }
-
-        val partyResult = partyService.createParty(
-            CreatePartyRequest(
-                itinStart = request.itinStart,
-                itinFinish = request.itinFinish,
-                destination = request.location,
-                capacity = request.capacity,
-                joined = 1,
-                name = request.title,
-                planUuid = request.planUuid,
-                ownerUuid = authorUuid,
-            )
-        )
-
-        val newPost = Post(
-            party = partyResult.party,
-            isInstant = request.isInstant,
-            title = request.title,
-            content = request.content,
-            itinStart = request.itinStart,
-            itinFinish = request.itinFinish,
-            location = request.location,
-            capacity = request.capacity,
-        ).apply {
-            this.author = author
-            if (request.planUuid != null) {
-                this.plan = planRepository.findByUuid(request.planUuid)
-                this.isPlanPublic = request.isPlanPublic!!
-            }
-        }
-
-        postRepository.save(newPost)
-        if (request.companionSpec != null) {
-            saveCompPreference(newPost, request.companionSpec)
-        }
-
-        log.info("New post created: $newPost")
-
-        return CreatePostResponse.of(newPost, request.companionSpec, ChatRoomResponse.of(partyResult.chatRoom))
+        val author = requireCurrentUser()
+        val planRef = resolvePlanReference(request.planUuid, request.isPlanPublic)
+        val partyResult = partyService.createParty(buildCreatePartyRequest(request, author.uuid))
+        val post = buildPost(author, partyResult.party, request, planRef)
+        postRepository.save(post)
+        if (request.companionSpec != null) saveCompPreference(post, request.companionSpec)
+        log.info("New post created: $post")
+        return CreatePostResponse.of(post, request.companionSpec, ChatRoomResponse.of(partyResult.chatRoom))
     }
 
     @Transactional(readOnly = true)
     fun getPostByUuid(postUuid: UUID): GetPostResponse {
-        val post = postRepository.findByUuid(postUuid)
-            ?: throw PostNotFoundException(postUuid)
+        val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
         val views = postViewService.getViewCount(post.id)
         val response = buildGetPostResponse(post, views)
 
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
-        val currentUser = userRepository.findByUuid(currentUserUuid)
+        val currentUser = userRepository.findByUuid(currentUserProvider.uuid)
         if (currentUser != null) {
             runCatching { postViewService.incrementIfEligible(post.id, currentUser.id) }
                 .onFailure { log.warn("Failed to increment view count. postId={}", post.id, it) }
@@ -125,28 +86,12 @@ class PostService(
 
     @Transactional(readOnly = true)
     fun getPostByAuthorUuid(authorUuid: UUID, pageable: Pageable): Page<GetPostResponse> {
-        if (!userRepository.existsByUuid(authorUuid)) {
-            throw UserNotFoundException(authorUuid)
-        }
+        if (!userRepository.existsByUuid(authorUuid)) throw UserNotFoundException(authorUuid)
 
         val posts = postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
         if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it, 0L) }
 
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
-        val planUuids = posts.content.mapNotNull { if (it.isPlanPublic == true) it.plan?.uuid else null }
-        val partyUuids = posts.content.map { it.party.uuid }
-
-        val compPrefsMap = compPreferenceRepository.findAllByPostIn(posts.content).groupBy { it.post.id }
-        val markersMap = if (planUuids.isEmpty()) {
-            emptyMap()
-        } else {
-            markerRepository.findAllByPlan_UuidIn(planUuids).groupBy { it.plan.uuid }
-        }
-        val myStatusMap = userPartyRepository.findAllByParty_UuidInAndUser_Uuid(partyUuids, currentUserUuid)
-            .associateBy { it.party.uuid }
-        val viewCountMap = postViewService.getViewCounts(posts.content.map { it.id })
-
-        return posts.map { buildGetPostResponse(it, compPrefsMap, markersMap, myStatusMap, viewCountMap) }
+        return posts.map { buildGetPostResponse(it, loadPostContextMaps(posts.content, currentUserProvider.uuid)) }
     }
 
     @Transactional(readOnly = true)
@@ -157,50 +102,23 @@ class PostService(
     @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<GetPostResponse> {
         val posts = postRepository.findAll(pageable)
-        if (posts.content.isEmpty()) {
-            return posts.map { buildGetPostResponse(it, 0L) }
-        }
+        if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it, 0L) }
 
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
-        val planUuids = posts.content.mapNotNull { if (it.isPlanPublic == true) it.plan?.uuid else null }
-        val partyUuids = posts.content.map { it.party.uuid }
-
-        val compPrefsMap = compPreferenceRepository.findAllByPostIn(posts.content).groupBy { it.post.id }
-        val markersMap = if (planUuids.isEmpty()) {
-            emptyMap()
-        } else {
-            markerRepository.findAllByPlan_UuidIn(planUuids).groupBy { it.plan.uuid }
-        }
-        val myStatusMap = userPartyRepository.findAllByParty_UuidInAndUser_Uuid(partyUuids, currentUserUuid)
-            .associateBy { it.party.uuid }
-        val viewCountMap = postViewService.getViewCounts(posts.content.map { it.id })
-
-        return posts.map { buildGetPostResponse(it, compPrefsMap, markersMap, myStatusMap, viewCountMap) }
+        return posts.map { buildGetPostResponse(it, loadPostContextMaps(posts.content, currentUserProvider.uuid)) }
     }
 
     @Transactional
     fun updatePost(postUuid: UUID, request: UpdatePostRequest): UpdatePostResponse {
-        val post = postRepository.findByUuid(postUuid)
-            ?: throw PostNotFoundException(postUuid)
-        val userUuid = SecurityUtil.getCurrentUserUuid()
+        val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
+        val userUuid = currentUserProvider.uuid
 
-        if (userUuid != post.author.uuid) { // 이러면 author가 통째로 로드되야 함 -> 성능 이슈
+        if (userUuid != post.author.uuid) {
+            // comparing UUIDs forces full author entity load — potential N+1 on list operations
             throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
         }
 
-        if (post.party?.progressStatus == PartyProgressStatus.COMPLETED) {
-            throw InvalidInputException(
-                value = postUuid.toString(),
-                message = "Post linked to a completed party is read-only.",
-            )
-        }
-
-        if (request.planUuid != null) {
-            if (!planRepository.existsByUuid(request.planUuid)) {
-                throw PlanNotFoundException(request.planUuid)
-            }
-            requireNotNull(request.isPlanPublic) { "planUuid가 주어진 경우 isPlanPublic은 null일 수 없습니다." }
-        }
+        validatePostWritable(postUuid, post)
+        validatePlanReferenceExists(request.planUuid, request.isPlanPublic)
 
         post.apply {
             title = request.title
@@ -214,7 +132,8 @@ class PostService(
         }
 
         if (request.companionSpec != null) {
-            compPreferenceRepository.deleteAllByPost(post) // delete + create가 아닌 update로 바꾸는 게 좋을 듯
+            // delete-then-insert instead of update — consider optimizing to an upsert
+            compPreferenceRepository.deleteAllByPost(post)
             saveCompPreference(post, request.companionSpec)
         }
 
@@ -224,9 +143,8 @@ class PostService(
 
     @Transactional
     fun updatePostStatus(postUuid: UUID, request: UpdatePostStatusRequest): UpdatePostStatusResponse {
-        val post = postRepository.findByUuid(postUuid)
-            ?: throw PostNotFoundException(postUuid)
-        val userUuid = SecurityUtil.getCurrentUserUuid()
+        val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
+        val userUuid = currentUserProvider.uuid
 
         if (userUuid != post.author.uuid) {
             throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
@@ -239,56 +157,125 @@ class PostService(
 
     @Transactional
     fun deletePost(postUuid: UUID) {
-        val post = postRepository.findByUuid(postUuid)
-            ?: throw PostNotFoundException(postUuid)
-        val userUuid = SecurityUtil.getCurrentUserUuid()
+        val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
+        val userUuid = currentUserProvider.uuid
 
         if (userUuid != post.author.uuid) {
             throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
         }
 
+        validatePostWritable(postUuid, post)
+        compPreferenceRepository.deleteAllByPost(post)
+        postRepository.delete(post)
+        log.info("Post deleted: uuid=$postUuid")
+    }
+
+    private fun requireCurrentUser(): User {
+        val uuid = currentUserProvider.uuid
+        return userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+    }
+
+    private data class PostContextMaps(
+        val compPrefsMap: Map<Long, List<CompPreference>>,
+        val markersMap: Map<UUID, List<Marker>>,
+        val myStatusMap: Map<UUID, UserParty>,
+        val viewCountMap: Map<Long, Long>,
+    )
+
+    private fun loadPostContextMaps(posts: List<Post>, currentUserUuid: UUID): PostContextMaps {
+        val planUuids = posts.mapNotNull { if (it.isPlanPublic == true) it.plan?.uuid else null }
+        val partyUuids = posts.map { it.party.uuid }
+        return PostContextMaps(
+            compPrefsMap = compPreferenceRepository.findAllByPostIn(posts).groupBy { it.post.id },
+            markersMap = if (planUuids.isEmpty()) emptyMap()
+                else markerRepository.findAllByPlan_UuidIn(planUuids).groupBy { it.plan.uuid },
+            myStatusMap = userPartyRepository.findAllByParty_UuidInAndUser_Uuid(partyUuids, currentUserUuid)
+                .associateBy { it.party.uuid },
+            viewCountMap = postViewService.getViewCounts(posts.map { it.id }),
+        )
+    }
+
+    private fun buildGetPostResponse(post: Post, views: Long): GetPostResponse {
+        val companionSpec = compPreferenceRepository.findAllByPost(post).toCompanionSpec()
+        val plan = resolvePlanResponse(post.plan?.uuid?.takeIf { post.isPlanPublic == true })
+        val myApplicationStatus = userPartyRepository
+            .findByParty_UuidAndUser_Uuid(post.party.uuid, currentUserProvider.uuid)
+            ?.memberStatus
+        return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
+    }
+
+    private fun buildGetPostResponse(post: Post, ctx: PostContextMaps): GetPostResponse {
+        val companionSpec = (ctx.compPrefsMap[post.id] ?: emptyList()).toCompanionSpec()
+        val plan = resolvePlanResponse(post.plan?.uuid?.takeIf { post.isPlanPublic == true }, ctx.markersMap)
+        val myApplicationStatus = ctx.myStatusMap[post.party.uuid]?.memberStatus
+        val views = ctx.viewCountMap[post.id] ?: 0L
+        return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
+    }
+
+    private fun resolvePlanResponse(planUuid: UUID?): GetPlanResponse? {
+        if (planUuid == null) return null
+        val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
+        val plan = planRepository.findByUuid(planUuid) ?: return null
+        return GetPlanResponse.of(plan, markers)
+    }
+
+    private fun resolvePlanResponse(planUuid: UUID?, markersMap: Map<UUID, List<Marker>>): GetPlanResponse? {
+        if (planUuid == null) return null
+        val plan = planRepository.findByUuid(planUuid) ?: return null
+        return GetPlanResponse.of(plan, markersMap[planUuid] ?: emptyList())
+    }
+
+    private fun resolvePlanReference(planUuid: UUID?, isPlanPublic: Boolean?): Pair<Plan, Boolean>? {
+        if (planUuid == null) return null
+        val plan = planRepository.findByUuid(planUuid) ?: throw PlanNotFoundException(planUuid)
+        val public = isPlanPublic
+            ?: throw InvalidInputException(value = "isPlanPublic", message = "isPlanPublic is required when planUuid is provided")
+        return Pair(plan, public)
+    }
+
+    private fun validatePlanReferenceExists(planUuid: UUID?, isPlanPublic: Boolean?) {
+        if (planUuid == null) return
+        if (!planRepository.existsByUuid(planUuid)) throw PlanNotFoundException(planUuid)
+        isPlanPublic ?: throw InvalidInputException(value = "isPlanPublic", message = "isPlanPublic is required when planUuid is provided")
+    }
+
+    private fun validatePostWritable(postUuid: UUID, post: Post) {
         if (post.party?.progressStatus == PartyProgressStatus.COMPLETED) {
             throw InvalidInputException(
                 value = postUuid.toString(),
                 message = "Post linked to a completed party is read-only.",
             )
         }
-
-        compPreferenceRepository.deleteAllByPost(post)
-        postRepository.delete(post)
-
-        log.info("Post deleted: uuid=$postUuid")
     }
 
-    private fun buildGetPostResponse(post: Post, views: Long): GetPostResponse {
-        val companionSpec = compPreferenceRepository.findAllByPost(post).toCompanionSpec()
-        val plan = if (post.isPlanPublic == true && post.plan != null) {
-            val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(post.plan!!.uuid)
-            GetPlanResponse.of(post.plan!!, markers)
-        } else null
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
-        val myApplicationStatus = userPartyRepository
-            .findByParty_UuidAndUser_Uuid(post.party.uuid, currentUserUuid)
-            ?.memberStatus
-        return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
-    }
+    private fun buildCreatePartyRequest(request: CreatePostRequest, ownerUuid: UUID) = CreatePartyRequest(
+        itinStart = request.itinStart,
+        itinFinish = request.itinFinish,
+        destination = request.location,
+        capacity = request.capacity,
+        joined = 1,
+        name = request.title,
+        planUuid = request.planUuid,
+        ownerUuid = ownerUuid,
+    )
 
-    private fun buildGetPostResponse(
-        post: Post,
-        compPrefsMap: Map<Long, List<CompPreference>>,
-        markersMap: Map<UUID, List<Marker>>,
-        myStatusMap: Map<UUID, UserParty>,
-        viewCountMap: Map<Long, Long>,
-    ): GetPostResponse {
-        val companionSpec = (compPrefsMap[post.id] ?: emptyList()).toCompanionSpec()
-        val plan = if (post.isPlanPublic == true && post.plan != null) {
-            val markers = markersMap[post.plan!!.uuid] ?: emptyList()
-            GetPlanResponse.of(post.plan!!, markers)
-        } else null
-        val myApplicationStatus = myStatusMap[post.party.uuid]?.memberStatus
-        val views = viewCountMap[post.id] ?: 0L
-        return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
-    }
+    private fun buildPost(author: User, party: Party, request: CreatePostRequest, planRef: Pair<Plan, Boolean>?): Post =
+        Post(
+            party = party,
+            isInstant = request.isInstant,
+            title = request.title,
+            content = request.content,
+            itinStart = request.itinStart,
+            itinFinish = request.itinFinish,
+            location = request.location,
+            capacity = request.capacity,
+        ).apply {
+            this.author = author
+            if (planRef != null) {
+                this.plan = planRef.first
+                this.isPlanPublic = planRef.second
+            }
+        }
 
     private fun saveCompPreference(post: Post, companionSpec: CompanionSpec?) {
         if (companionSpec == null) {

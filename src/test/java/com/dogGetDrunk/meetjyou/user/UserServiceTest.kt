@@ -1,8 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
 import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
@@ -12,35 +11,31 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.unmockkAll
 
 class UserServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val preferenceRepository = mockk<PreferenceRepository>(relaxed = true)
     private val userPreferenceRepository = mockk<UserPreferenceRepository>(relaxed = true)
-    private val jwtProvider = mockk<JwtProvider>(relaxed = true)
+
     private val defaultProfileImageProvider = mockk<DefaultProfileImageProvider>(relaxed = true)
+    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
 
     private val sut = UserService(
         userRepository,
         preferenceRepository,
         userPreferenceRepository,
-        jwtProvider,
         defaultProfileImageProvider,
+        currentUserProvider,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
     init {
-        beforeEach {
-            clearAllMocks()
-            mockkObject(SecurityUtil)
-        }
+        beforeEach { clearAllMocks() }
         afterSpec { unmockkAll() }
 
         // ── confirmProfileImage ──────────────────────────────────────────────
@@ -50,8 +45,8 @@ class UserServiceTest : BehaviorSpec() {
             val uuid = user.uuid
 
             beforeEach {
-                every { SecurityUtil.getCurrentUserUuid() } returns uuid
-                every { userRepository.findByUuid(uuid) } returns user
+                every { currentUserProvider.uuid } returns uuid
+                every { currentUserProvider.user } returns user
             }
 
             `when`("정상적으로 호출되면") {
@@ -65,7 +60,7 @@ class UserServiceTest : BehaviorSpec() {
 
             `when`("유저가 존재하지 않으면") {
                 then("UserNotFoundException을 던진다") {
-                    every { userRepository.findByUuid(uuid) } returns null
+                    every { currentUserProvider.user } throws UserNotFoundException(uuid)
 
                     shouldThrow<UserNotFoundException> { sut.confirmProfileImage() }
                 }
@@ -82,8 +77,8 @@ class UserServiceTest : BehaviorSpec() {
             val uuid = user.uuid
 
             beforeEach {
-                every { SecurityUtil.getCurrentUserUuid() } returns uuid
-                every { userRepository.findByUuid(uuid) } returns user
+                every { currentUserProvider.uuid } returns uuid
+                every { currentUserProvider.user } returns user
             }
 
             `when`("정상적으로 호출되면") {
@@ -103,8 +98,8 @@ class UserServiceTest : BehaviorSpec() {
             val uuid = user.uuid
 
             beforeEach {
-                every { SecurityUtil.getCurrentUserUuid() } returns uuid
-                every { userRepository.findByUuid(uuid) } returns user
+                every { currentUserProvider.uuid } returns uuid
+                every { currentUserProvider.user } returns user
             }
 
             `when`("consented = true로 호출되면") {
@@ -126,7 +121,7 @@ class UserServiceTest : BehaviorSpec() {
 
             `when`("유저가 존재하지 않으면") {
                 then("UserNotFoundException을 던진다") {
-                    every { userRepository.findByUuid(uuid) } returns null
+                    every { currentUserProvider.user } throws UserNotFoundException(uuid)
 
                     shouldThrow<UserNotFoundException> { sut.updateMarketingConsent(true) }
                 }

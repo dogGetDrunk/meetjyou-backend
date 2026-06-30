@@ -34,7 +34,7 @@ class NotificationDispatcher(
         val items = outboxRepository.lockNextPendings(limit)
         if (items.isEmpty()) return
 
-        // 선택한 레코드 상태를 SENDING으로 변경(동일 트랜잭션)
+        // status changed to SENDING within the same transaction to prevent duplicate dispatch
         outboxRepository.bulkUpdateStatus(items.map { it.id }, DeliveryStatus.SENDING)
 
         for (item in items) {
@@ -58,7 +58,7 @@ class NotificationDispatcher(
     private fun processItem(item: NotificationOutbox) {
         val tokens = targetResolver.resolveUserTargets(item.user.id)
         if (tokens.isEmpty()) {
-            mark(item, DeliveryStatus.SENT, item.attempts + 1, item.availableAt) // 토큰이 없으면 실질적으로 보낼 대상이 없어 완료 처리
+            mark(item, DeliveryStatus.SENT, item.attempts + 1, item.availableAt) // no push tokens registered — no recipients to deliver to, mark as sent
             log.info("No tokens for userId={}, mark SENT. outboxId={}", item.user.id, item.id)
             return
         }

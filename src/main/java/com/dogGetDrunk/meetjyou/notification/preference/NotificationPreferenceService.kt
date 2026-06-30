@@ -1,7 +1,6 @@
 package com.dogGetDrunk.meetjyou.notification.preference
 
-import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.preference.dto.NotificationSettingsResponse
 import com.dogGetDrunk.meetjyou.notification.preference.dto.UpdateNotificationSettingsRequest
@@ -14,11 +13,11 @@ import org.springframework.transaction.annotation.Transactional
 class NotificationPreferenceService(
     private val userRepository: UserRepository,
     private val preferenceRepository: UserNotificationPreferenceRepository,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     @Transactional(readOnly = true)
     fun getSettings(): NotificationSettingsResponse {
-        val uuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        val user = currentUserProvider.user
 
         val persisted = preferenceRepository.findAllByUser(user)
             .associate { it.notificationType to it.enabled }
@@ -43,8 +42,7 @@ class NotificationPreferenceService(
 
     @Transactional
     fun updateSettings(request: UpdateNotificationSettingsRequest) {
-        val uuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        val user = currentUserProvider.user
 
         request.globalEnabled?.let { user.notified = it }
 

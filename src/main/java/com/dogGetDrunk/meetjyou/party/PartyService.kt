@@ -365,18 +365,16 @@ class PartyService(
         val party = partyRepository.findByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
 
-        return party.apply {
+        party.apply {
             name = request.name
             destination = request.destination
             joined = request.joined
             capacity = request.capacity
             itinStart = request.itinStart
             itinFinish = request.itinFinish
-        }.also {
-            log.info("Party is updated: uuid=$partyUuid")
-        }.let {
-            UpdatePartyResponse.of(it)
         }
+        log.info("Party is updated: uuid=$partyUuid")
+        return UpdatePartyResponse.of(party)
     }
 
     @Transactional
