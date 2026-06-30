@@ -6,6 +6,8 @@ import com.dogGetDrunk.meetjyou.notice.dto.NoticeResponse
 import com.dogGetDrunk.meetjyou.notification.event.NoticeBroadcastEvent
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -17,8 +19,8 @@ class NoticeService(
 ) {
     private val log = LoggerFactory.getLogger(NoticeService::class.java)
 
-    fun getAllNotices(): List<NoticeResponse> {
-        return noticeRepository.findAllByOrderByCreatedAtDesc().map { NoticeResponse.from(it) }
+    fun getAllNotices(pageable: Pageable): Page<NoticeResponse> {
+        return noticeRepository.findAllByOrderByCreatedAtDesc(pageable).map { NoticeResponse.from(it) }
     }
 
     fun getNoticeByUuid(uuid: UUID): NoticeResponse {

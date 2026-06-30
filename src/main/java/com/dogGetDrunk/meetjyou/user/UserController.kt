@@ -12,6 +12,7 @@ import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.user.dto.AdvancedUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
+import com.dogGetDrunk.meetjyou.user.dto.PublicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.UpdateMarketingConsentRequest
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import io.swagger.v3.oas.annotations.Operation
@@ -77,9 +78,8 @@ class UserController(
         )]
     )
     @GetMapping("/{uuid}/basic-info")
-    fun getBasicUserProfile(@PathVariable uuid: UUID): ResponseEntity<BasicUserResponse> {
-        val response = userService.getUserProfile(uuid)
-        return ResponseEntity.ok(response)
+    fun getBasicUserProfile(@PathVariable uuid: UUID): ResponseEntity<PublicUserResponse> {
+        return ResponseEntity.ok(userService.getPublicUserProfile(uuid))
     }
 
     @Operation(summary = "유저의 모든 정보 조회", description = "유저의 기본 정보, 라이프스타일 및 작성한 모집글을 조회합니다.")
@@ -109,9 +109,23 @@ class UserController(
         @PathVariable uuid: UUID,
         @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable,
     ): ResponseEntity<AdvancedUserResponse> {
-        val basicUserResponseDto: BasicUserResponse = userService.getUserProfile(uuid)
+        val publicUserResponse: PublicUserResponse = userService.getPublicUserProfile(uuid)
         val posts: Page<GetPostResponse> = postService.getPostByAuthorUuid(uuid, pageable)
-        return ResponseEntity.ok(AdvancedUserResponse(basicUserResponseDto, posts))
+        return ResponseEntity.ok(AdvancedUserResponse(publicUserResponse, posts))
+    }
+
+    @Operation(summary = "내 프로필 조회", description = "현재 로그인한 사용자의 전체 프로필(authProvider, 마케팅 동의 여부 포함)을 조회합니다.")
+    @ApiResponses(
+        value = [ApiResponse(
+            responseCode = "200",
+            description = "조회 성공",
+            content = arrayOf(Content(mediaType = "application/json", schema = Schema(implementation = BasicUserResponse::class)))
+        )]
+    )
+    @GetMapping("/me/profile")
+    fun getMyProfile(): ResponseEntity<BasicUserResponse> {
+        val uuid = SecurityUtil.getCurrentUserUuid()
+        return ResponseEntity.ok(userService.getUserProfile(uuid))
     }
 
     @Operation(summary = "유저 정보 수정", description = "유저의 닉네임, 한 줄 소개, 성별, 나이 및 라이프스타일을 수정합니다.")
@@ -231,17 +245,23 @@ class UserController(
     @Operation(summary = "내 파티 목록 조회", description = "현재 로그인한 사용자가 참여 중인 파티 목록을 채팅방 정보와 함께 조회합니다.")
     @ApiResponses(value = [ApiResponse(responseCode = "200", description = "조회 성공")])
     @GetMapping("/me/parties")
-    fun getMyParties(): ResponseEntity<List<GetMyPartyResponse>> {
+    fun getMyParties(
+        @ParameterObject
+        @PageableDefault(size = 20, sort = ["joinedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): Page<GetMyPartyResponse> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
-        return ResponseEntity.ok(partyService.getMyParties(userUuid))
+        return partyService.getMyParties(userUuid, pageable)
     }
 
     @Operation(summary = "내 파티 신청 목록 조회", description = "현재 로그인한 사용자가 신청한 파티 신청 목록을 상태와 함께 조회합니다.")
     @ApiResponses(value = [ApiResponse(responseCode = "200", description = "조회 성공")])
     @GetMapping("/me/applications")
-    fun getMyApplications(): ResponseEntity<List<MyApplicationResponse>> {
+    fun getMyApplications(
+        @ParameterObject
+        @PageableDefault(size = 20, sort = ["statusChangedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): Page<MyApplicationResponse> {
         val userUuid = SecurityUtil.getCurrentUserUuid()
-        return ResponseEntity.ok(partyService.getMyApplications(userUuid))
+        return partyService.getMyApplications(userUuid, pageable)
     }
 
     @Operation(summary = "내 모집글 목록 조회", description = "현재 로그인한 사용자가 작성한 모집글 목록을 조회합니다.")

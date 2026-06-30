@@ -62,7 +62,6 @@ class DevUserAuthServiceTest : BehaviorSpec() {
                     capturedUser.captured.authProvider shouldBe AuthProvider.KAKAO
                     capturedUser.captured.externalId shouldBe "dev-$email"
                     result.uuid shouldBe newUser.uuid
-                    result.email shouldBe newUser.email
                     result.accessToken shouldBe "access-token"
                     result.refreshToken shouldBe "refresh-token"
                 }
@@ -86,7 +85,6 @@ class DevUserAuthServiceTest : BehaviorSpec() {
 
                     verify(exactly = 0) { userRepository.save(any()) }
                     result.uuid shouldBe existingUser.uuid
-                    result.email shouldBe existingUser.email
                     result.accessToken shouldBe "access-token"
                     result.refreshToken shouldBe "refresh-token"
                 }
@@ -111,7 +109,6 @@ class DevUserAuthServiceTest : BehaviorSpec() {
                     val result = sut.getTokenForUser(user.uuid)
 
                     result.uuid shouldBe user.uuid
-                    result.email shouldBe user.email
                     result.accessToken shouldBe "access-token"
                     result.refreshToken shouldBe "refresh-token"
                 }

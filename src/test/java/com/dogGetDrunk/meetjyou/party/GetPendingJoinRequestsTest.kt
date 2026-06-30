@@ -20,6 +20,8 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.Pageable
 
 class GetPendingJoinRequestsTest : BehaviorSpec() {
 
@@ -80,15 +82,16 @@ class GetPendingJoinRequestsTest : BehaviorSpec() {
                     val accepted = NotificationCenterFixtures.pendingUserParty(party2, user)
                     accepted.approve()
 
-                    every { userPartyRepository.findAllSentApplicationsByUserUuid(user.uuid) } returns listOf(pending, accepted)
+                    val pageable = Pageable.ofSize(20)
+                    every { userPartyRepository.findAllSentApplicationsByUserUuid(user.uuid, pageable) } returns PageImpl(listOf(pending, accepted))
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid, party2.uuid)) } returns listOf(post, post2)
 
-                    val result = sut.getMyApplications(user.uuid)
+                    val result = sut.getMyApplications(user.uuid, pageable)
 
-                    result.size shouldBe 2
-                    result[0].status shouldBe JoinRequestStatus.PENDING
-                    result[0].applicationNote shouldBe "note"
-                    result[1].status shouldBe JoinRequestStatus.ACCEPTED
+                    result.content.size shouldBe 2
+                    result.content[0].status shouldBe JoinRequestStatus.PENDING
+                    result.content[0].applicationNote shouldBe "note"
+                    result.content[1].status shouldBe JoinRequestStatus.ACCEPTED
                 }
             }
         }

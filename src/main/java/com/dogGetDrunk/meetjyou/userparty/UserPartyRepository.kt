@@ -72,6 +72,27 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
         @Param("memberStatus") memberStatus: MemberStatus,
     ): List<UserParty>
 
+    @Query(
+        value = """
+            select up
+            from UserParty up
+            join fetch up.party
+            where up.user.uuid = :userUuid
+              and up.memberStatus = :memberStatus
+        """,
+        countQuery = """
+            select count(up)
+            from UserParty up
+            where up.user.uuid = :userUuid
+              and up.memberStatus = :memberStatus
+        """
+    )
+    fun findAllWithPartyByUserUuidAndMemberStatus(
+        @Param("userUuid") userUuid: UUID,
+        @Param("memberStatus") memberStatus: MemberStatus,
+        pageable: Pageable,
+    ): Page<UserParty>
+
     fun existsByParty_Plan_UuidAndUser_UuidAndMemberStatus(
         planUuid: UUID,
         userUuid: UUID,
@@ -104,5 +125,25 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
         order by up.statusChangedAt desc
     """)
     fun findAllSentApplicationsByUserUuid(@Param("userUuid") userUuid: UUID): List<UserParty>
+
+    @Query(
+        value = """
+            select up from UserParty up
+            join fetch up.party
+            where up.user.uuid = :userUuid
+            and up.role = 'MEMBER'
+            and up.memberStatus in ('PENDING', 'JOINED', 'REJECTED')
+        """,
+        countQuery = """
+            select count(up) from UserParty up
+            where up.user.uuid = :userUuid
+            and up.role = 'MEMBER'
+            and up.memberStatus in ('PENDING', 'JOINED', 'REJECTED')
+        """
+    )
+    fun findAllSentApplicationsByUserUuid(
+        @Param("userUuid") userUuid: UUID,
+        pageable: Pageable,
+    ): Page<UserParty>
 
 }

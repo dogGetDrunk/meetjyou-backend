@@ -17,5 +17,6 @@ data class ReceivedApplicationItem(
 
 data class ReceivedApplicationsSectionResponse(
     val unreadCount: Int,
+    val totalCount: Long,
     val applications: List<ReceivedApplicationItem>,
 )
