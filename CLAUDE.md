@@ -30,6 +30,41 @@ SPRING_PROFILES_ACTIVE=dev,db,secrets \
 - No wildcard imports
 - Follow Kotlin coding conventions
 - All log messages in English
+- All code comments in English — no Korean comments
+
+## Conventions
+
+### Current user
+Use `CurrentUserProvider` (`common/util/CurrentUserProvider.kt`) — never call `SecurityUtil` directly in service methods.
+```kotlin
+val user = currentUserProvider.user   // throws UserNotFoundException if not found
+val uuid = currentUserProvider.uuid   // UUID only, no DB hit
+```
+
+### Null safety & exceptions
+`?: throw` Elvis operator exclusively. No `requireNotNull()`, no `if (x == null) throw`, no `!!`.
+```kotlin
+val party = partyRepository.findByUuid(uuid) ?: throw PartyNotFoundException(uuid)
+```
+
+### DTO conversion
+Service returns DTOs via companion `.of()` factory. Controllers never call `.of()` themselves.
+```kotlin
+return GetPartyResponse.of(party)   // in service
+```
+
+### Method length
+30-line hard cap on function bodies. Extract private helpers named `validateXxx` / `buildXxx` / `resolveXxx`.
+
+### N+1 prevention
+Never call a repository inside a loop. Batch-load with `findAllByXxxIn(ids)`, then `groupBy` or `associateBy`.
+
+### Scope functions
+No 3-chain scope functions (`.apply{}.also{}.let{}`). Use explicit statements instead.
+String concatenation via template literals only — no `+` operator.
+
+### @Transactional
+Read-only methods require `@Transactional(readOnly = true)`. Write methods use `@Transactional`.
 
 ## Architecture
 
