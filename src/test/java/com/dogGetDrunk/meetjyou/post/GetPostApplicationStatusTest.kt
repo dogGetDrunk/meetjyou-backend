@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.post
 
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
@@ -32,9 +33,11 @@ class GetPostApplicationStatusTest : BehaviorSpec() {
     private val markerRepository = mockk<MarkerRepository>(relaxed = true)
     private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
     private val postViewService = mockk<PostViewService>(relaxed = true)
+    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val sut = PostService(
         postRepository, userRepository, compPreferenceRepository, preferenceRepository,
         partyService, planRepository, markerRepository, userPartyRepository, postViewService,
+        currentUserProvider,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -49,6 +52,7 @@ class GetPostApplicationStatusTest : BehaviorSpec() {
             val principal = CustomUserPrincipal(user.uuid, user.email)
             SecurityContextHolder.getContext().authentication =
                 UsernamePasswordAuthenticationToken(principal, null, emptyList())
+            every { currentUserProvider.uuid } returns user.uuid
             every { postRepository.findByUuid(post.uuid) } returns post
             every { compPreferenceRepository.findAllByPost(post) } returns emptyList()
         }

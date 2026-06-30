@@ -1,7 +1,7 @@
 package com.dogGetDrunk.meetjyou.notification.preference
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.preference.dto.UpdateNotificationSettingsRequest
 import com.dogGetDrunk.meetjyou.user.UserRepository
@@ -13,24 +13,19 @@ import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.slot
 import io.mockk.unmockkAll
 import io.mockk.verify
-import java.util.UUID
 
 class NotificationPreferenceServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val preferenceRepository = mockk<UserNotificationPreferenceRepository>(relaxed = true)
-    private val sut = NotificationPreferenceService(userRepository, preferenceRepository)
+    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
+    private val sut = NotificationPreferenceService(userRepository, preferenceRepository, currentUserProvider)
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
     init {
-        beforeEach {
-            clearAllMocks()
-            mockkObject(SecurityUtil)
-        }
+        beforeEach { clearAllMocks() }
         afterSpec { unmockkAll() }
 
         // ── getSettings ──────────────────────────────────────────────────────
@@ -40,8 +35,8 @@ class NotificationPreferenceServiceTest : BehaviorSpec() {
             val uuid = user.uuid
 
             beforeEach {
-                every { SecurityUtil.getCurrentUserUuid() } returns uuid
-                every { userRepository.findByUuid(uuid) } returns user
+                every { currentUserProvider.uuid } returns uuid
+                every { currentUserProvider.user } returns user
             }
 
             `when`("카테고리 설정이 하나도 저장되지 않은 경우") {
@@ -73,7 +68,7 @@ class NotificationPreferenceServiceTest : BehaviorSpec() {
 
             `when`("유저가 존재하지 않는 경우") {
                 then("UserNotFoundException을 던진다") {
-                    every { userRepository.findByUuid(uuid) } returns null
+                    every { currentUserProvider.user } throws UserNotFoundException(uuid)
 
                     shouldThrow<UserNotFoundException> {
                         sut.getSettings()
@@ -89,8 +84,8 @@ class NotificationPreferenceServiceTest : BehaviorSpec() {
             val uuid = user.uuid
 
             beforeEach {
-                every { SecurityUtil.getCurrentUserUuid() } returns uuid
-                every { userRepository.findByUuid(uuid) } returns user
+                every { currentUserProvider.uuid } returns uuid
+                every { currentUserProvider.user } returns user
             }
 
             `when`("globalEnabled만 전달된 경우") {
@@ -152,7 +147,7 @@ class NotificationPreferenceServiceTest : BehaviorSpec() {
 
             `when`("유저가 존재하지 않는 경우") {
                 then("UserNotFoundException을 던진다") {
-                    every { userRepository.findByUuid(uuid) } returns null
+                    every { currentUserProvider.user } throws UserNotFoundException(uuid)
 
                     shouldThrow<UserNotFoundException> {
                         sut.updateSettings(UpdateNotificationSettingsRequest(globalEnabled = false, categories = null))
