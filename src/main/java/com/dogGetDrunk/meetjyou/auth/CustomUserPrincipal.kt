@@ -14,7 +14,7 @@ data class CustomUserPrincipal(
 
     override fun getAuthorities(): Collection<GrantedAuthority> = authorities
 
-    override fun getPassword(): String? = null // 비밀번호 없음
+    override fun getPassword(): String? = null
 
     override fun isAccountNonExpired(): Boolean = true
     override fun isAccountNonLocked(): Boolean = true

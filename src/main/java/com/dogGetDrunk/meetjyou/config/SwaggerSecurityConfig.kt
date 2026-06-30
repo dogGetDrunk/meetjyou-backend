@@ -20,8 +20,8 @@ class SwaggerSecurityConfig {
             .securityMatcher("/swagger-ui/**", "/v3/api-docs/**")
             .csrf { it.disable() }
             .authorizeHttpRequests { it.anyRequest().authenticated() }
-            .userDetailsService(inMemoryUserDetailsManager) // ✅ 여기서 명시적으로 사용
-            .httpBasic { } // 인증창 띄움
+            .userDetailsService(inMemoryUserDetailsManager)
+            .httpBasic { }
             .build()
     }
 }
