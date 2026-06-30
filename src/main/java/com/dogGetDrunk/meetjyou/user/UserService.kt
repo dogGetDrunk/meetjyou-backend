@@ -1,10 +1,9 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
 import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
@@ -14,6 +13,7 @@ import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.PublicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
+import com.dogGetDrunk.meetjyou.user.dto.UserPreferenceData
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import com.dogGetDrunk.meetjyou.user.dto.normalizeOrNull
 import org.slf4j.LoggerFactory
@@ -26,8 +26,8 @@ class UserService(
     private val userRepository: UserRepository,
     private val preferenceRepository: PreferenceRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
-    private val jwtProvider: JwtProvider,
     private val defaultProfileImageProvider: DefaultProfileImageProvider,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
@@ -63,29 +63,22 @@ class UserService(
 
     @Transactional
     fun withdrawUser() {
-        val uuid = SecurityUtil.getCurrentUserUuid()
+        val uuid = currentUserProvider.uuid
+        userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
 
-        if (!userRepository.existsByUuid(uuid)) {
-            throw UserNotFoundException(uuid)
-        }
-
-        log.info("Processing user withdrawal (user uuid: {})", uuid.toString())
+        log.info("Processing user withdrawal (user uuid: {})", uuid)
         if (userRepository.deleteByUuid(uuid) > 0) {
-            log.info("User withdrawal completed (user uuid: {})", uuid.toString())
+            log.info("User withdrawal completed (user uuid: {})", uuid)
         } else {
-            log.warn("User withdrawal completed with no rows deleted (user uuid: {})", uuid.toString())
+            log.warn("User withdrawal completed with no rows deleted (user uuid: {})", uuid)
         }
     }
 
     @Transactional
     fun updateUser(request: UserUpdateRequest): BasicUserResponse {
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(currentUserUuid)
-            ?.also {
-                it.nickname = request.nickname
-                it.bio = request.bio.normalizeOrNull()
-            }
-            ?: throw UserNotFoundException(currentUserUuid)
+        val user = currentUserProvider.user
+        user.nickname = request.nickname
+        user.bio = request.bio.normalizeOrNull()
 
         updateUserPreference(user, request.gender.name, PreferenceType.GENDER)
         updateUserPreference(user, request.age.name, PreferenceType.AGE)
@@ -96,23 +89,19 @@ class UserService(
 
         userRepository.save(user)
         log.info("User profile updated. uuid={}", user.uuid)
-        return getUserProfile(currentUserUuid)
+        return getUserProfile(user.uuid)
     }
 
     @Transactional(readOnly = true)
     fun getUserProfile(uuid: UUID): BasicUserResponse {
-        val user = userRepository.findByUuid(uuid)
-            ?: throw UserNotFoundException(uuid)
-
-        return toBasicUserResponse(user)
+        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        return BasicUserResponse.of(user, loadPreferences(user.id), resolveThumbUrl(user))
     }
 
     @Transactional(readOnly = true)
     fun getPublicUserProfile(uuid: UUID): PublicUserResponse {
-        val user = userRepository.findByUuid(uuid)
-            ?: throw UserNotFoundException(uuid)
-
-        return toPublicUserResponse(user)
+        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        return PublicUserResponse.of(user, loadPreferences(user.id), resolveThumbUrl(user))
     }
 
     @Transactional(readOnly = true)
@@ -121,87 +110,26 @@ class UserService(
         if (users.isEmpty()) return emptyList()
         val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.map { it.id })
             .groupBy { it.user.id }
-        return users.map { toBasicUserResponse(it, prefsMap[it.id] ?: emptyList()) }
+        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList(), resolveThumbUrl(it)) }
     }
 
     @Transactional
     fun confirmProfileImage() {
-        val uuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        user.imgUrl = ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(uuid)
-        user.thumbImgUrl = ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(uuid)
+        val user = currentUserProvider.user
+        user.imgUrl = ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(user.uuid)
+        user.thumbImgUrl = ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(user.uuid)
     }
 
     @Transactional
     fun clearProfileImage() {
-        val uuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        val user = currentUserProvider.user
         user.imgUrl = null
         user.thumbImgUrl = null
     }
 
     @Transactional
     fun updateMarketingConsent(consented: Boolean) {
-        val uuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        user.marketingConsented = consented
-    }
-
-    private fun toPublicUserResponse(user: User): PublicUserResponse {
-        val thumbImgUrl = user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
-        return PublicUserResponse(
-            uuid = user.uuid,
-            nickname = user.nickname,
-            bio = user.bio,
-            thumbImgUrl = thumbImgUrl,
-            gender = getPreferenceName(user.id, PreferenceType.GENDER),
-            age = getPreferenceName(user.id, PreferenceType.AGE),
-            personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
-            travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
-            diet = getPreferenceNames(user.id, PreferenceType.DIET),
-            etc = getPreferenceNames(user.id, PreferenceType.ETC),
-        )
-    }
-
-    private fun toBasicUserResponse(user: User): BasicUserResponse {
-        val thumbImgUrl = user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
-        return BasicUserResponse(
-            uuid = user.uuid,
-            nickname = user.nickname,
-            bio = user.bio,
-            thumbImgUrl = thumbImgUrl,
-            gender = getPreferenceName(user.id, PreferenceType.GENDER),
-            age = getPreferenceName(user.id, PreferenceType.AGE),
-            personalities = getPreferenceNames(user.id, PreferenceType.PERSONALITY),
-            travelStyles = getPreferenceNames(user.id, PreferenceType.TRAVEL_STYLE),
-            diet = getPreferenceNames(user.id, PreferenceType.DIET),
-            etc = getPreferenceNames(user.id, PreferenceType.ETC),
-            authProvider = user.authProvider,
-            marketingConsented = user.marketingConsented,
-        )
-    }
-
-    private fun toBasicUserResponse(user: User, userPrefs: List<UserPreference>): BasicUserResponse {
-        val thumbImgUrl = user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
-        fun firstName(type: PreferenceType) = userPrefs
-            .firstOrNull { it.preference.type == type }?.preference?.name
-            ?: throw PreferenceNotFoundException(type.name)
-        fun nameList(type: PreferenceType) = userPrefs
-            .filter { it.preference.type == type }.map { it.preference.name }
-        return BasicUserResponse(
-            uuid = user.uuid,
-            nickname = user.nickname,
-            bio = user.bio,
-            thumbImgUrl = thumbImgUrl,
-            gender = firstName(PreferenceType.GENDER),
-            age = firstName(PreferenceType.AGE),
-            personalities = nameList(PreferenceType.PERSONALITY),
-            travelStyles = nameList(PreferenceType.TRAVEL_STYLE),
-            diet = nameList(PreferenceType.DIET),
-            etc = nameList(PreferenceType.ETC),
-            authProvider = user.authProvider,
-            marketingConsented = user.marketingConsented,
-        )
+        currentUserProvider.user.marketingConsented = consented
     }
 
     fun isDuplicateNickname(nickname: String): Boolean {
@@ -238,7 +166,18 @@ class UserService(
     }
 
     private fun getPreferenceNames(userId: Long, type: PreferenceType): List<String> {
-        return userPreferenceRepository.findPreferencesByUserIdAndType(userId, type)
-            .map { it.name }
+        return userPreferenceRepository.findPreferencesByUserIdAndType(userId, type).map { it.name }
     }
+
+    private fun loadPreferences(userId: Long): UserPreferenceData = UserPreferenceData(
+        gender = getPreferenceName(userId, PreferenceType.GENDER),
+        age = getPreferenceName(userId, PreferenceType.AGE),
+        personalities = getPreferenceNames(userId, PreferenceType.PERSONALITY),
+        travelStyles = getPreferenceNames(userId, PreferenceType.TRAVEL_STYLE),
+        diet = getPreferenceNames(userId, PreferenceType.DIET),
+        etc = getPreferenceNames(userId, PreferenceType.ETC),
+    )
+
+    private fun resolveThumbUrl(user: User): String? =
+        user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
 }
