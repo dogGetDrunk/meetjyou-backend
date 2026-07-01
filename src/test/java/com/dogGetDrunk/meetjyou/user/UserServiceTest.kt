@@ -52,11 +52,10 @@ class UserServiceTest : BehaviorSpec() {
             }
 
             `when`("정상적으로 호출되면") {
-                then("ImageTarget 기반으로 imgUrl과 thumbImgUrl이 설정된다") {
+                then("hasProfileImage가 true로 설정된다") {
                     sut.confirmProfileImage()
 
-                    user.imgUrl shouldBe ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(uuid)
-                    user.thumbImgUrl shouldBe ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(uuid)
+                    user.hasProfileImage shouldBe true
                 }
             }
 
@@ -73,8 +72,7 @@ class UserServiceTest : BehaviorSpec() {
 
         given("clearProfileImage 호출 시") {
             val user = UserFixtures.user().apply {
-                imgUrl = "image/user/profile/some-uuid-original.jpg"
-                thumbImgUrl = "image/user/profile/some-uuid-thumbnail.jpg"
+                hasProfileImage = true
             }
             val uuid = user.uuid
 
@@ -84,11 +82,10 @@ class UserServiceTest : BehaviorSpec() {
             }
 
             `when`("정상적으로 호출되면") {
-                then("imgUrl과 thumbImgUrl이 null로 초기화된다") {
+                then("hasProfileImage가 false로 초기화된다") {
                     sut.clearProfileImage()
 
-                    user.imgUrl shouldBe null
-                    user.thumbImgUrl shouldBe null
+                    user.hasProfileImage shouldBe false
                 }
             }
         }
@@ -155,10 +152,10 @@ class UserServiceTest : BehaviorSpec() {
                 }
             }
 
-            `when`("유저에 thumbImgUrl이 있는 경우") {
-                then("응답의 thumbImgUrl에 유저의 이미지 경로가 담긴다") {
+            `when`("유저에 hasProfileImage가 true인 경우") {
+                then("응답의 thumbImgUrl에 유저 UUID 기반 썸네일 경로가 담긴다") {
                     val user = UserFixtures.user().apply {
-                        thumbImgUrl = "image/user/profile/uuid-thumbnail.jpg"
+                        hasProfileImage = true
                     }
 
                     every { userRepository.findByUuid(user.uuid) } returns user
@@ -168,7 +165,7 @@ class UserServiceTest : BehaviorSpec() {
 
                     val result = sut.getUserProfile(user.uuid)
 
-                    result.thumbImgUrl shouldBe "image/user/profile/uuid-thumbnail.jpg"
+                    result.thumbImgUrl shouldBe ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(user.uuid)
                 }
             }
         }

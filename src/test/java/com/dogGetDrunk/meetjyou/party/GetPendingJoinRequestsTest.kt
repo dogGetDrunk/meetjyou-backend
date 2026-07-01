@@ -64,7 +64,7 @@ class GetPendingJoinRequestsTest : BehaviorSpec() {
                     result.postUuid shouldBe post.uuid
                     result.requests.size shouldBe 1
                     result.requests[0].applicationNote shouldBe "Hi!"
-                    result.requests[0].thumbImgUrl shouldBe applicant.thumbImgUrl
+                    result.requests[0].thumbImgUrl shouldBe applicant.resolveThumbImgUrl()
                 }
             }
         }

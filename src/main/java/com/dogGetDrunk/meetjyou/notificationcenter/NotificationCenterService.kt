@@ -65,7 +65,7 @@ class NotificationCenterService(
             ReceivedApplicationItem(
                 userUuid = up.user.uuid,
                 nickname = up.user.nickname,
-                thumbImgUrl = up.user.thumbImgUrl,
+                thumbImgUrl = up.user.resolveThumbImgUrl(),
                 partyUuid = up.party.uuid,
                 partyName = up.party.name,
                 postUuid = postByPartyUuid[up.party.uuid]?.uuid,

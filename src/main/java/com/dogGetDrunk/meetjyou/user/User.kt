@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.image.ImageTarget
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -34,8 +35,7 @@ class User(
     val uuid: UUID = UUID.randomUUID()
     var bio: String? = null
     var participation: Int = 0
-    var imgUrl: String? = null
-    var thumbImgUrl: String? = null
+    var hasProfileImage: Boolean = false
     var notified: Boolean = true
     var marketingSnsConsented: Boolean = false
     var marketingEmailConsented: Boolean = false
@@ -47,4 +47,7 @@ class User(
     val updatedAt: Instant = Instant.now()
     @Enumerated(EnumType.STRING)
     var status: UserStatus = UserStatus.NORMAL
+
+    fun resolveThumbImgUrl(): String? =
+        if (hasProfileImage) ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(uuid) else null
 }

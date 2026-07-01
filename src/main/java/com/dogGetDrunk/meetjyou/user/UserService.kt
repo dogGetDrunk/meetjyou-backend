@@ -4,7 +4,6 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
@@ -96,13 +95,13 @@ class UserService(
     @Transactional(readOnly = true)
     fun getUserProfile(uuid: UUID): BasicUserResponse {
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        return BasicUserResponse.of(user, loadPreferences(user.id), user.thumbImgUrl)
+        return BasicUserResponse.of(user, loadPreferences(user.id), user.resolveThumbImgUrl())
     }
 
     @Transactional(readOnly = true)
     fun getPublicUserProfile(uuid: UUID): PublicUserResponse {
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        return PublicUserResponse.of(user, loadPreferences(user.id), user.thumbImgUrl)
+        return PublicUserResponse.of(user, loadPreferences(user.id), user.resolveThumbImgUrl())
     }
 
     @Transactional(readOnly = true)
@@ -111,21 +110,17 @@ class UserService(
         if (users.isEmpty()) return emptyList()
         val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.map { it.id })
             .groupBy { it.user.id }
-        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList(), it.thumbImgUrl) }
+        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList(), it.resolveThumbImgUrl()) }
     }
 
     @Transactional
     fun confirmProfileImage() {
-        val user = currentUserProvider.user
-        user.imgUrl = ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(user.uuid)
-        user.thumbImgUrl = ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(user.uuid)
+        currentUserProvider.user.hasProfileImage = true
     }
 
     @Transactional
     fun clearProfileImage() {
-        val user = currentUserProvider.user
-        user.imgUrl = null
-        user.thumbImgUrl = null
+        currentUserProvider.user.hasProfileImage = false
     }
 
     @Transactional
