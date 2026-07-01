@@ -52,7 +52,7 @@ class GetPendingJoinRequestsTest : BehaviorSpec() {
             val post = NotificationCenterFixtures.post(party, host)
 
             `when`("PENDING 신청이 존재하는 경우") {
-                then("thumbImgUrl, applicationNote, postUuid가 포함된 응답을 반환한다") {
+                then("hasProfileImage, applicationNote, postUuid가 포함된 응답을 반환한다") {
                     val hostMembership = NotificationCenterFixtures.hostUserParty(party, host)
                     val pending = NotificationCenterFixtures.pendingUserParty(party, applicant, "Hi!")
                     every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership
@@ -64,7 +64,7 @@ class GetPendingJoinRequestsTest : BehaviorSpec() {
                     result.postUuid shouldBe post.uuid
                     result.requests.size shouldBe 1
                     result.requests[0].applicationNote shouldBe "Hi!"
-                    result.requests[0].thumbImgUrl shouldBe applicant.resolveThumbImgUrl()
+                    result.requests[0].hasProfileImage shouldBe applicant.hasProfileImage
                 }
             }
         }

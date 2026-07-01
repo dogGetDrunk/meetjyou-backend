@@ -1,6 +1,5 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.image.ImageTarget
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -47,7 +46,4 @@ class User(
     val updatedAt: Instant = Instant.now()
     @Enumerated(EnumType.STRING)
     var status: UserStatus = UserStatus.NORMAL
-
-    fun resolveThumbImgUrl(): String? =
-        if (hasProfileImage) ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(uuid) else null
 }

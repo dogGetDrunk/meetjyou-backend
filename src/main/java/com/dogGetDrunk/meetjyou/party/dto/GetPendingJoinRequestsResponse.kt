@@ -6,7 +6,7 @@ import java.util.UUID
 data class PendingJoinRequest(
     val userUuid: UUID,
     val nickname: String,
-    val thumbImgUrl: String?,
+    val hasProfileImage: Boolean,
     val applicationNote: String?,
     val requestedAt: Instant,
 )

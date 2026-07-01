@@ -313,7 +313,7 @@ class PartyService(
                 PendingJoinRequest(
                     userUuid = up.user.uuid,
                     nickname = up.user.nickname,
-                    thumbImgUrl = up.user.resolveThumbImgUrl(),
+                    hasProfileImage = up.user.hasProfileImage,
                     applicationNote = up.applicationNote,
                     requestedAt = up.joinedAt,
                 )

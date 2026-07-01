@@ -95,13 +95,13 @@ class UserService(
     @Transactional(readOnly = true)
     fun getUserProfile(uuid: UUID): BasicUserResponse {
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        return BasicUserResponse.of(user, loadPreferences(user.id), user.resolveThumbImgUrl())
+        return BasicUserResponse.of(user, loadPreferences(user.id))
     }
 
     @Transactional(readOnly = true)
     fun getPublicUserProfile(uuid: UUID): PublicUserResponse {
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        return PublicUserResponse.of(user, loadPreferences(user.id), user.resolveThumbImgUrl())
+        return PublicUserResponse.of(user, loadPreferences(user.id))
     }
 
     @Transactional(readOnly = true)
@@ -110,7 +110,7 @@ class UserService(
         if (users.isEmpty()) return emptyList()
         val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.map { it.id })
             .groupBy { it.user.id }
-        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList(), it.resolveThumbImgUrl()) }
+        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList()) }
     }
 
     @Transactional

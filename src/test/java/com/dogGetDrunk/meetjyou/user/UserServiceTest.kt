@@ -2,7 +2,6 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.terms.TermsService
@@ -134,11 +133,11 @@ class UserServiceTest : BehaviorSpec() {
             }
         }
 
-        // ── getUserProfile (thumbImgUrl pass-through) ─────────────────────────
+        // ── getUserProfile (hasProfileImage pass-through) ─────────────────────
 
         given("getUserProfile 호출 시") {
-            `when`("유저에 thumbImgUrl이 없는 경우") {
-                then("응답의 thumbImgUrl은 null이다 (기본 이미지는 프론트엔드에서 처리)") {
+            `when`("유저에 hasProfileImage가 false인 경우") {
+                then("응답의 hasProfileImage도 false이다") {
                     val user = UserFixtures.user()
 
                     every { userRepository.findByUuid(user.uuid) } returns user
@@ -148,12 +147,12 @@ class UserServiceTest : BehaviorSpec() {
 
                     val result = sut.getUserProfile(user.uuid)
 
-                    result.thumbImgUrl shouldBe null
+                    result.hasProfileImage shouldBe false
                 }
             }
 
             `when`("유저에 hasProfileImage가 true인 경우") {
-                then("응답의 thumbImgUrl에 유저 UUID 기반 썸네일 경로가 담긴다") {
+                then("응답의 hasProfileImage도 true이다") {
                     val user = UserFixtures.user().apply {
                         hasProfileImage = true
                     }
@@ -165,7 +164,7 @@ class UserServiceTest : BehaviorSpec() {
 
                     val result = sut.getUserProfile(user.uuid)
 
-                    result.thumbImgUrl shouldBe ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(user.uuid)
+                    result.hasProfileImage shouldBe true
                 }
             }
         }

@@ -11,7 +11,7 @@ data class BasicUserResponse(
     val uuid: UUID,
     val nickname: String,
     val bio: String?,
-    val thumbImgUrl: String?,
+    val hasProfileImage: Boolean,
     val gender: String,
     val age: String,
     val personalities: List<String>,
@@ -23,12 +23,12 @@ data class BasicUserResponse(
     val marketingEmailConsented: Boolean,
 ) {
     companion object {
-        fun of(user: User, prefs: UserPreferenceData, thumbImgUrl: String?): BasicUserResponse =
+        fun of(user: User, prefs: UserPreferenceData): BasicUserResponse =
             BasicUserResponse(
                 uuid = user.uuid,
                 nickname = user.nickname,
                 bio = user.bio,
-                thumbImgUrl = thumbImgUrl,
+                hasProfileImage = user.hasProfileImage,
                 gender = prefs.gender,
                 age = prefs.age,
                 personalities = prefs.personalities,
@@ -40,7 +40,7 @@ data class BasicUserResponse(
                 marketingEmailConsented = user.marketingEmailConsented,
             )
 
-        fun of(user: User, userPrefs: List<UserPreference>, thumbImgUrl: String?): BasicUserResponse {
+        fun of(user: User, userPrefs: List<UserPreference>): BasicUserResponse {
             fun first(type: PreferenceType) = userPrefs
                 .firstOrNull { it.preference.type == type }?.preference?.name
                 ?: throw PreferenceNotFoundException(type.name)
@@ -50,7 +50,7 @@ data class BasicUserResponse(
                 uuid = user.uuid,
                 nickname = user.nickname,
                 bio = user.bio,
-                thumbImgUrl = thumbImgUrl,
+                hasProfileImage = user.hasProfileImage,
                 gender = first(PreferenceType.GENDER),
                 age = first(PreferenceType.AGE),
                 personalities = nameList(PreferenceType.PERSONALITY),
