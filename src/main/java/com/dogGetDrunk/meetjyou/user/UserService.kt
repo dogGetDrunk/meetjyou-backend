@@ -4,7 +4,6 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
 import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
@@ -28,7 +27,6 @@ class UserService(
     private val userRepository: UserRepository,
     private val preferenceRepository: PreferenceRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
-    private val defaultProfileImageProvider: DefaultProfileImageProvider,
     private val currentUserProvider: CurrentUserProvider,
     private val termsService: TermsService,
 ) {
@@ -98,13 +96,13 @@ class UserService(
     @Transactional(readOnly = true)
     fun getUserProfile(uuid: UUID): BasicUserResponse {
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        return BasicUserResponse.of(user, loadPreferences(user.id), resolveThumbUrl(user))
+        return BasicUserResponse.of(user, loadPreferences(user.id), user.thumbImgUrl)
     }
 
     @Transactional(readOnly = true)
     fun getPublicUserProfile(uuid: UUID): PublicUserResponse {
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        return PublicUserResponse.of(user, loadPreferences(user.id), resolveThumbUrl(user))
+        return PublicUserResponse.of(user, loadPreferences(user.id), user.thumbImgUrl)
     }
 
     @Transactional(readOnly = true)
@@ -113,7 +111,7 @@ class UserService(
         if (users.isEmpty()) return emptyList()
         val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.map { it.id })
             .groupBy { it.user.id }
-        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList(), resolveThumbUrl(it)) }
+        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList(), it.thumbImgUrl) }
     }
 
     @Transactional
@@ -184,7 +182,4 @@ class UserService(
         diet = getPreferenceNames(userId, PreferenceType.DIET),
         etc = getPreferenceNames(userId, PreferenceType.ETC),
     )
-
-    private fun resolveThumbUrl(user: User): String? =
-        user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
 }

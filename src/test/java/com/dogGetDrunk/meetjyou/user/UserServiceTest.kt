@@ -2,7 +2,6 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
 import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
@@ -24,7 +23,6 @@ class UserServiceTest : BehaviorSpec() {
     private val preferenceRepository = mockk<PreferenceRepository>(relaxed = true)
     private val userPreferenceRepository = mockk<UserPreferenceRepository>(relaxed = true)
 
-    private val defaultProfileImageProvider = mockk<DefaultProfileImageProvider>(relaxed = true)
     private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val termsService = mockk<TermsService>(relaxed = true)
 
@@ -32,7 +30,6 @@ class UserServiceTest : BehaviorSpec() {
         userRepository,
         preferenceRepository,
         userPreferenceRepository,
-        defaultProfileImageProvider,
         currentUserProvider,
         termsService,
     )
@@ -140,23 +137,21 @@ class UserServiceTest : BehaviorSpec() {
             }
         }
 
-        // ── getUserProfile (thumbImgUrl fallback) ────────────────────────────
+        // ── getUserProfile (thumbImgUrl pass-through) ─────────────────────────
 
         given("getUserProfile 호출 시") {
-            `when`("유저에 thumbImgUrl이 없고 기본 이미지가 설정된 경우") {
-                then("응답의 thumbImgUrl에 기본 이미지 URL이 담긴다") {
+            `when`("유저에 thumbImgUrl이 없는 경우") {
+                then("응답의 thumbImgUrl은 null이다 (기본 이미지는 프론트엔드에서 처리)") {
                     val user = UserFixtures.user()
-                    val defaultUrl = "https://cdn.example.com/default-profile.jpg"
 
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { defaultProfileImageProvider.getDefaultThumbnailUrl() } returns defaultUrl
                     every { userPreferenceRepository.findPreferenceByUserIdAndType(any(), any()) } returns
                             mockk { every { name } returns "SOME_VALUE" }
                     every { userPreferenceRepository.findPreferencesByUserIdAndType(any(), any()) } returns emptyList()
 
                     val result = sut.getUserProfile(user.uuid)
 
-                    result.thumbImgUrl shouldBe defaultUrl
+                    result.thumbImgUrl shouldBe null
                 }
             }
 
