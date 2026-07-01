@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
 
+// TODO: Implement a re-consent flow that notifies existing users when a terms type is republished as a new ACTIVE version.
 @Service
 class TermsService(
     private val termsRepository: TermsRepository,
@@ -121,12 +122,44 @@ class TermsService(
         }
 
         userTermsRepository.saveAll(userTerms)
+        applyMarketingConsent(user, agreedTerms)
 
         log.info(
             "Completed persistence of user terms agreement. userId={}, savedCount={}",
             user.id,
             userTerms.size,
         )
+    }
+
+    @Transactional
+    fun recordConsentChange(
+        user: User,
+        type: TermsType,
+        agreed: Boolean,
+    ) {
+        val desiredAction = if (agreed) TermsAgreementAction.AGREED else TermsAgreementAction.WITHDRAWN
+        val latest = userTermsRepository.findTopByUser_IdAndTerms_TypeOrderByIdDesc(user.id, type)
+        if (latest?.action == desiredAction) {
+            return
+        }
+
+        val terms = termsRepository.findByTypeAndStatus(type, TermsStatus.ACTIVE)
+            ?: throw TermsNotFoundException(type.name)
+
+        userTermsRepository.save(UserTerms(terms = terms, user = user, action = desiredAction))
+
+        log.info(
+            "Recorded terms agreement action change. userId={}, type={}, action={}",
+            user.id,
+            type,
+            desiredAction,
+        )
+    }
+
+    private fun applyMarketingConsent(user: User, agreedTerms: List<Terms>) {
+        val agreedTypes = agreedTerms.map { it.type }.toSet()
+        user.marketingSnsConsented = TermsType.MARKETING_SNS_EVENTS in agreedTypes
+        user.marketingEmailConsented = TermsType.MARKETING_EMAIL_EVENTS in agreedTypes
     }
 
     private fun parseUuid(uuidString: String): UUID {

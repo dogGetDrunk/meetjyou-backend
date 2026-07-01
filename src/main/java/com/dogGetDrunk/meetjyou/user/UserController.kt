@@ -288,7 +288,7 @@ class UserController(
     @ApiResponses(value = [ApiResponse(responseCode = "204", description = "변경 성공")])
     @PatchMapping("/me/marketing-consent")
     fun updateMarketingConsent(@Valid @RequestBody request: UpdateMarketingConsentRequest): ResponseEntity<Unit> {
-        userService.updateMarketingConsent(request.consented)
+        userService.updateMarketingConsent(request.snsConsented, request.emailConsented)
         return ResponseEntity.noContent().build()
     }
 

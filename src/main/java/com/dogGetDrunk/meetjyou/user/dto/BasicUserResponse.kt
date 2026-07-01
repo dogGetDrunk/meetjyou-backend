@@ -19,7 +19,8 @@ data class BasicUserResponse(
     val diet: List<String>,
     val etc: List<String>,
     val authProvider: AuthProvider,
-    val marketingConsented: Boolean,
+    val marketingSnsConsented: Boolean,
+    val marketingEmailConsented: Boolean,
 ) {
     companion object {
         fun of(user: User, prefs: UserPreferenceData, thumbImgUrl: String?): BasicUserResponse =
@@ -35,7 +36,8 @@ data class BasicUserResponse(
                 diet = prefs.diet,
                 etc = prefs.etc,
                 authProvider = user.authProvider,
-                marketingConsented = user.marketingConsented,
+                marketingSnsConsented = user.marketingSnsConsented,
+                marketingEmailConsented = user.marketingEmailConsented,
             )
 
         fun of(user: User, userPrefs: List<UserPreference>, thumbImgUrl: String?): BasicUserResponse {
@@ -56,7 +58,8 @@ data class BasicUserResponse(
                 diet = nameList(PreferenceType.DIET),
                 etc = nameList(PreferenceType.ETC),
                 authProvider = user.authProvider,
-                marketingConsented = user.marketingConsented,
+                marketingSnsConsented = user.marketingSnsConsented,
+                marketingEmailConsented = user.marketingEmailConsented,
             )
         }
     }

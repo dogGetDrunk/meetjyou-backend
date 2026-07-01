@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository
 @Repository
 interface UserTermsRepository : JpaRepository<UserTerms, Long> {
     fun findAllByUser(user: User): List<UserTerms>
+
+    fun findTopByUser_IdAndTerms_TypeOrderByIdDesc(userId: Long, type: TermsType): UserTerms?
 }

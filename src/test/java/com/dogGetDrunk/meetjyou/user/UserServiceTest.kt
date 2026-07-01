@@ -6,6 +6,8 @@ import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
 import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
+import com.dogGetDrunk.meetjyou.terms.TermsService
+import com.dogGetDrunk.meetjyou.terms.TermsType
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
@@ -15,6 +17,7 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
+import io.mockk.verify
 
 class UserServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
@@ -23,6 +26,7 @@ class UserServiceTest : BehaviorSpec() {
 
     private val defaultProfileImageProvider = mockk<DefaultProfileImageProvider>(relaxed = true)
     private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
+    private val termsService = mockk<TermsService>(relaxed = true)
 
     private val sut = UserService(
         userRepository,
@@ -30,6 +34,7 @@ class UserServiceTest : BehaviorSpec() {
         userPreferenceRepository,
         defaultProfileImageProvider,
         currentUserProvider,
+        termsService,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -102,20 +107,25 @@ class UserServiceTest : BehaviorSpec() {
                 every { currentUserProvider.user } returns user
             }
 
-            `when`("consented = true로 호출되면") {
-                then("marketingConsented가 true로 변경된다") {
-                    sut.updateMarketingConsent(true)
+            `when`("sns=true, email=false로 호출되면") {
+                then("marketingSnsConsented와 marketingEmailConsented가 각각 반영되고 타입별로 이력이 기록된다") {
+                    sut.updateMarketingConsent(snsConsented = true, emailConsented = false)
 
-                    user.marketingConsented shouldBe true
+                    user.marketingSnsConsented shouldBe true
+                    user.marketingEmailConsented shouldBe false
+                    verify { termsService.recordConsentChange(user, TermsType.MARKETING_SNS_EVENTS, true) }
+                    verify { termsService.recordConsentChange(user, TermsType.MARKETING_EMAIL_EVENTS, false) }
                 }
             }
 
-            `when`("consented = false로 호출되면") {
-                then("marketingConsented가 false로 유지된다") {
-                    user.marketingConsented = true
-                    sut.updateMarketingConsent(false)
+            `when`("두 값 모두 false로 호출되면") {
+                then("marketingSnsConsented와 marketingEmailConsented가 모두 false로 유지된다") {
+                    user.marketingSnsConsented = true
+                    user.marketingEmailConsented = true
+                    sut.updateMarketingConsent(snsConsented = false, emailConsented = false)
 
-                    user.marketingConsented shouldBe false
+                    user.marketingSnsConsented shouldBe false
+                    user.marketingEmailConsented shouldBe false
                 }
             }
 
@@ -123,7 +133,9 @@ class UserServiceTest : BehaviorSpec() {
                 then("UserNotFoundException을 던진다") {
                     every { currentUserProvider.user } throws UserNotFoundException(uuid)
 
-                    shouldThrow<UserNotFoundException> { sut.updateMarketingConsent(true) }
+                    shouldThrow<UserNotFoundException> {
+                        sut.updateMarketingConsent(snsConsented = true, emailConsented = true)
+                    }
                 }
             }
         }

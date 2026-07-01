@@ -10,6 +10,8 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
+import com.dogGetDrunk.meetjyou.terms.TermsService
+import com.dogGetDrunk.meetjyou.terms.TermsType
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.PublicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
@@ -28,6 +30,7 @@ class UserService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val defaultProfileImageProvider: DefaultProfileImageProvider,
     private val currentUserProvider: CurrentUserProvider,
+    private val termsService: TermsService,
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
@@ -128,8 +131,12 @@ class UserService(
     }
 
     @Transactional
-    fun updateMarketingConsent(consented: Boolean) {
-        currentUserProvider.user.marketingConsented = consented
+    fun updateMarketingConsent(snsConsented: Boolean, emailConsented: Boolean) {
+        val user = currentUserProvider.user
+        user.marketingSnsConsented = snsConsented
+        user.marketingEmailConsented = emailConsented
+        termsService.recordConsentChange(user, TermsType.MARKETING_SNS_EVENTS, snsConsented)
+        termsService.recordConsentChange(user, TermsType.MARKETING_EMAIL_EVENTS, emailConsented)
     }
 
     fun isDuplicateNickname(nickname: String): Boolean {
