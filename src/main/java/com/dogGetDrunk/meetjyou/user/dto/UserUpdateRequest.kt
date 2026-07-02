@@ -6,13 +6,18 @@ import com.dogGetDrunk.meetjyou.preference.Etc
 import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.preference.Personality
 import com.dogGetDrunk.meetjyou.preference.TravelStyle
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import org.hibernate.validator.constraints.UniqueElements
 
 data class UserUpdateRequest(
     @field:Size(min = 2, max = 8)
+    @field:NotBlank
+    @field:Pattern(regexp = "^[a-zA-Z0-9가-힣]+$")
     val nickname: String,
     @field:Size(max = 30)
+    @field:Pattern(regexp = "^[a-zA-Z0-9가-힣\\s]*$")
     val bio: String?,
     val gender: Gender,
     val age: Age,
