@@ -112,6 +112,14 @@ class PartyController(
             .body(partyService.requestJoinParty(partyUuid, userUuid, request?.applicationNote))
     }
 
+    @Operation(summary = "파티 이미지 업로드 확인", description = "OCI에 파티 이미지 업로드를 마친 뒤 HOST가 호출하여 파티 전용 이미지로 전환합니다.")
+    @PutMapping("/{partyUuid}/img/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun confirmPartyImage(@PathVariable partyUuid: UUID) {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        partyService.confirmPartyImage(partyUuid, userUuid)
+    }
+
     @Operation(summary = "파티 가입 신청 취소", description = "현재 로그인한 유저가 PENDING 상태인 자신의 파티 가입 신청을 취소합니다.")
     @DeleteMapping("/{partyUuid}/join-requests/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)

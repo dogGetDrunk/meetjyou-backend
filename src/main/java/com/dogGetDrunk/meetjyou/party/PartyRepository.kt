@@ -13,6 +13,7 @@ import java.util.UUID
 @Repository
 interface PartyRepository : JpaRepository<Party, Long> {
     fun findByUuid(uuid: UUID): Party?
+    fun findAllByUuidIn(uuids: List<UUID>): List<Party>
     fun findAllByPlan_Uuid(planUuid: UUID, pageable: Pageable): Page<Party>
     fun existsByPlan_Uuid(planUuid: UUID): Boolean
 

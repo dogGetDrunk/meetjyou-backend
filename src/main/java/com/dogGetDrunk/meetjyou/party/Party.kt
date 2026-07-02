@@ -44,6 +44,11 @@ class Party(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
     var plan: Plan? = null
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10, nullable = false)
+    var imageState: PartyImageState = PartyImageState.INHERITED
+    @Column(columnDefinition = "TEXT")
+    var planSnapshot: String? = null
 
     fun complete() {
         progressStatus = PartyProgressStatus.COMPLETED

@@ -152,24 +152,28 @@ class OracleObjectStorageController(
         return ResponseEntity.ok(response)
     }
 
-    @Operation(summary = "파티 원본 이미지 다운로드 PAR URL 생성")
+    @Operation(
+        summary = "파티 원본 이미지 다운로드 PAR URL 생성",
+        description = "파티가 자체 이미지를 보유하지 않은 경우 연결된 모집글의 이미지를 대신 반환하며, 호스트가 이미지를 삭제한 경우 204를 반환합니다.",
+    )
     @PostMapping("/parties/{partyUuid}/img/original/par/download")
     fun createPartyOriginalImgDownloadPar(
         @PathVariable partyUuid: UUID,
     ): ResponseEntity<ParResponse> {
-        val response = partyImgService.createPartyOriginalImgDownloadPars(partyUuid)
+        val response = partyService.resolvePartyOriginalImageDownload(partyUuid)
+            ?: return ResponseEntity.noContent().build()
         return ResponseEntity.ok(response)
     }
 
     @Operation(
         summary = "파티 썸네일 이미지 다운로드 PAR URL 생성",
-        description = "1개 이상의 파티 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다.",
+        description = "1개 이상의 파티 썸네일 이미지 다운로드를 위한 PAR URL을 생성합니다. 이미지가 없는 파티는 null로 반환됩니다.",
     )
     @PostMapping("/parties/img/thumbnail/par/download")
     fun createPartyThumbnailImgDownloadPar(
         @RequestBody request: BulkRequest,
-    ): ResponseEntity<List<ParResponse>> {
-        val response = partyImgService.createPartyThumbnailImgDownloadPars(request.uuid)
+    ): ResponseEntity<List<ParResponse?>> {
+        val response = partyService.resolvePartyThumbnailImageDownloads(request.uuid)
         return ResponseEntity.ok(response)
     }
 
@@ -188,6 +192,7 @@ class OracleObjectStorageController(
         }
 
         partyImgService.deletePartyImg(partyUuid)
+        partyService.clearPartyImageState(partyUuid)
         return ResponseEntity.noContent().build()
     }
 }

@@ -1,0 +1,5 @@
+ALTER TABLE party
+    ADD COLUMN image_state VARCHAR(10) NOT NULL DEFAULT 'INHERITED';
+
+ALTER TABLE party
+    ADD COLUMN plan_snapshot TEXT NULL;
