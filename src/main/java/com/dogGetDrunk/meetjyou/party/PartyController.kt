@@ -91,7 +91,10 @@ class PartyController(
         return partyService.getPartiesByPlanUuid(planUuid, pageable)
     }
 
-    @Operation(summary = "파티 수정", description = "파티 UUID로 특정 파티를 수정합니다.")
+    @Operation(
+        summary = "파티 수정",
+        description = "파티 UUID로 특정 파티를 수정합니다. PUT 특성상 전체 상태를 대체하므로, planUuid를 보내면 해당 계획서로 연결/교체되고 null로 보내면 연결이 해제됩니다. 변경 사항은 연결된 모집글에도 함께 반영됩니다.",
+    )
     @PutMapping("/{partyUuid}")
     fun updateParty(
         @PathVariable partyUuid: UUID,

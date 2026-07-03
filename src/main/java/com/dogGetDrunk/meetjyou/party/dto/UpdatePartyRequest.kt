@@ -21,7 +21,7 @@ data class UpdatePartyRequest(
     @field:Size(max = 20)
     @field:NotBlank
     val name: String,
-    val planUuid: UUID?
+    val planUuid: UUID?,
 ) {
 
     @AssertTrue(message = "일정 시작 시각은 현재 시각 이후여야 합니다.")

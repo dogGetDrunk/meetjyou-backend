@@ -11,8 +11,11 @@ import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
+import com.dogGetDrunk.meetjyou.plan.dto.PlanSummaryResponse
 import com.dogGetDrunk.meetjyou.plan.dto.UpdatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.UpdatePlanResponse
+import com.dogGetDrunk.meetjyou.post.Post
+import com.dogGetDrunk.meetjyou.post.PostStatus
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
@@ -38,6 +41,7 @@ class PlanService(
             ?: throw UserNotFoundException(currentUserUuid)
 
         val plan = Plan(
+            title = request.title,
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
             destination = request.location,
@@ -98,11 +102,25 @@ class PlanService(
     }
 
     @Transactional(readOnly = true)
-    fun getMyPlans(pageable: Pageable): Page<GetPlanResponse> {
+    fun getMyPlans(pageable: Pageable): Page<PlanSummaryResponse> {
         val currentUserUuid = SecurityUtil.getCurrentUserUuid()
 
-        return planRepository.findAllByOwner_Uuid(currentUserUuid, pageable)
-            .map { GetPlanResponse.of(it, markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(it.uuid)) }
+        val plans = planRepository.findAllByOwner_Uuid(currentUserUuid, pageable)
+        val statusByPlanUuid = resolveRecruitStatuses(plans.content.map { it.uuid })
+
+        return plans.map { PlanSummaryResponse.of(it, statusByPlanUuid[it.uuid]) }
+    }
+
+    private fun resolveRecruitStatuses(planUuids: List<UUID>): Map<UUID, PlanRecruitStatus> {
+        if (planUuids.isEmpty()) return emptyMap()
+        return postRepository.findAllByPlan_UuidIn(planUuids)
+            .associateBy({ it.plan!!.uuid }, { it.toRecruitStatus() })
+    }
+
+    private fun Post.toRecruitStatus(): PlanRecruitStatus = when {
+        status == PostStatus.RECRUITMENT_COMPLETED -> PlanRecruitStatus.RECRUITMENT_COMPLETED
+        isInstant -> PlanRecruitStatus.INSTANT
+        else -> PlanRecruitStatus.RECRUITING
     }
 
     @Transactional
@@ -116,6 +134,7 @@ class PlanService(
         }
 
         plan.apply {
+            title = request.title
             itinStart = request.itinStart
             itinFinish = request.itinFinish
             destination = request.location

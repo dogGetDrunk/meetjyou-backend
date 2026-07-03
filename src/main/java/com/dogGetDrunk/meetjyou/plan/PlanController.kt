@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import jakarta.validation.Valid
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -61,7 +62,8 @@ class PlanController(
         return planService.getPlanByUuid(planUuid)
     }
 
-    @Operation(summary = "작성자 기준 조회", description = "작성자 UUID로 여행 계획을 조회합니다.")
+    @Operation(summary = "작성자 기준 조회 (관리자 전용)", description = "작성자 UUID로 여행 계획을 조회합니다. 접근 제어 없이 비공개 계획서까지 노출되므로 관리자만 호출할 수 있습니다.")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping("/user/{userUuid}")
     fun getPlansByUser(
         @PathVariable userUuid: UUID,

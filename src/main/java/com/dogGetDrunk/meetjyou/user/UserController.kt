@@ -7,7 +7,7 @@ import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.MyApplicationResponse
 import com.dogGetDrunk.meetjyou.plan.PlanService
-import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
+import com.dogGetDrunk.meetjyou.plan.dto.PlanSummaryResponse
 import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.user.dto.AdvancedUserResponse
@@ -215,8 +215,8 @@ class UserController(
     @GetMapping("/me/plans")
     fun getMyPlans(
         @ParameterObject
-        @PageableDefault(size = 10, sort = ["itinStart"], direction = Sort.Direction.DESC) pageable: Pageable,
-    ): Page<GetPlanResponse> {
+        @PageableDefault(size = 10, sort = ["updatedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): Page<PlanSummaryResponse> {
         return planService.getMyPlans(pageable)
     }
 

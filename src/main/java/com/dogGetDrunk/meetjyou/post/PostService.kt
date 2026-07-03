@@ -118,7 +118,7 @@ class PostService(
         }
 
         validatePostWritable(postUuid, post)
-        validatePlanReferenceExists(request.planUuid, request.isPlanPublic)
+        applyPlanChange(post, request.planUuid, request.isPlanPublic)
 
         post.apply {
             title = request.title
@@ -128,7 +128,6 @@ class PostService(
             itinFinish = request.itinFinish
             location = request.location
             capacity = request.capacity
-            isPlanPublic = request.isPlanPublic
         }
 
         if (request.companionSpec != null) {
@@ -233,10 +232,12 @@ class PostService(
         return Pair(plan, public)
     }
 
-    private fun validatePlanReferenceExists(planUuid: UUID?, isPlanPublic: Boolean?) {
-        if (planUuid == null) return
-        if (!planRepository.existsByUuid(planUuid)) throw PlanNotFoundException(planUuid)
-        isPlanPublic ?: throw InvalidInputException(value = "isPlanPublic", message = "isPlanPublic is required when planUuid is provided")
+    private fun applyPlanChange(post: Post, planUuid: UUID?, isPlanPublic: Boolean?) {
+        val planRef = resolvePlanReference(planUuid, isPlanPublic)
+        post.plan = planRef?.first
+        post.isPlanPublic = planRef?.second
+        post.party.plan = planRef?.first
+        log.info("Post plan synced with party. postUuid=${post.uuid}, planUuid=${planRef?.first?.uuid}")
     }
 
     private fun validatePostWritable(postUuid: UUID, post: Post) {

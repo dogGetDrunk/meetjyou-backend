@@ -51,6 +51,7 @@ class PlanServiceTest : BehaviorSpec() {
         given("createPlan 호출 시") {
             val owner = UserFixtures.user()
             val request = CreatePlanRequest(
+                title = "Seoul Trip",
                 itinStart = Instant.parse("2026-05-01T00:00:00Z"),
                 itinFinish = Instant.parse("2026-05-05T00:00:00Z"),
                 location = "Seoul",
@@ -105,12 +106,13 @@ class PlanServiceTest : BehaviorSpec() {
 
                     every { SecurityUtil.getCurrentUserUuid() } returns owner.uuid
                     every { planRepository.findAllByOwner_Uuid(owner.uuid, any()) } returns page
-                    every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns emptyList()
+                    every { postRepository.findAllByPlan_UuidIn(listOf(plan.uuid)) } returns emptyList()
 
                     val result = sut.getMyPlans(Pageable.unpaged())
 
                     result.totalElements shouldBe 1
-                    result.content[0].userUuid shouldBe owner.uuid
+                    result.content[0].uuid shouldBe plan.uuid
+                    result.content[0].status shouldBe null
                 }
             }
         }
@@ -205,6 +207,7 @@ class PlanServiceTest : BehaviorSpec() {
             val owner = UserFixtures.user()
             val plan = PlanFixtures.plan(owner)
             val request = UpdatePlanRequest(
+                title = "Busan Trip",
                 itinStart = Instant.parse("2026-06-01T00:00:00Z"),
                 itinFinish = Instant.parse("2026-06-05T00:00:00Z"),
                 location = "Busan",

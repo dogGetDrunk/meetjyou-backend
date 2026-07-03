@@ -7,6 +7,7 @@ import java.util.UUID
 
 data class GetPlanResponse(
     val uuid: UUID,
+    val title: String,
     val itinStart: Instant,
     val itinFinish: Instant,
     val destination: String,
@@ -20,6 +21,7 @@ data class GetPlanResponse(
     companion object {
         fun of(plan: Plan, markers: List<Marker>) = GetPlanResponse(
             uuid = plan.uuid,
+            title = plan.title,
             itinStart = plan.itinStart,
             itinFinish = plan.itinFinish,
             destination = plan.destination,

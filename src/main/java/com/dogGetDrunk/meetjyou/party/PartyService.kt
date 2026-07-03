@@ -387,9 +387,21 @@ class PartyService(
             itinStart = request.itinStart
             itinFinish = request.itinFinish
         }
-        request.planUuid?.let { party.plan = resolveOwnedPlan(it, userUuid) }
+        applyPlanChange(party, request, userUuid)
         log.info("Party is updated: uuid=$partyUuid")
         return UpdatePartyResponse.of(party)
+    }
+
+    private fun applyPlanChange(party: Party, request: UpdatePartyRequest, userUuid: UUID) {
+        party.plan = request.planUuid?.let { resolveOwnedPlan(it, userUuid) }
+        syncPostPlan(party)
+    }
+
+    private fun syncPostPlan(party: Party) {
+        val post = postRepository.findByParty_Uuid(party.uuid) ?: return
+        post.plan = party.plan
+        post.isPlanPublic = if (party.plan == null) null else (post.isPlanPublic ?: false)
+        log.info("Post plan synced with party. partyUuid=${party.uuid}, planUuid=${party.plan?.uuid}")
     }
 
     @Transactional

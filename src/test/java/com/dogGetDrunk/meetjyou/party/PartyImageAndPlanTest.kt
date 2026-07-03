@@ -10,6 +10,7 @@ import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.support.PlanFixtures
+import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
@@ -62,6 +63,17 @@ class PartyImageAndPlanTest : BehaviorSpec() {
     private fun hostMembership(party: Party, host: com.dogGetDrunk.meetjyou.user.User) =
         UserParty(party, host, PartyRole.HOST)
 
+    private fun post(party: Party, author: com.dogGetDrunk.meetjyou.user.User) = Post(
+        party = party,
+        isInstant = false,
+        title = "Trip post",
+        content = "content",
+        itinStart = party.itinStart,
+        itinFinish = party.itinFinish,
+        location = party.destination,
+        capacity = party.capacity,
+    ).apply { this.author = author }
+
     init {
         given("파티 수정 시 planUuid가 함께 전달되면") {
             `when`("호출한 유저가 파티 호스트이고 여행 계획서 소유자인 경우") {
@@ -109,6 +121,65 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     shouldThrow<PlanUpdateAccessDeniedException> {
                         sut.updateParty(party.uuid, host.uuid, request)
                     }
+                }
+            }
+        }
+
+        given("파티 수정 시 planUuid가 null로 전달되면") {
+            `when`("연결된 모집글이 있으면") {
+                val host = UserFixtures.user()
+                val party = party()
+                val plan = PlanFixtures.plan(owner = host)
+                party.plan = plan
+                val linkedPost = post(party, host).apply { this.plan = plan; this.isPlanPublic = true }
+                val request = UpdatePartyRequest(
+                    itinStart = party.itinStart,
+                    itinFinish = party.itinFinish,
+                    destination = party.destination,
+                    joined = party.joined,
+                    capacity = party.capacity,
+                    name = "New name",
+                    planUuid = null,
+                )
+                every { partyRepository.findByUuid(party.uuid) } returns party
+                every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
+                every { postRepository.findByParty_Uuid(party.uuid) } returns linkedPost
+
+                then("파티와 연결된 모집글의 plan이 함께 해제된다") {
+                    sut.updateParty(party.uuid, host.uuid, request)
+                    party.plan shouldBe null
+                    linkedPost.plan shouldBe null
+                    linkedPost.isPlanPublic shouldBe null
+                }
+            }
+        }
+
+        given("파티 수정 시 다른 planUuid로 교체되면") {
+            `when`("연결된 모집글이 있으면") {
+                val host = UserFixtures.user()
+                val party = party()
+                val oldPlan = PlanFixtures.plan(owner = host)
+                party.plan = oldPlan
+                val newPlan = PlanFixtures.plan(owner = host)
+                val linkedPost = post(party, host).apply { this.plan = oldPlan; this.isPlanPublic = true }
+                val request = UpdatePartyRequest(
+                    itinStart = party.itinStart,
+                    itinFinish = party.itinFinish,
+                    destination = party.destination,
+                    joined = party.joined,
+                    capacity = party.capacity,
+                    name = "New name",
+                    planUuid = newPlan.uuid,
+                )
+                every { partyRepository.findByUuid(party.uuid) } returns party
+                every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
+                every { planRepository.findByUuid(newPlan.uuid) } returns newPlan
+                every { postRepository.findByParty_Uuid(party.uuid) } returns linkedPost
+
+                then("연결된 모집글의 plan도 새 계획서로 교체된다") {
+                    sut.updateParty(party.uuid, host.uuid, request)
+                    linkedPost.plan shouldBe newPlan
+                    linkedPost.isPlanPublic shouldBe true
                 }
             }
         }
