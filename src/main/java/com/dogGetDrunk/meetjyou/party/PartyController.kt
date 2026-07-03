@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyRequest
+import com.dogGetDrunk.meetjyou.party.dto.PartyMemberResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
@@ -17,6 +18,7 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -56,13 +58,15 @@ class PartyController(
 //        return partyService.createParty(request)
 //    }
 
-    @Operation(summary = "파티 단건 조회", description = "파티 UUID로 특정 파티를 조회합니다.")
+    @Operation(summary = "파티 단건 조회", description = "파티 UUID로 특정 파티를 조회합니다. (관리자 전용)")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping("/{partyUuid}")
     fun getPartyByUuid(@PathVariable partyUuid: UUID): GetPartyResponse {
         return partyService.getPartyByUuid(partyUuid)
     }
 
-    @Operation(summary = "전체 파티 조회", description = "모든 파티 목록을 페이지네이션하여 조회합니다.")
+    @Operation(summary = "전체 파티 조회", description = "모든 파티 목록을 페이지네이션하여 조회합니다. (관리자 전용)")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping
     fun getAllParties(
         @ParameterObject @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
@@ -71,7 +75,8 @@ class PartyController(
         return partyService.getAllParties(pageable)
     }
 
-    @Operation(summary = "유저가 참여 중인 파티 목록 조회", description = "유저 UUID로 특정 유저가 참여 중인 모든 파티를 조회합니다.")
+    @Operation(summary = "유저가 참여 중인 파티 목록 조회", description = "유저 UUID로 특정 유저가 참여 중인 모든 파티를 조회합니다. (관리자 전용)")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping("/user/{userUuid}")
     fun getPartiesByUserUuid(
         @PathVariable userUuid: UUID,
@@ -81,7 +86,8 @@ class PartyController(
         return partyService.getPartiesByUserUuid(userUuid, pageable)
     }
 
-    @Operation(summary = "여행 계획서 UUID 기반 파티 조회", description = "여행 계획서 UUID로 특정 여행 계획서와 연결된 모든 파티를 조회합니다.")
+    @Operation(summary = "여행 계획서 UUID 기반 파티 조회", description = "여행 계획서 UUID로 특정 여행 계획서와 연결된 모든 파티를 조회합니다. (관리자 전용)")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping("/plan/{planUuid}")
     fun getPartiesByPlanUuid(
         @PathVariable planUuid: UUID,
@@ -164,6 +170,13 @@ class PartyController(
     fun deleteParty(@PathVariable partyUuid: UUID) {
         val userUuid = SecurityUtil.getCurrentUserUuid()
         partyService.deleteParty(partyUuid, userUuid)
+    }
+
+    @Operation(summary = "파티 멤버 목록 조회", description = "현재 로그인한 유저가 가입되어 있는 파티의 멤버 목록을 조회합니다.")
+    @GetMapping("/{partyUuid}/members")
+    fun getPartyMembers(@PathVariable partyUuid: UUID): List<PartyMemberResponse> {
+        val userUuid = SecurityUtil.getCurrentUserUuid()
+        return partyService.getPartyMembers(partyUuid, userUuid)
     }
 
     @Operation(summary = "참여 신청 목록 조회", description = "HOST가 대기 중인 참여 신청 목록을 조회합니다.")

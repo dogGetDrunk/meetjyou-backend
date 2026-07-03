@@ -9,6 +9,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlready
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlreadyPendingException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinBannedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRequestNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyMemberAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyRecruitmentClosedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.SelfBanNotAllowedException
@@ -37,6 +38,7 @@ import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinRequestStatus
 import com.dogGetDrunk.meetjyou.party.dto.MyApplicationResponse
+import com.dogGetDrunk.meetjyou.party.dto.PartyMemberResponse
 import com.dogGetDrunk.meetjyou.party.dto.PendingJoinRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
@@ -333,6 +335,18 @@ class PartyService(
                 )
             },
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getPartyMembers(partyUuid: UUID, userUuid: UUID): List<PartyMemberResponse> {
+        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
+        if (membership == null || !membership.isActiveMember()) {
+            throw PartyMemberAccessDeniedException(partyUuid, userUuid)
+        }
+
+        return userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(partyUuid, MemberStatus.JOINED)
+            .sortedBy { it.joinedAt }
+            .map { PartyMemberResponse.of(it) }
     }
 
     @Transactional(readOnly = true)
