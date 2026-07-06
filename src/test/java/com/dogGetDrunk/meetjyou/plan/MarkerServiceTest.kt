@@ -1,8 +1,12 @@
 package com.dogGetDrunk.meetjyou.plan
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.post.PostRepository
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
+import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.dogGetDrunk.meetjyou.plan.dto.CreateMarkerRequest
 import com.dogGetDrunk.meetjyou.plan.support.PlanFixtures
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
@@ -13,8 +17,6 @@ import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkAll
 import io.mockk.verify
 import java.time.Instant
 import java.util.UUID
@@ -22,21 +24,21 @@ import java.util.UUID
 class MarkerServiceTest : BehaviorSpec() {
     private val markerRepository: MarkerRepository = mockk(relaxed = true)
     private val planRepository: PlanRepository = mockk(relaxed = true)
-    private val sut = MarkerService(markerRepository, planRepository)
+    private val postRepository: PostRepository = mockk(relaxed = true)
+    private val userPartyRepository: UserPartyRepository = mockk(relaxed = true)
+    private val planAccessGuard = PlanAccessGuard(postRepository, userPartyRepository)
+    private val currentUserProvider: CurrentUserProvider = mockk(relaxed = true)
+    private val sut = MarkerService(markerRepository, planRepository, planAccessGuard, currentUserProvider)
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
     init {
-        beforeEach {
-            clearAllMocks()
-            mockkObject(SecurityUtil)
-        }
-        afterSpec { unmockkAll() }
+        beforeEach { clearAllMocks() }
 
         // ── getMarkersByPlan ─────────────────────────────────────────────────
 
         given("getMarkersByPlan 호출 시") {
-            `when`("plan이 존재하면") {
+            `when`("소유자가 조회하면") {
                 then("dayNum, idx 순으로 정렬된 마커 목록을 반환한다") {
                     val owner = UserFixtures.user()
                     val plan = PlanFixtures.plan(owner)
@@ -45,7 +47,8 @@ class MarkerServiceTest : BehaviorSpec() {
                         PlanFixtures.marker(plan, dayNum = 1, idx = 0),
                     )
 
-                    every { planRepository.existsByUuid(plan.uuid) } returns true
+                    every { planRepository.findByUuid(plan.uuid) } returns plan
+                    every { currentUserProvider.uuid } returns owner.uuid
                     every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns markers
 
                     val result = sut.getMarkersByPlan(plan.uuid)
@@ -57,10 +60,31 @@ class MarkerServiceTest : BehaviorSpec() {
             `when`("plan이 존재하지 않으면") {
                 then("PlanNotFoundException을 던진다") {
                     val unknownUuid = UUID.randomUUID()
-                    every { planRepository.existsByUuid(unknownUuid) } returns false
+                    every { planRepository.findByUuid(unknownUuid) } returns null
 
                     shouldThrow<PlanNotFoundException> {
                         sut.getMarkersByPlan(unknownUuid)
+                    }
+                }
+            }
+
+            `when`("소유자도 아니고 공개 모집글/참여 파티에도 해당하지 않으면") {
+                then("PlanReadAccessDeniedException을 던진다") {
+                    val owner = UserFixtures.user()
+                    val plan = PlanFixtures.plan(owner)
+                    val otherUserUuid = UUID.randomUUID()
+
+                    every { planRepository.findByUuid(plan.uuid) } returns plan
+                    every { currentUserProvider.uuid } returns otherUserUuid
+                    every { postRepository.existsByPlan_UuidAndIsPlanPublicTrue(plan.uuid) } returns false
+                    every {
+                        userPartyRepository.existsByParty_Plan_UuidAndUser_UuidAndMemberStatus(
+                            plan.uuid, otherUserUuid, MemberStatus.JOINED,
+                        )
+                    } returns false
+
+                    shouldThrow<PlanReadAccessDeniedException> {
+                        sut.getMarkersByPlan(plan.uuid)
                     }
                 }
             }
@@ -85,7 +109,7 @@ class MarkerServiceTest : BehaviorSpec() {
                     val savedMarker = PlanFixtures.marker(plan, dayNum = 1, idx = 0)
 
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns owner.uuid
+                    every { currentUserProvider.uuid } returns owner.uuid
                     every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns listOf(savedMarker)
 
                     val result = sut.replaceMarkers(plan.uuid, markerRequests)
@@ -112,7 +136,7 @@ class MarkerServiceTest : BehaviorSpec() {
                     val otherUserUuid = UUID.randomUUID()
 
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns otherUserUuid
+                    every { currentUserProvider.uuid } returns otherUserUuid
 
                     shouldThrow<PlanUpdateAccessDeniedException> {
                         sut.replaceMarkers(plan.uuid, markerRequests)

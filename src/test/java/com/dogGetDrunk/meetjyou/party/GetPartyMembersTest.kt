@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyMemberAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
@@ -41,10 +42,11 @@ class GetPartyMembersTest : BehaviorSpec() {
     private val partyImgService = mockk<PartyImgService>(relaxed = true)
     private val postImgService = mockk<PostImgService>(relaxed = true)
     private val objectMapper = ObjectMapper()
+    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val sut = PartyService(
         partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
         chatParticipantService, chatRoomEventBroadcaster, userPartyRepository,
-        userRepository, publisher, partyImgService, postImgService, objectMapper,
+        userRepository, publisher, partyImgService, postImgService, objectMapper, currentUserProvider,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -62,12 +64,13 @@ class GetPartyMembersTest : BehaviorSpec() {
                 then("HOST와 MEMBER를 포함한 전체 멤버 목록을 반환한다") {
                     val hostMembership = NotificationCenterFixtures.hostUserParty(party, host)
                     val memberMembership = UserParty(party, member, PartyRole.MEMBER)
+                    every { currentUserProvider.uuid } returns member.uuid
                     every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, member.uuid) } returns memberMembership
                     every {
                         userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(party.uuid, MemberStatus.JOINED)
                     } returns listOf(hostMembership, memberMembership)
 
-                    val result = sut.getPartyMembers(party.uuid, member.uuid)
+                    val result = sut.getPartyMembers(party.uuid)
 
                     result.size shouldBe 2
                     result.map { it.userUuid } shouldBe listOf(host.uuid, member.uuid)
@@ -77,10 +80,11 @@ class GetPartyMembersTest : BehaviorSpec() {
 
             `when`("요청자가 파티 멤버가 아닌 경우") {
                 then("PartyMemberAccessDeniedException을 던진다") {
+                    every { currentUserProvider.uuid } returns outsider.uuid
                     every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, outsider.uuid) } returns null
 
                     shouldThrow<PartyMemberAccessDeniedException> {
-                        sut.getPartyMembers(party.uuid, outsider.uuid)
+                        sut.getPartyMembers(party.uuid)
                     }
                 }
             }
@@ -88,10 +92,11 @@ class GetPartyMembersTest : BehaviorSpec() {
             `when`("요청자가 BANNED 상태인 경우") {
                 then("PartyMemberAccessDeniedException을 던진다") {
                     val bannedMembership = UserParty(party, outsider, PartyRole.MEMBER).also { it.ban() }
+                    every { currentUserProvider.uuid } returns outsider.uuid
                     every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, outsider.uuid) } returns bannedMembership
 
                     shouldThrow<PartyMemberAccessDeniedException> {
-                        sut.getPartyMembers(party.uuid, outsider.uuid)
+                        sut.getPartyMembers(party.uuid)
                     }
                 }
             }

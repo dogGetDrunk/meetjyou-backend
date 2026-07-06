@@ -18,6 +18,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundE
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
@@ -80,6 +81,7 @@ class PartyService(
     private val partyImgService: PartyImgService,
     private val postImgService: PostImgService,
     private val objectMapper: ObjectMapper,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(PartyService::class.java)
 
@@ -140,7 +142,8 @@ class PartyService(
     }
 
     @Transactional(readOnly = true)
-    fun getMyParties(userUuid: UUID, pageable: Pageable): Page<GetMyPartyResponse> {
+    fun getMyParties(pageable: Pageable): Page<GetMyPartyResponse> {
+        val userUuid = currentUserProvider.uuid
         val membershipPage = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(userUuid, MemberStatus.JOINED, pageable)
         val partyUuids = membershipPage.content.map { it.party.uuid }
         val roomByPartyUuid = chatRoomRepository.findAllWithPartyByPartyUuidIn(partyUuids)
@@ -153,7 +156,8 @@ class PartyService(
     }
 
     @Transactional
-    fun requestJoinParty(partyUuid: UUID, userUuid: UUID, applicationNote: String?): JoinPartyResponse {
+    fun requestJoinParty(partyUuid: UUID, applicationNote: String?): JoinPartyResponse {
+        val userUuid = currentUserProvider.uuid
         log.info("Party join requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
 
         val party = requireParty(partyUuid)
@@ -216,7 +220,8 @@ class PartyService(
     }
 
     @Transactional
-    fun cancelJoinRequest(partyUuid: UUID, userUuid: UUID) {
+    fun cancelJoinRequest(partyUuid: UUID) {
+        val userUuid = currentUserProvider.uuid
         log.info("Party join cancellation requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
         val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
             ?: throw PartyJoinRequestNotFoundException(partyUuid, userUuid)
@@ -228,7 +233,8 @@ class PartyService(
     }
 
     @Transactional
-    fun approveJoinRequest(partyUuid: UUID, hostUuid: UUID, applicantUuid: UUID) {
+    fun approveJoinRequest(partyUuid: UUID, applicantUuid: UUID) {
+        val hostUuid = currentUserProvider.uuid
         log.info("Join request approval requested. partyUuid={}, hostUuid={}, applicantUuid={}", partyUuid, hostUuid, applicantUuid)
 
         requireActiveHostMembership(partyUuid, hostUuid)
@@ -285,7 +291,8 @@ class PartyService(
     }
 
     @Transactional
-    fun rejectJoinRequest(partyUuid: UUID, hostUuid: UUID, applicantUuid: UUID) {
+    fun rejectJoinRequest(partyUuid: UUID, applicantUuid: UUID) {
+        val hostUuid = currentUserProvider.uuid
         log.info("Join request rejection requested. partyUuid={}, hostUuid={}, applicantUuid={}", partyUuid, hostUuid, applicantUuid)
 
         requireActiveHostMembership(partyUuid, hostUuid)
@@ -316,8 +323,8 @@ class PartyService(
     }
 
     @Transactional(readOnly = true)
-    fun getPendingJoinRequests(partyUuid: UUID, hostUuid: UUID): GetPendingJoinRequestsResponse {
-        requireActiveHostMembership(partyUuid, hostUuid)
+    fun getPendingJoinRequests(partyUuid: UUID): GetPendingJoinRequestsResponse {
+        requireActiveHostMembership(partyUuid, currentUserProvider.uuid)
 
         val pending = userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(partyUuid, MemberStatus.PENDING)
         val postUuid = postRepository.findByParty_Uuid(partyUuid)?.uuid
@@ -338,7 +345,8 @@ class PartyService(
     }
 
     @Transactional(readOnly = true)
-    fun getPartyMembers(partyUuid: UUID, userUuid: UUID): List<PartyMemberResponse> {
+    fun getPartyMembers(partyUuid: UUID): List<PartyMemberResponse> {
+        val userUuid = currentUserProvider.uuid
         val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
         if (membership == null || !membership.isActiveMember()) {
             throw PartyMemberAccessDeniedException(partyUuid, userUuid)
@@ -350,8 +358,8 @@ class PartyService(
     }
 
     @Transactional(readOnly = true)
-    fun getMyApplications(userUuid: UUID, pageable: Pageable): Page<MyApplicationResponse> {
-        val applicationPage = userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable)
+    fun getMyApplications(pageable: Pageable): Page<MyApplicationResponse> {
+        val applicationPage = userPartyRepository.findAllSentApplicationsByUserUuid(currentUserProvider.uuid, pageable)
         val partyUuids = applicationPage.content.map { it.party.uuid }
         val postByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associateBy { it.party.uuid }
         return applicationPage.map { up ->
@@ -383,8 +391,17 @@ class PartyService(
         return userParty?.role == PartyRole.HOST && userParty.isActiveMember()
     }
 
+    @Transactional(readOnly = true)
+    fun assertCurrentUserIsHost(partyUuid: UUID) {
+        val userUuid = currentUserProvider.uuid
+        if (!verifyPartyHost(partyUuid, userUuid)) {
+            throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
+        }
+    }
+
     @Transactional
-    fun updateParty(partyUuid: UUID, userUuid: UUID, request: UpdatePartyRequest): UpdatePartyResponse {
+    fun updateParty(partyUuid: UUID, request: UpdatePartyRequest): UpdatePartyResponse {
+        val userUuid = currentUserProvider.uuid
         log.info("Party update request received: uuid=$partyUuid by user=$userUuid")
         if (!verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
@@ -419,7 +436,8 @@ class PartyService(
     }
 
     @Transactional
-    fun deleteParty(partyUuid: UUID, userUuid: UUID) {
+    fun deleteParty(partyUuid: UUID) {
+        val userUuid = currentUserProvider.uuid
         log.info("Party deletion request received: uuid=$partyUuid")
         if (!verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
@@ -434,7 +452,8 @@ class PartyService(
     }
 
     @Transactional
-    fun completeParty(partyUuid: UUID, userUuid: UUID) {
+    fun completeParty(partyUuid: UUID) {
+        val userUuid = currentUserProvider.uuid
         log.info("Party completion requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
 
         val party = requireParty(partyUuid)
@@ -465,9 +484,9 @@ class PartyService(
     @Transactional
     fun banMember(
         partyUuid: UUID,
-        userUuid: UUID,
         targetUserUuid: UUID,
     ) {
+        val userUuid = currentUserProvider.uuid
         log.info(
             "Party member ban requested. partyUuid={}, userUuid={}, targetUserUuid={}",
             partyUuid,
@@ -516,8 +535,8 @@ class PartyService(
     @Transactional
     fun leaveParty(
         partyUuid: UUID,
-        userUuid: UUID,
     ) {
+        val userUuid = currentUserProvider.uuid
         log.info("Party leave requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
 
         val party = requireParty(partyUuid)
@@ -549,7 +568,8 @@ class PartyService(
     }
 
     @Transactional
-    fun confirmPartyImage(partyUuid: UUID, userUuid: UUID) {
+    fun confirmPartyImage(partyUuid: UUID) {
+        val userUuid = currentUserProvider.uuid
         if (!verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }

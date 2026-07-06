@@ -1,6 +1,5 @@
 package com.dogGetDrunk.meetjyou.party
 
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
 import com.dogGetDrunk.meetjyou.party.dto.GetPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyRequest
@@ -106,8 +105,7 @@ class PartyController(
         @PathVariable partyUuid: UUID,
         @Valid @RequestBody request: UpdatePartyRequest,
     ): UpdatePartyResponse {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        return partyService.updateParty(partyUuid, userUuid, request)
+        return partyService.updateParty(partyUuid, request)
     }
 
     @Operation(summary = "파티 가입 신청", description = "현재 로그인한 유저가 파티 가입을 신청합니다. 호스트 승인 후 참여가 확정됩니다.")
@@ -116,33 +114,29 @@ class PartyController(
         @PathVariable partyUuid: UUID,
         @Valid @RequestBody(required = false) request: JoinPartyRequest?,
     ): ResponseEntity<JoinPartyResponse> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(partyService.requestJoinParty(partyUuid, userUuid, request?.applicationNote))
+            .body(partyService.requestJoinParty(partyUuid, request?.applicationNote))
     }
 
     @Operation(summary = "파티 이미지 업로드 확인", description = "OCI에 파티 이미지 업로드를 마친 뒤 HOST가 호출하여 파티 전용 이미지로 전환합니다.")
     @PutMapping("/{partyUuid}/img/confirm")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun confirmPartyImage(@PathVariable partyUuid: UUID) {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        partyService.confirmPartyImage(partyUuid, userUuid)
+        partyService.confirmPartyImage(partyUuid)
     }
 
     @Operation(summary = "파티 가입 신청 취소", description = "현재 로그인한 유저가 PENDING 상태인 자신의 파티 가입 신청을 취소합니다.")
     @DeleteMapping("/{partyUuid}/join-requests/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelJoinRequest(@PathVariable partyUuid: UUID) {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        partyService.cancelJoinRequest(partyUuid, userUuid)
+        partyService.cancelJoinRequest(partyUuid)
     }
 
     @Operation(summary = "파티 종료", description = "HOST가 파티를 종료하고 연결된 모집글을 마감 처리합니다.")
     @PostMapping("/{partyUuid}/complete")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun completeParty(@PathVariable partyUuid: UUID) {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        partyService.completeParty(partyUuid, userUuid)
+        partyService.completeParty(partyUuid)
     }
 
     @Operation(summary = "파티원 강퇴", description = "HOST가 특정 파티원을 강퇴합니다.")
@@ -152,38 +146,33 @@ class PartyController(
         @PathVariable partyUuid: UUID,
         @PathVariable targetUserUuid: UUID,
     ) {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        partyService.banMember(partyUuid, userUuid, targetUserUuid)
+        partyService.banMember(partyUuid, targetUserUuid)
     }
 
     @Operation(summary = "파티 탈퇴", description = "MEMBER가 현재 파티에서 탈퇴합니다.")
     @PostMapping("/{partyUuid}/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun leaveParty(@PathVariable partyUuid: UUID) {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        partyService.leaveParty(partyUuid, userUuid)
+        partyService.leaveParty(partyUuid)
     }
 
     @Operation(summary = "파티 삭제", description = "파티 UUID로 특정 파티를 삭제합니다.")
     @DeleteMapping("/{partyUuid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteParty(@PathVariable partyUuid: UUID) {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        partyService.deleteParty(partyUuid, userUuid)
+        partyService.deleteParty(partyUuid)
     }
 
     @Operation(summary = "파티 멤버 목록 조회", description = "현재 로그인한 유저가 가입되어 있는 파티의 멤버 목록을 조회합니다.")
     @GetMapping("/{partyUuid}/members")
     fun getPartyMembers(@PathVariable partyUuid: UUID): List<PartyMemberResponse> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        return partyService.getPartyMembers(partyUuid, userUuid)
+        return partyService.getPartyMembers(partyUuid)
     }
 
     @Operation(summary = "참여 신청 목록 조회", description = "HOST가 대기 중인 참여 신청 목록을 조회합니다.")
     @GetMapping("/{partyUuid}/join-requests")
     fun getPendingJoinRequests(@PathVariable partyUuid: UUID): GetPendingJoinRequestsResponse {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        return partyService.getPendingJoinRequests(partyUuid, userUuid)
+        return partyService.getPendingJoinRequests(partyUuid)
     }
 
     @Operation(summary = "참여 신청 승인", description = "HOST가 특정 유저의 참여 신청을 승인합니다.")
@@ -193,8 +182,7 @@ class PartyController(
         @PathVariable partyUuid: UUID,
         @PathVariable applicantUuid: UUID,
     ) {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        partyService.approveJoinRequest(partyUuid, userUuid, applicantUuid)
+        partyService.approveJoinRequest(partyUuid, applicantUuid)
     }
 
     @Operation(summary = "참여 신청 거절", description = "HOST가 특정 유저의 참여 신청을 거절합니다.")
@@ -204,7 +192,6 @@ class PartyController(
         @PathVariable partyUuid: UUID,
         @PathVariable applicantUuid: UUID,
     ) {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        partyService.rejectJoinRequest(partyUuid, userUuid, applicantUuid)
+        partyService.rejectJoinRequest(partyUuid, applicantUuid)
     }
 }

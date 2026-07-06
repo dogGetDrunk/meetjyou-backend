@@ -2,9 +2,7 @@ package com.dogGetDrunk.meetjyou.cloud.oracle
 
 import com.dogGetDrunk.meetjyou.cloud.oracle.dto.BulkRequest
 import com.dogGetDrunk.meetjyou.cloud.oracle.dto.ParResponse
-import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImgService
@@ -32,6 +30,7 @@ class OracleObjectStorageController(
     private val postService: PostService,
     private val partyService: PartyService,
     private val userService: UserService,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     @Operation(
         summary = "유저 프로필 이미지 업로드 PAR URL 생성",
@@ -39,8 +38,7 @@ class OracleObjectStorageController(
     )
     @PostMapping("/users/me/img/profile/par/upload")
     fun createUserImgUploadPar(): ResponseEntity<List<ParResponse>> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        val response = userImgService.createUserProfileImgUploadPars(userUuid)
+        val response = userImgService.createUserProfileImgUploadPars(currentUserProvider.uuid)
         return ResponseEntity.ok(response)
     }
 
@@ -71,8 +69,7 @@ class OracleObjectStorageController(
     )
     @DeleteMapping("/users/me/img/profile")
     fun deleteUserProfileImg(): ResponseEntity<Unit> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        userImgService.deleteUserProfileImg(userUuid)
+        userImgService.deleteUserProfileImg(currentUserProvider.uuid)
         userService.clearProfileImage()
         return ResponseEntity.noContent().build()
     }
@@ -85,11 +82,7 @@ class OracleObjectStorageController(
     fun createPostImgUploadPar(
         @PathVariable postUuid: UUID,
     ): ResponseEntity<List<ParResponse>> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-
-        if (!postService.verifyPostAuthor(postUuid, userUuid)) {
-            throw PostUpdateAccessDeniedException(postUuid, userUuid)
-        }
+        postService.assertCurrentUserIsAuthor(postUuid)
 
         val response = postImgService.createPostImgUploadPars(postUuid)
         return ResponseEntity.ok(response)
@@ -124,11 +117,7 @@ class OracleObjectStorageController(
     fun deletePostImg(
         @PathVariable postUuid: UUID,
     ): ResponseEntity<Unit> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-
-        if (!postService.verifyPostAuthor(postUuid, userUuid)) {
-            throw PostUpdateAccessDeniedException(postUuid, userUuid)
-        }
+        postService.assertCurrentUserIsAuthor(postUuid)
 
         postImgService.deletePostImg(postUuid)
         return ResponseEntity.noContent().build()
@@ -142,11 +131,7 @@ class OracleObjectStorageController(
     fun createPartyImgUploadPar(
         @PathVariable partyUuid: UUID,
     ): ResponseEntity<List<ParResponse>> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-
-        if (!partyService.verifyPartyHost(partyUuid, userUuid)) {
-            throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
-        }
+        partyService.assertCurrentUserIsHost(partyUuid)
 
         val response = partyImgService.createPartyImgUploadPars(partyUuid)
         return ResponseEntity.ok(response)
@@ -185,11 +170,7 @@ class OracleObjectStorageController(
     fun deletePartyImg(
         @PathVariable partyUuid: UUID,
     ): ResponseEntity<Unit> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-
-        if (!partyService.verifyPartyHost(partyUuid, userUuid)) {
-            throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
-        }
+        partyService.assertCurrentUserIsHost(partyUuid)
 
         partyImgService.deletePartyImg(partyUuid)
         partyService.clearPartyImageState(partyUuid)

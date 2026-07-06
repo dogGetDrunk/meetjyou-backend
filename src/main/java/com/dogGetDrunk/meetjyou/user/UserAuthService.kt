@@ -10,7 +10,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjec
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
@@ -31,6 +31,7 @@ class UserAuthService(
     private val termsService: TermsService,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val adminProperties: AdminProperties,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -140,10 +141,7 @@ class UserAuthService(
         if (passphrase != adminProperties.claimPassphrase) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid passphrase")
         }
-        val uuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(uuid)
-            ?: throw UserNotFoundException(uuid, message = "User not found during admin claim")
-
+        val user = currentUserProvider.user
         user.role = Role.ADMIN
         log.info("User promoted to ADMIN. uuid: {}", user.uuid)
         return issueTokenPair(user)

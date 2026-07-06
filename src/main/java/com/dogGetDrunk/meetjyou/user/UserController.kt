@@ -249,8 +249,7 @@ class UserController(
         @ParameterObject
         @PageableDefault(size = 20, sort = ["joinedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
     ): Page<GetMyPartyResponse> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        return partyService.getMyParties(userUuid, pageable)
+        return partyService.getMyParties(pageable)
     }
 
     @Operation(summary = "내 파티 신청 목록 조회", description = "현재 로그인한 사용자가 신청한 파티 신청 목록을 상태와 함께 조회합니다.")
@@ -260,8 +259,7 @@ class UserController(
         @ParameterObject
         @PageableDefault(size = 20, sort = ["statusChangedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
     ): Page<MyApplicationResponse> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        return partyService.getMyApplications(userUuid, pageable)
+        return partyService.getMyApplications(pageable)
     }
 
     @Operation(summary = "내 모집글 목록 조회", description = "현재 로그인한 사용자가 작성한 모집글 목록을 조회합니다.")

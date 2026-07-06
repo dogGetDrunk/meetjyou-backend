@@ -2,7 +2,7 @@ package com.dogGetDrunk.meetjyou.plan
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.plan.dto.CreateMarkerRequest
 import com.dogGetDrunk.meetjyou.plan.dto.MarkerResponse
 import org.slf4j.LoggerFactory
@@ -14,14 +14,17 @@ import java.util.UUID
 class MarkerService(
     private val markerRepository: MarkerRepository,
     private val planRepository: PlanRepository,
+    private val planAccessGuard: PlanAccessGuard,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(MarkerService::class.java)
 
     @Transactional(readOnly = true)
     fun getMarkersByPlan(planUuid: UUID): List<MarkerResponse> {
-        if (!planRepository.existsByUuid(planUuid)) {
-            throw PlanNotFoundException(planUuid)
-        }
+        val plan = planRepository.findByUuid(planUuid)
+            ?: throw PlanNotFoundException(planUuid)
+
+        planAccessGuard.validateReadAccess(plan, currentUserProvider.uuid)
 
         return markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
             .map { MarkerResponse.of(it) }
@@ -32,7 +35,7 @@ class MarkerService(
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
 
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val currentUserUuid = currentUserProvider.uuid
         if (plan.owner.uuid != currentUserUuid) {
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
         }

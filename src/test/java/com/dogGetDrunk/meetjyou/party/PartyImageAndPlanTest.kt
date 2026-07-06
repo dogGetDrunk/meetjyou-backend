@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
@@ -43,10 +44,11 @@ class PartyImageAndPlanTest : BehaviorSpec() {
     private val partyImgService = mockk<PartyImgService>(relaxed = true)
     private val postImgService = mockk<PostImgService>(relaxed = true)
     private val objectMapper = ObjectMapper().findAndRegisterModules()
+    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val sut = PartyService(
         partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
         chatParticipantService, chatRoomEventBroadcaster, userPartyRepository,
-        userRepository, publisher, partyImgService, postImgService, objectMapper,
+        userRepository, publisher, partyImgService, postImgService, objectMapper, currentUserProvider,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -90,11 +92,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     planUuid = plan.uuid,
                 )
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { planRepository.findByUuid(plan.uuid) } returns plan
 
                 then("파티의 plan이 갱신된다") {
-                    sut.updateParty(party.uuid, host.uuid, request)
+                    sut.updateParty(party.uuid, request)
                     party.plan shouldBe plan
                 }
             }
@@ -114,12 +117,13 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     planUuid = strangerPlan.uuid,
                 )
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { planRepository.findByUuid(strangerPlan.uuid) } returns strangerPlan
 
                 then("PlanUpdateAccessDeniedException이 발생한다") {
                     shouldThrow<PlanUpdateAccessDeniedException> {
-                        sut.updateParty(party.uuid, host.uuid, request)
+                        sut.updateParty(party.uuid, request)
                     }
                 }
             }
@@ -142,11 +146,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     planUuid = null,
                 )
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { postRepository.findByParty_Uuid(party.uuid) } returns linkedPost
 
                 then("파티와 연결된 모집글의 plan이 함께 해제된다") {
-                    sut.updateParty(party.uuid, host.uuid, request)
+                    sut.updateParty(party.uuid, request)
                     party.plan shouldBe null
                     linkedPost.plan shouldBe null
                     linkedPost.isPlanPublic shouldBe null
@@ -172,12 +177,13 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     planUuid = newPlan.uuid,
                 )
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { planRepository.findByUuid(newPlan.uuid) } returns newPlan
                 every { postRepository.findByParty_Uuid(party.uuid) } returns linkedPost
 
                 then("연결된 모집글의 plan도 새 계획서로 교체된다") {
-                    sut.updateParty(party.uuid, host.uuid, request)
+                    sut.updateParty(party.uuid, request)
                     linkedPost.plan shouldBe newPlan
                     linkedPost.isPlanPublic shouldBe true
                 }
@@ -189,10 +195,11 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                 val host = UserFixtures.user()
                 val party = party()
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
 
                 then("imageState가 CUSTOM으로 바뀐다") {
-                    sut.confirmPartyImage(party.uuid, host.uuid)
+                    sut.confirmPartyImage(party.uuid)
                     party.imageState shouldBe PartyImageState.CUSTOM
                 }
             }
@@ -237,11 +244,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                 val marker = PlanFixtures.marker(plan)
                 party.plan = plan
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns listOf(marker)
 
                 then("planSnapshot이 JSON으로 저장된다") {
-                    sut.completeParty(party.uuid, host.uuid)
+                    sut.completeParty(party.uuid)
                     party.planSnapshot shouldNotBe null
                     party.planSnapshot!!.contains(plan.destination) shouldBe true
                 }

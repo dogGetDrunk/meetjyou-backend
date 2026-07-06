@@ -100,6 +100,14 @@ class PostService(
     }
 
     @Transactional(readOnly = true)
+    fun assertCurrentUserIsAuthor(postUuid: UUID) {
+        val userUuid = currentUserProvider.uuid
+        if (!verifyPostAuthor(postUuid, userUuid)) {
+            throw PostUpdateAccessDeniedException(postUuid, userUuid)
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<GetPostResponse> {
         val posts = postRepository.findAll(pageable)
         if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it, 0L) }

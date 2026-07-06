@@ -2,12 +2,9 @@ package com.dogGetDrunk.meetjyou.plan
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.post.PostRepository
-import com.dogGetDrunk.meetjyou.userparty.MemberStatus
-import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
@@ -30,15 +27,14 @@ class PlanService(
     private val markerRepository: MarkerRepository,
     private val userRepository: UserRepository,
     private val postRepository: PostRepository,
-    private val userPartyRepository: UserPartyRepository,
+    private val planAccessGuard: PlanAccessGuard,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(PlanService::class.java)
 
     @Transactional
     fun createPlan(request: CreatePlanRequest): CreatePlanResponse {
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(currentUserUuid)
-            ?: throw UserNotFoundException(currentUserUuid)
+        val user = currentUserProvider.user
 
         val plan = Plan(
             title = request.title,
@@ -76,16 +72,8 @@ class PlanService(
     fun getPlanByUuid(planUuid: UUID): GetPlanResponse {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
 
-        val canRead = plan.owner.uuid == currentUserUuid
-            || postRepository.existsByPlan_UuidAndIsPlanPublicTrue(planUuid)
-            || userPartyRepository.existsByParty_Plan_UuidAndUser_UuidAndMemberStatus(
-                planUuid, currentUserUuid, MemberStatus.JOINED,
-            )
-        if (!canRead) {
-            throw PlanReadAccessDeniedException(planUuid, currentUserUuid)
-        }
+        planAccessGuard.validateReadAccess(plan, currentUserProvider.uuid)
 
         val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
         return GetPlanResponse.of(plan, markers)
@@ -103,9 +91,7 @@ class PlanService(
 
     @Transactional(readOnly = true)
     fun getMyPlans(pageable: Pageable): Page<PlanSummaryResponse> {
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
-
-        val plans = planRepository.findAllByOwner_Uuid(currentUserUuid, pageable)
+        val plans = planRepository.findAllByOwner_Uuid(currentUserProvider.uuid, pageable)
         val statusByPlanUuid = resolveRecruitStatuses(plans.content.map { it.uuid })
 
         return plans.map { PlanSummaryResponse.of(it, statusByPlanUuid[it.uuid]) }
@@ -127,7 +113,7 @@ class PlanService(
     fun updatePlan(planUuid: UUID, request: UpdatePlanRequest): UpdatePlanResponse {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val currentUserUuid = currentUserProvider.uuid
 
         if (plan.owner.uuid != currentUserUuid) {
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
@@ -152,7 +138,7 @@ class PlanService(
     fun deletePlan(planUuid: UUID) {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val currentUserUuid = currentUserProvider.uuid
 
         if (plan.owner.uuid != currentUserUuid) {
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)

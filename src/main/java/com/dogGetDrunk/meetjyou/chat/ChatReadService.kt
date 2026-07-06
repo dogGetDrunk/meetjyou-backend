@@ -11,6 +11,7 @@ import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatMessageNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
@@ -25,6 +26,7 @@ class ChatReadService(
     private val chatRoomRepository: ChatRoomRepository,
     private val userPartyRepository: UserPartyRepository,
     private val chatRoomEventBroadcaster: ChatRoomEventBroadcaster,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
 
     private val log = LoggerFactory.getLogger(ChatReadService::class.java)
@@ -32,10 +34,10 @@ class ChatReadService(
     @Transactional
     fun getMessages(
         roomUuid: UUID,
-        requesterUuid: UUID,
         beforeMessageUuid: UUID?,
         size: Int,
     ): GetChatMessagesResponse {
+        val requesterUuid = currentUserProvider.uuid
         val validatedSize = size.coerceIn(1, MAX_PAGE_SIZE)
         val pageable = PageRequest.of(0, validatedSize)
 
@@ -105,8 +107,8 @@ class ChatReadService(
     @Transactional(readOnly = true)
     fun getUnreadCount(
         roomUuid: UUID,
-        requesterUuid: UUID,
     ): Long {
+        val requesterUuid = currentUserProvider.uuid
         log.info(
             "Unread count requested. roomUuid={}, requesterUuid={}",
             roomUuid,
@@ -147,9 +149,8 @@ class ChatReadService(
     }
 
     @Transactional(readOnly = true)
-    fun getChatRooms(
-        requesterUuid: UUID,
-    ): GetChatRoomsResponse {
+    fun getChatRooms(): GetChatRoomsResponse {
+        val requesterUuid = currentUserProvider.uuid
         log.info("Chat room list requested. requesterUuid={}", requesterUuid)
 
         val memberships = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(
@@ -292,9 +293,9 @@ class ChatReadService(
     @Transactional
     fun markAsRead(
         roomUuid: UUID,
-        requesterUuid: UUID,
         messageUuid: UUID?,
     ) {
+        val requesterUuid = currentUserProvider.uuid
         val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
             ?: throw ChatRoomNotFoundException(roomUuid.toString())
 

@@ -8,6 +8,7 @@ import com.dogGetDrunk.meetjyou.auth.support.RefreshTokenFixtures
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
@@ -31,6 +32,7 @@ class UserAuthServiceTest : BehaviorSpec() {
     private val termsService = mockk<TermsService>(relaxed = true)
     private val refreshTokenRepository = mockk<RefreshTokenRepository>(relaxed = true)
     private val adminProperties = AdminProperties(claimPassphrase = "test-passphrase")
+    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
 
     private val sut = UserAuthService(
         socialVerifierRegistry,
@@ -40,6 +42,7 @@ class UserAuthServiceTest : BehaviorSpec() {
         termsService,
         refreshTokenRepository,
         adminProperties,
+        currentUserProvider,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf

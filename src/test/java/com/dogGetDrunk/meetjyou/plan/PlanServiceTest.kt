@@ -4,7 +4,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundE
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
@@ -21,8 +21,6 @@ import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkAll
 import io.mockk.verify
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
@@ -35,16 +33,14 @@ class PlanServiceTest : BehaviorSpec() {
     private val userRepository: UserRepository = mockk(relaxed = true)
     private val postRepository: PostRepository = mockk(relaxed = true)
     private val userPartyRepository: UserPartyRepository = mockk(relaxed = true)
-    private val sut = PlanService(planRepository, markerRepository, userRepository, postRepository, userPartyRepository)
+    private val planAccessGuard = PlanAccessGuard(postRepository, userPartyRepository)
+    private val currentUserProvider: CurrentUserProvider = mockk(relaxed = true)
+    private val sut = PlanService(planRepository, markerRepository, userRepository, postRepository, planAccessGuard, currentUserProvider)
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
     init {
-        beforeEach {
-            clearAllMocks()
-            mockkObject(SecurityUtil)
-        }
-        afterSpec { unmockkAll() }
+        beforeEach { clearAllMocks() }
 
         // ── createPlan ───────────────────────────────────────────────────────
 
@@ -70,8 +66,7 @@ class PlanServiceTest : BehaviorSpec() {
 
             `when`("유저가 존재하면") {
                 then("Plan과 Marker를 저장하고 응답을 반환한다") {
-                    every { SecurityUtil.getCurrentUserUuid() } returns owner.uuid
-                    every { userRepository.findByUuid(owner.uuid) } returns owner
+                    every { currentUserProvider.user } returns owner
                     every { planRepository.save(any()) } returnsArgument 0
 
                     val result = sut.createPlan(request)
@@ -85,8 +80,7 @@ class PlanServiceTest : BehaviorSpec() {
 
             `when`("유저가 존재하지 않으면") {
                 then("UserNotFoundException을 던진다") {
-                    every { SecurityUtil.getCurrentUserUuid() } returns owner.uuid
-                    every { userRepository.findByUuid(owner.uuid) } returns null
+                    every { currentUserProvider.user } throws UserNotFoundException(owner.uuid)
 
                     shouldThrow<UserNotFoundException> {
                         sut.createPlan(request)
@@ -104,7 +98,7 @@ class PlanServiceTest : BehaviorSpec() {
                     val plan = PlanFixtures.plan(owner)
                     val page = PageImpl(listOf(plan))
 
-                    every { SecurityUtil.getCurrentUserUuid() } returns owner.uuid
+                    every { currentUserProvider.uuid } returns owner.uuid
                     every { planRepository.findAllByOwner_Uuid(owner.uuid, any()) } returns page
                     every { postRepository.findAllByPlan_UuidIn(listOf(plan.uuid)) } returns emptyList()
 
@@ -126,7 +120,7 @@ class PlanServiceTest : BehaviorSpec() {
             `when`("소유자가 조회하면") {
                 then("Plan을 반환한다") {
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns owner.uuid
+                    every { currentUserProvider.uuid } returns owner.uuid
                     every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns emptyList()
 
                     val result = sut.getPlanByUuid(plan.uuid)
@@ -140,7 +134,7 @@ class PlanServiceTest : BehaviorSpec() {
                     val otherUserUuid = UUID.randomUUID()
 
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns otherUserUuid
+                    every { currentUserProvider.uuid } returns otherUserUuid
                     every { postRepository.existsByPlan_UuidAndIsPlanPublicTrue(plan.uuid) } returns true
                     every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns emptyList()
 
@@ -155,7 +149,7 @@ class PlanServiceTest : BehaviorSpec() {
                     val otherUserUuid = UUID.randomUUID()
 
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns otherUserUuid
+                    every { currentUserProvider.uuid } returns otherUserUuid
                     every { postRepository.existsByPlan_UuidAndIsPlanPublicTrue(plan.uuid) } returns false
                     every {
                         userPartyRepository.existsByParty_Plan_UuidAndUser_UuidAndMemberStatus(
@@ -175,7 +169,7 @@ class PlanServiceTest : BehaviorSpec() {
                     val otherUserUuid = UUID.randomUUID()
 
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns otherUserUuid
+                    every { currentUserProvider.uuid } returns otherUserUuid
                     every { postRepository.existsByPlan_UuidAndIsPlanPublicTrue(plan.uuid) } returns false
                     every {
                         userPartyRepository.existsByParty_Plan_UuidAndUser_UuidAndMemberStatus(
@@ -220,7 +214,7 @@ class PlanServiceTest : BehaviorSpec() {
             `when`("소유자가 수정하면") {
                 then("Plan 필드가 업데이트된 응답을 반환한다") {
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns owner.uuid
+                    every { currentUserProvider.uuid } returns owner.uuid
 
                     val result = sut.updatePlan(plan.uuid, request)
 
@@ -234,7 +228,7 @@ class PlanServiceTest : BehaviorSpec() {
                     val otherUserUuid = UUID.randomUUID()
 
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns otherUserUuid
+                    every { currentUserProvider.uuid } returns otherUserUuid
 
                     shouldThrow<PlanUpdateAccessDeniedException> {
                         sut.updatePlan(plan.uuid, request)
@@ -263,7 +257,7 @@ class PlanServiceTest : BehaviorSpec() {
             `when`("소유자가 삭제하면") {
                 then("Marker와 Plan을 모두 삭제한다") {
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns owner.uuid
+                    every { currentUserProvider.uuid } returns owner.uuid
 
                     sut.deletePlan(plan.uuid)
 
@@ -277,7 +271,7 @@ class PlanServiceTest : BehaviorSpec() {
                     val otherUserUuid = UUID.randomUUID()
 
                     every { planRepository.findByUuid(plan.uuid) } returns plan
-                    every { SecurityUtil.getCurrentUserUuid() } returns otherUserUuid
+                    every { currentUserProvider.uuid } returns otherUserUuid
 
                     shouldThrow<PlanUpdateAccessDeniedException> {
                         sut.deletePlan(plan.uuid)
