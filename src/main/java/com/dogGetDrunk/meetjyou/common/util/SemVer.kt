@@ -1,6 +1,10 @@
 package com.dogGetDrunk.meetjyou.common.util
 
 object SemVer {
+    private val VALID_FORMAT = Regex("^\\d+(\\.\\d+)*$")
+
+    fun isValid(version: String): Boolean = VALID_FORMAT.matches(version)
+
     fun compare(a: String, b: String): Int {
         val aParts = a.split(".").map { it.toIntOrNull() ?: 0 }
         val bParts = b.split(".").map { it.toIntOrNull() ?: 0 }

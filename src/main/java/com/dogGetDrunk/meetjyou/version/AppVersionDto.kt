@@ -6,7 +6,8 @@ data class AppVersionDto(
     val platform: Platform,
     val version: String,
     val forceUpdate: Boolean,
-    val downloadUrl: String,
+    val message: String? = null,
+    val storeReleased: Boolean = false,
     val releasedAt: Instant,
 ) {
     companion object {
@@ -14,7 +15,8 @@ data class AppVersionDto(
             platform = appVersion.platform,
             version = appVersion.version,
             forceUpdate = appVersion.forceUpdate,
-            downloadUrl = appVersion.downloadUrl,
+            message = appVersion.message,
+            storeReleased = appVersion.storeReleased,
             releasedAt = appVersion.releasedAt,
         )
     }
