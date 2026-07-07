@@ -10,7 +10,6 @@ import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -31,21 +30,23 @@ class ChatParticipantService(
     ) {
         validateMembership(roomUuid, userUuid)
 
+        val alreadyParticipant = chatParticipantRepository.findByUser_UuidAndRoom_Uuid(userUuid, roomUuid) != null
+        if (alreadyParticipant) {
+            return
+        }
+
         val room = chatRoomRepository.findByUuid(roomUuid)
             ?: throw ChatRoomNotFoundException(roomUuid.toString())
 
         val user = userRepository.findByUuid(userUuid)
             ?: throw UserNotFoundException(userUuid)
 
-        val participant = chatParticipantRepository.findByUser_UuidAndRoom_Uuid(userUuid, roomUuid)
-            ?: ChatParticipant(
+        chatParticipantRepository.save(
+            ChatParticipant(
                 user = user,
                 room = room,
-                lastReadAt = null,
             )
-
-        participant.lastReadAt = Instant.now()
-        chatParticipantRepository.save(participant)
+        )
 
         log.info("Chat room entry tracked. roomUuid={}, userUuid={}", roomUuid, userUuid)
     }

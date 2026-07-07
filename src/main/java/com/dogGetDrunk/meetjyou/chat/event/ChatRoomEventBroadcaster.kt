@@ -24,6 +24,22 @@ class ChatRoomEventBroadcaster(
         )
     }
 
+    fun broadcastMemberJoined(
+        roomUuid: UUID,
+        partyUuid: UUID,
+        targetUserUuid: UUID,
+    ) {
+        broadcast(
+            ChatRoomEvent(
+                type = ChatRoomEventType.MEMBER_JOINED,
+                roomUuid = roomUuid,
+                partyUuid = partyUuid,
+                actorUserUuid = targetUserUuid,
+                targetUserUuid = targetUserUuid,
+            )
+        )
+    }
+
     fun broadcastMemberBanned(
         roomUuid: UUID,
         partyUuid: UUID,

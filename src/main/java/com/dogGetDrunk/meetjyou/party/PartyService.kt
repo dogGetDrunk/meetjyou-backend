@@ -253,6 +253,11 @@ class PartyService(
 
         chatRoomRepository.findByParty_Uuid(partyUuid)?.let { chatRoom ->
             chatParticipantService.enterRoom(chatRoom.uuid, applicantUuid)
+            chatRoomEventBroadcaster.broadcastMemberJoined(
+                roomUuid = chatRoom.uuid,
+                partyUuid = partyUuid,
+                targetUserUuid = applicantUuid,
+            )
         }
 
         publisher.publishEvent(
