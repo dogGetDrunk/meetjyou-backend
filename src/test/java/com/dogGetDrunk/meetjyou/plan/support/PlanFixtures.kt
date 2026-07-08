@@ -7,6 +7,7 @@ import java.time.Instant
 
 object PlanFixtures {
     fun plan(owner: com.dogGetDrunk.meetjyou.user.User = UserFixtures.user()) = Plan(
+        title = "Seoul Trip",
         itinStart = Instant.parse("2026-05-01T00:00:00Z"),
         itinFinish = Instant.parse("2026-05-05T00:00:00Z"),
         destination = "Seoul",

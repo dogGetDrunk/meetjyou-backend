@@ -32,7 +32,7 @@ class AppVersionController(
     @Operation(
         summary = "버전 체크",
         description = "클라이언트 버전을 서버에 전달해 강제/선택 업데이트 여부를 확인합니다. " +
-            "forceUpdate=true인 버전 중 가장 높은 버전이 최소 요구 버전입니다.",
+            "스토어 배포가 확인된(storeReleased=true) 버전 중 forceUpdate=true인 가장 높은 버전이 최소 요구 버전입니다.",
     )
     @ApiResponses(
         value = [ApiResponse(
@@ -86,7 +86,8 @@ class AppVersionController(
 
     @Operation(
         summary = "[admin] 새 버전 등록",
-        description = "forceUpdate=true로 등록된 버전 중 가장 높은 버전이 강제 업데이트 최소 기준이 됩니다.",
+        description = "등록 직후엔 항상 storeReleased=false(미배포)로 생성되어 /check 판단에 영향을 주지 않습니다. " +
+            "스토어 심사 통과 및 실제 배포를 확인한 뒤 [admin] 스토어 배포 확인 토글 API로 반영하세요.",
     )
     @ApiResponses(
         value = [ApiResponse(responseCode = "201", description = "새 버전 등록 성공"),
@@ -107,7 +108,7 @@ class AppVersionController(
     }
 
 
-    @Operation(summary = "[admin] 버전 정보 수정", description = "강제 업데이트 여부 및 다운로드 URL을 수정합니다.")
+    @Operation(summary = "[admin] 버전 정보 수정", description = "강제 업데이트 여부 및 업데이트 안내 메시지를 수정합니다.")
     @ApiResponses(
         value = [ApiResponse(responseCode = "200", description = "버전 정보 수정 완료"),
             ApiResponse(
@@ -154,23 +155,45 @@ class AppVersionController(
     }
 
 
-    @Operation(summary = "[admin] 다운로드 URL 변경")
+    @Operation(
+        summary = "[admin] 스토어 배포 확인 토글",
+        description = "스토어 심사 통과 및 실제 배포가 확인된 버전만 최신/강제 업데이트 판단에 반영됩니다. " +
+            "등록 직후엔 기본적으로 false이며, 실제 다운로드 가능 여부를 확인한 뒤에만 켜세요.",
+    )
     @ApiResponses(
-        value = [ApiResponse(responseCode = "200", description = "다운로드 URL 변경 성공"),
-            ApiResponse(
-                responseCode = "404",
-                description = "등록되지 않은 버전",
-                content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
-            )]
+        value = [ApiResponse(
+            responseCode = "200",
+            description = "변경 완료",
+            content = [Content(mediaType = "application/json", schema = Schema(example = "{ \"message\": \"Store release toggled: false -> true\" }"))],
+        ), ApiResponse(
+            responseCode = "404",
+            description = "등록되지 않은 버전",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+        )]
     )
     @PreAuthorize("hasAuthority('ADMIN')")
-    @PutMapping("/{version}/download-url")
-    fun updateDownloadUrl(
+    @PutMapping("/{version}/release")
+    fun toggleStoreReleased(
         @PathVariable platform: String,
         @PathVariable version: String,
+    ): ResponseEntity<Map<String, String>> {
+        val current = appVersionService.toggleStoreReleased(version, toPlatform(platform))
+        return ResponseEntity.ok(mapOf("message" to "Store release toggled: ${!current} -> $current"))
+    }
+
+
+    @Operation(
+        summary = "[admin] 스토어 다운로드 URL 변경",
+        description = "플랫폼의 App Store/Play Store 다운로드 URL을 변경합니다. 특정 버전이 아닌 플랫폼 단위로 관리됩니다.",
+    )
+    @ApiResponses(value = [ApiResponse(responseCode = "200", description = "다운로드 URL 변경 성공")])
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/store-url")
+    fun updateStoreUrl(
+        @PathVariable platform: String,
         @RequestParam newUrl: String,
     ): ResponseEntity<Void> {
-        appVersionService.updateDownloadUrl(version, toPlatform(platform), newUrl)
+        appVersionService.updateStoreUrl(toPlatform(platform), newUrl)
         return ResponseEntity.ok().build()
     }
 

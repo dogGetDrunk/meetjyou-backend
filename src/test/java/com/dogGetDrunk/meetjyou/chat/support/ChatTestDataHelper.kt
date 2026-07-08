@@ -43,6 +43,7 @@ class ChatTestDataHelper(
         )
         val plan = planRepository.save(
             Plan(
+                title = "Seoul Trip",
                 itinStart = Instant.now(),
                 itinFinish = Instant.now().plusSeconds(86400),
                 destination = "Seoul",

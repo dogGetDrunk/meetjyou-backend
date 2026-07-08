@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.user.dto
 
 data class UpdateMarketingConsentRequest(
-    val consented: Boolean,
+    val snsConsented: Boolean,
+    val emailConsented: Boolean,
 )

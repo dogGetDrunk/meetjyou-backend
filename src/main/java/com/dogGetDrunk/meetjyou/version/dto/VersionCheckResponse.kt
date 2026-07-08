@@ -5,4 +5,5 @@ data class VersionCheckResponse(
     val updateAvailable: Boolean,
     val latestVersion: String?,
     val downloadUrl: String?,
+    val message: String?,
 )

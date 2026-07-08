@@ -26,7 +26,12 @@ class AppVersion(
     @Column(columnDefinition = "TINYINT(1) DEFAULT 0")
     var forceUpdate: Boolean,
 
-    var downloadUrl: String,
+    var message: String? = null,
+
+    // Whether the store review for this version has actually completed and it is downloadable.
+    // Only released versions are considered for /check's latest/minimum calculation.
+    @Column(name = "store_released", columnDefinition = "TINYINT(1) DEFAULT 0")
+    var storeReleased: Boolean = false,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

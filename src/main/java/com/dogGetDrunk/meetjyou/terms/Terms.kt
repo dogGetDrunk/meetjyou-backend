@@ -27,7 +27,9 @@ class Terms(
     @Column(name = "content_hash")
     val contentHash: String,
     @Enumerated(EnumType.STRING)
-    val status: TermsStatus = TermsStatus.ACTIVE,
+    var status: TermsStatus = TermsStatus.ACTIVE,
+    @Column(name = "effective_at")
+    var effectiveAt: Instant = Instant.now(),
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,10 +37,6 @@ class Terms(
 
     @JdbcTypeCode(Types.VARCHAR)
     val uuid: UUID = UUID.randomUUID()
-
-    @Column(name = "effective_at")
-    var effectiveAt: Instant? = null
-        protected set
 
     @Column(name = "created_at", insertable = false, updatable = false)
     var createdAt: Instant? = null

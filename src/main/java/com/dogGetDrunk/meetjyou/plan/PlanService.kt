@@ -2,17 +2,17 @@ package com.dogGetDrunk.meetjyou.plan
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.post.PostRepository
-import com.dogGetDrunk.meetjyou.userparty.MemberStatus
-import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
+import com.dogGetDrunk.meetjyou.plan.dto.PlanSummaryResponse
 import com.dogGetDrunk.meetjyou.plan.dto.UpdatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.UpdatePlanResponse
+import com.dogGetDrunk.meetjyou.post.Post
+import com.dogGetDrunk.meetjyou.post.PostStatus
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
@@ -27,17 +27,17 @@ class PlanService(
     private val markerRepository: MarkerRepository,
     private val userRepository: UserRepository,
     private val postRepository: PostRepository,
-    private val userPartyRepository: UserPartyRepository,
+    private val planAccessGuard: PlanAccessGuard,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(PlanService::class.java)
 
     @Transactional
     fun createPlan(request: CreatePlanRequest): CreatePlanResponse {
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(currentUserUuid)
-            ?: throw UserNotFoundException(currentUserUuid)
+        val user = currentUserProvider.user
 
         val plan = Plan(
+            title = request.title,
             itinStart = request.itinStart,
             itinFinish = request.itinFinish,
             destination = request.location,
@@ -72,16 +72,8 @@ class PlanService(
     fun getPlanByUuid(planUuid: UUID): GetPlanResponse {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
 
-        val canRead = plan.owner.uuid == currentUserUuid
-            || postRepository.existsByPlan_UuidAndIsPlanPublicTrue(planUuid)
-            || userPartyRepository.existsByParty_Plan_UuidAndUser_UuidAndMemberStatus(
-                planUuid, currentUserUuid, MemberStatus.JOINED,
-            )
-        if (!canRead) {
-            throw PlanReadAccessDeniedException(planUuid, currentUserUuid)
-        }
+        planAccessGuard.validateReadAccess(plan, currentUserProvider.uuid)
 
         val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
         return GetPlanResponse.of(plan, markers)
@@ -98,24 +90,37 @@ class PlanService(
     }
 
     @Transactional(readOnly = true)
-    fun getMyPlans(pageable: Pageable): Page<GetPlanResponse> {
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+    fun getMyPlans(pageable: Pageable): Page<PlanSummaryResponse> {
+        val plans = planRepository.findAllByOwner_Uuid(currentUserProvider.uuid, pageable)
+        val statusByPlanUuid = resolveRecruitStatuses(plans.content.map { it.uuid })
 
-        return planRepository.findAllByOwner_Uuid(currentUserUuid, pageable)
-            .map { GetPlanResponse.of(it, markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(it.uuid)) }
+        return plans.map { PlanSummaryResponse.of(it, statusByPlanUuid[it.uuid]) }
+    }
+
+    private fun resolveRecruitStatuses(planUuids: List<UUID>): Map<UUID, PlanRecruitStatus> {
+        if (planUuids.isEmpty()) return emptyMap()
+        return postRepository.findAllByPlan_UuidIn(planUuids)
+            .associateBy({ it.plan!!.uuid }, { it.toRecruitStatus() })
+    }
+
+    private fun Post.toRecruitStatus(): PlanRecruitStatus = when {
+        status == PostStatus.RECRUITMENT_COMPLETED -> PlanRecruitStatus.RECRUITMENT_COMPLETED
+        isInstant -> PlanRecruitStatus.INSTANT
+        else -> PlanRecruitStatus.RECRUITING
     }
 
     @Transactional
     fun updatePlan(planUuid: UUID, request: UpdatePlanRequest): UpdatePlanResponse {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val currentUserUuid = currentUserProvider.uuid
 
         if (plan.owner.uuid != currentUserUuid) {
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
         }
 
         plan.apply {
+            title = request.title
             itinStart = request.itinStart
             itinFinish = request.itinFinish
             destination = request.location
@@ -133,7 +138,7 @@ class PlanService(
     fun deletePlan(planUuid: UUID) {
         val plan = planRepository.findByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
-        val currentUserUuid = SecurityUtil.getCurrentUserUuid()
+        val currentUserUuid = currentUserProvider.uuid
 
         if (plan.owner.uuid != currentUserUuid) {
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)

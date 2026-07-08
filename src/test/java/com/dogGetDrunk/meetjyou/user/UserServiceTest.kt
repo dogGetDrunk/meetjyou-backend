@@ -2,10 +2,10 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
-import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
+import com.dogGetDrunk.meetjyou.terms.TermsService
+import com.dogGetDrunk.meetjyou.terms.TermsType
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
@@ -15,21 +15,22 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
+import io.mockk.verify
 
 class UserServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val preferenceRepository = mockk<PreferenceRepository>(relaxed = true)
     private val userPreferenceRepository = mockk<UserPreferenceRepository>(relaxed = true)
 
-    private val defaultProfileImageProvider = mockk<DefaultProfileImageProvider>(relaxed = true)
     private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
+    private val termsService = mockk<TermsService>(relaxed = true)
 
     private val sut = UserService(
         userRepository,
         preferenceRepository,
         userPreferenceRepository,
-        defaultProfileImageProvider,
         currentUserProvider,
+        termsService,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -50,11 +51,10 @@ class UserServiceTest : BehaviorSpec() {
             }
 
             `when`("정상적으로 호출되면") {
-                then("ImageTarget 기반으로 imgUrl과 thumbImgUrl이 설정된다") {
+                then("hasProfileImage가 true로 설정된다") {
                     sut.confirmProfileImage()
 
-                    user.imgUrl shouldBe ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(uuid)
-                    user.thumbImgUrl shouldBe ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(uuid)
+                    user.hasProfileImage shouldBe true
                 }
             }
 
@@ -71,8 +71,7 @@ class UserServiceTest : BehaviorSpec() {
 
         given("clearProfileImage 호출 시") {
             val user = UserFixtures.user().apply {
-                imgUrl = "image/user/profile/some-uuid-original.jpg"
-                thumbImgUrl = "image/user/profile/some-uuid-thumbnail.jpg"
+                hasProfileImage = true
             }
             val uuid = user.uuid
 
@@ -82,11 +81,10 @@ class UserServiceTest : BehaviorSpec() {
             }
 
             `when`("정상적으로 호출되면") {
-                then("imgUrl과 thumbImgUrl이 null로 초기화된다") {
+                then("hasProfileImage가 false로 초기화된다") {
                     sut.clearProfileImage()
 
-                    user.imgUrl shouldBe null
-                    user.thumbImgUrl shouldBe null
+                    user.hasProfileImage shouldBe false
                 }
             }
         }
@@ -102,20 +100,25 @@ class UserServiceTest : BehaviorSpec() {
                 every { currentUserProvider.user } returns user
             }
 
-            `when`("consented = true로 호출되면") {
-                then("marketingConsented가 true로 변경된다") {
-                    sut.updateMarketingConsent(true)
+            `when`("sns=true, email=false로 호출되면") {
+                then("marketingSnsConsented와 marketingEmailConsented가 각각 반영되고 타입별로 이력이 기록된다") {
+                    sut.updateMarketingConsent(snsConsented = true, emailConsented = false)
 
-                    user.marketingConsented shouldBe true
+                    user.marketingSnsConsented shouldBe true
+                    user.marketingEmailConsented shouldBe false
+                    verify { termsService.recordConsentChange(user, TermsType.MARKETING_SNS_EVENTS, true) }
+                    verify { termsService.recordConsentChange(user, TermsType.MARKETING_EMAIL_EVENTS, false) }
                 }
             }
 
-            `when`("consented = false로 호출되면") {
-                then("marketingConsented가 false로 유지된다") {
-                    user.marketingConsented = true
-                    sut.updateMarketingConsent(false)
+            `when`("두 값 모두 false로 호출되면") {
+                then("marketingSnsConsented와 marketingEmailConsented가 모두 false로 유지된다") {
+                    user.marketingSnsConsented = true
+                    user.marketingEmailConsented = true
+                    sut.updateMarketingConsent(snsConsented = false, emailConsented = false)
 
-                    user.marketingConsented shouldBe false
+                    user.marketingSnsConsented shouldBe false
+                    user.marketingEmailConsented shouldBe false
                 }
             }
 
@@ -123,35 +126,35 @@ class UserServiceTest : BehaviorSpec() {
                 then("UserNotFoundException을 던진다") {
                     every { currentUserProvider.user } throws UserNotFoundException(uuid)
 
-                    shouldThrow<UserNotFoundException> { sut.updateMarketingConsent(true) }
+                    shouldThrow<UserNotFoundException> {
+                        sut.updateMarketingConsent(snsConsented = true, emailConsented = true)
+                    }
                 }
             }
         }
 
-        // ── getUserProfile (thumbImgUrl fallback) ────────────────────────────
+        // ── getUserProfile (hasProfileImage pass-through) ─────────────────────
 
         given("getUserProfile 호출 시") {
-            `when`("유저에 thumbImgUrl이 없고 기본 이미지가 설정된 경우") {
-                then("응답의 thumbImgUrl에 기본 이미지 URL이 담긴다") {
+            `when`("유저에 hasProfileImage가 false인 경우") {
+                then("응답의 hasProfileImage도 false이다") {
                     val user = UserFixtures.user()
-                    val defaultUrl = "https://cdn.example.com/default-profile.jpg"
 
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { defaultProfileImageProvider.getDefaultThumbnailUrl() } returns defaultUrl
                     every { userPreferenceRepository.findPreferenceByUserIdAndType(any(), any()) } returns
                             mockk { every { name } returns "SOME_VALUE" }
                     every { userPreferenceRepository.findPreferencesByUserIdAndType(any(), any()) } returns emptyList()
 
                     val result = sut.getUserProfile(user.uuid)
 
-                    result.thumbImgUrl shouldBe defaultUrl
+                    result.hasProfileImage shouldBe false
                 }
             }
 
-            `when`("유저에 thumbImgUrl이 있는 경우") {
-                then("응답의 thumbImgUrl에 유저의 이미지 경로가 담긴다") {
+            `when`("유저에 hasProfileImage가 true인 경우") {
+                then("응답의 hasProfileImage도 true이다") {
                     val user = UserFixtures.user().apply {
-                        thumbImgUrl = "image/user/profile/uuid-thumbnail.jpg"
+                        hasProfileImage = true
                     }
 
                     every { userRepository.findByUuid(user.uuid) } returns user
@@ -161,7 +164,7 @@ class UserServiceTest : BehaviorSpec() {
 
                     val result = sut.getUserProfile(user.uuid)
 
-                    result.thumbImgUrl shouldBe "image/user/profile/uuid-thumbnail.jpg"
+                    result.hasProfileImage shouldBe true
                 }
             }
         }

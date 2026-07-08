@@ -20,9 +20,10 @@ data class RegistrationRequest(
     val email: String,
     @field:Size(min = 2, max = 8)
     @field:NotBlank
-    @field:Pattern(regexp = "^[a-zA-Z0-9가-힣_]+$")
+    @field:Pattern(regexp = "^[a-zA-Z0-9가-힣]+$")
     val nickname: String,
     @field:Size(max = 30)
+    @field:Pattern(regexp = "^[a-zA-Z0-9가-힣\\s]*$")
     val bio: String?,
     val gender: Gender,
     val age: Age,

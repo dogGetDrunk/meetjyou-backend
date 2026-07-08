@@ -6,6 +6,9 @@ import jakarta.validation.constraints.Size
 import java.time.Instant
 
 data class UpdatePlanRequest(
+    @field:NotBlank
+    @field:Size(max = 20)
+    val title: String,
     val itinStart: Instant,
     val itinFinish: Instant,
     @field:NotBlank

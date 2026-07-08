@@ -7,7 +7,7 @@ import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.party.dto.GetMyPartyResponse
 import com.dogGetDrunk.meetjyou.party.dto.MyApplicationResponse
 import com.dogGetDrunk.meetjyou.plan.PlanService
-import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
+import com.dogGetDrunk.meetjyou.plan.dto.PlanSummaryResponse
 import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.post.dto.GetPostResponse
 import com.dogGetDrunk.meetjyou.user.dto.AdvancedUserResponse
@@ -215,8 +215,8 @@ class UserController(
     @GetMapping("/me/plans")
     fun getMyPlans(
         @ParameterObject
-        @PageableDefault(size = 10, sort = ["itinStart"], direction = Sort.Direction.DESC) pageable: Pageable,
-    ): Page<GetPlanResponse> {
+        @PageableDefault(size = 10, sort = ["updatedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): Page<PlanSummaryResponse> {
         return planService.getMyPlans(pageable)
     }
 
@@ -249,8 +249,7 @@ class UserController(
         @ParameterObject
         @PageableDefault(size = 20, sort = ["joinedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
     ): Page<GetMyPartyResponse> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        return partyService.getMyParties(userUuid, pageable)
+        return partyService.getMyParties(pageable)
     }
 
     @Operation(summary = "내 파티 신청 목록 조회", description = "현재 로그인한 사용자가 신청한 파티 신청 목록을 상태와 함께 조회합니다.")
@@ -260,8 +259,7 @@ class UserController(
         @ParameterObject
         @PageableDefault(size = 20, sort = ["statusChangedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
     ): Page<MyApplicationResponse> {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        return partyService.getMyApplications(userUuid, pageable)
+        return partyService.getMyApplications(pageable)
     }
 
     @Operation(summary = "내 모집글 목록 조회", description = "현재 로그인한 사용자가 작성한 모집글 목록을 조회합니다.")
@@ -288,7 +286,7 @@ class UserController(
     @ApiResponses(value = [ApiResponse(responseCode = "204", description = "변경 성공")])
     @PatchMapping("/me/marketing-consent")
     fun updateMarketingConsent(@Valid @RequestBody request: UpdateMarketingConsentRequest): ResponseEntity<Unit> {
-        userService.updateMarketingConsent(request.consented)
+        userService.updateMarketingConsent(request.snsConsented, request.emailConsented)
         return ResponseEntity.noContent().build()
     }
 

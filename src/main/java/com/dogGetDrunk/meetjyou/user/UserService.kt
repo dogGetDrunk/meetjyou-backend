@@ -4,12 +4,12 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.image.DefaultProfileImageProvider
-import com.dogGetDrunk.meetjyou.image.ImageTarget
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
+import com.dogGetDrunk.meetjyou.terms.TermsService
+import com.dogGetDrunk.meetjyou.terms.TermsType
 import com.dogGetDrunk.meetjyou.user.dto.BasicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.PublicUserResponse
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
@@ -26,8 +26,8 @@ class UserService(
     private val userRepository: UserRepository,
     private val preferenceRepository: PreferenceRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
-    private val defaultProfileImageProvider: DefaultProfileImageProvider,
     private val currentUserProvider: CurrentUserProvider,
+    private val termsService: TermsService,
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
@@ -95,13 +95,13 @@ class UserService(
     @Transactional(readOnly = true)
     fun getUserProfile(uuid: UUID): BasicUserResponse {
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        return BasicUserResponse.of(user, loadPreferences(user.id), resolveThumbUrl(user))
+        return BasicUserResponse.of(user, loadPreferences(user.id))
     }
 
     @Transactional(readOnly = true)
     fun getPublicUserProfile(uuid: UUID): PublicUserResponse {
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
-        return PublicUserResponse.of(user, loadPreferences(user.id), resolveThumbUrl(user))
+        return PublicUserResponse.of(user, loadPreferences(user.id))
     }
 
     @Transactional(readOnly = true)
@@ -110,26 +110,26 @@ class UserService(
         if (users.isEmpty()) return emptyList()
         val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.map { it.id })
             .groupBy { it.user.id }
-        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList(), resolveThumbUrl(it)) }
+        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList()) }
     }
 
     @Transactional
     fun confirmProfileImage() {
-        val user = currentUserProvider.user
-        user.imgUrl = ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(user.uuid)
-        user.thumbImgUrl = ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(user.uuid)
+        currentUserProvider.user.hasProfileImage = true
     }
 
     @Transactional
     fun clearProfileImage() {
-        val user = currentUserProvider.user
-        user.imgUrl = null
-        user.thumbImgUrl = null
+        currentUserProvider.user.hasProfileImage = false
     }
 
     @Transactional
-    fun updateMarketingConsent(consented: Boolean) {
-        currentUserProvider.user.marketingConsented = consented
+    fun updateMarketingConsent(snsConsented: Boolean, emailConsented: Boolean) {
+        val user = currentUserProvider.user
+        user.marketingSnsConsented = snsConsented
+        user.marketingEmailConsented = emailConsented
+        termsService.recordConsentChange(user, TermsType.MARKETING_SNS_EVENTS, snsConsented)
+        termsService.recordConsentChange(user, TermsType.MARKETING_EMAIL_EVENTS, emailConsented)
     }
 
     fun isDuplicateNickname(nickname: String): Boolean {
@@ -177,7 +177,4 @@ class UserService(
         diet = getPreferenceNames(userId, PreferenceType.DIET),
         etc = getPreferenceNames(userId, PreferenceType.ETC),
     )
-
-    private fun resolveThumbUrl(user: User): String? =
-        user.thumbImgUrl ?: defaultProfileImageProvider.getDefaultThumbnailUrl()
 }

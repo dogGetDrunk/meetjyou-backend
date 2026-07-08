@@ -1,8 +1,10 @@
 package com.dogGetDrunk.meetjyou.party.dto
 
 import com.dogGetDrunk.meetjyou.party.Party
+import com.dogGetDrunk.meetjyou.party.PartyImageState
 import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
 import com.dogGetDrunk.meetjyou.party.PartyRecruitmentStatus
+import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import java.time.Instant
 import java.util.UUID
 
@@ -18,10 +20,12 @@ data class GetPartyResponse(
     val lastEditedAt: Instant,
     val progressStatus: PartyProgressStatus,
     val recruitmentStatus: PartyRecruitmentStatus,
-    val planUuid: UUID?
+    val planUuid: UUID?,
+    val imageState: PartyImageState,
+    val planSnapshot: GetPlanResponse?,
 ) {
     companion object {
-        fun of(party: Party): GetPartyResponse {
+        fun of(party: Party, planSnapshot: GetPlanResponse? = null): GetPartyResponse {
             return GetPartyResponse(
                 uuid = party.uuid,
                 itinStart = party.itinStart,
@@ -35,6 +39,8 @@ data class GetPartyResponse(
                 progressStatus = party.progressStatus,
                 recruitmentStatus = party.recruitmentStatus,
                 planUuid = party.plan?.uuid,
+                imageState = party.imageState,
+                planSnapshot = planSnapshot,
             )
         }
     }

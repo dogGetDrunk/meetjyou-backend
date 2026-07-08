@@ -6,13 +6,18 @@ import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyFullException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRequestNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
+import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
+import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
@@ -28,16 +33,21 @@ class ApproveJoinRequestTest : BehaviorSpec() {
     private val partyRepository = mockk<PartyRepository>(relaxed = true)
     private val postRepository = mockk<PostRepository>(relaxed = true)
     private val planRepository = mockk<PlanRepository>(relaxed = true)
+    private val markerRepository = mockk<MarkerRepository>(relaxed = true)
     private val chatRoomRepository = mockk<ChatRoomRepository>(relaxed = true)
     private val chatParticipantService = mockk<ChatParticipantService>(relaxed = true)
     private val chatRoomEventBroadcaster = mockk<ChatRoomEventBroadcaster>(relaxed = true)
     private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
+    private val partyImgService = mockk<PartyImgService>(relaxed = true)
+    private val postImgService = mockk<PostImgService>(relaxed = true)
+    private val objectMapper = ObjectMapper()
+    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val sut = PartyService(
-        partyRepository, postRepository, planRepository, chatRoomRepository,
+        partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
         chatParticipantService, chatRoomEventBroadcaster, userPartyRepository,
-        userRepository, publisher,
+        userRepository, publisher, partyImgService, postImgService, objectMapper, currentUserProvider,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -52,6 +62,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
             val hostMembership = NotificationCenterFixtures.hostUserParty(party, host)
 
             beforeEach {
+                every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership
                 every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
                 every { userRepository.findByUuid(applicant.uuid) } returns applicant
@@ -68,7 +79,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                     } returns listOf(hostMembership)
 
                     val joinedBefore = party.joined
-                    sut.approveJoinRequest(party.uuid, host.uuid, applicant.uuid)
+                    sut.approveJoinRequest(party.uuid, applicant.uuid)
 
                     party.joined shouldBe joinedBefore + 1
                     pendingMembership.memberStatus shouldBe MemberStatus.JOINED
@@ -89,7 +100,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                     every { partyRepository.findByUuidForUpdate(party.uuid) } returns fullParty
 
                     shouldThrow<PartyFullException> {
-                        sut.approveJoinRequest(party.uuid, host.uuid, applicant.uuid)
+                        sut.approveJoinRequest(party.uuid, applicant.uuid)
                     }
                 }
             }
@@ -102,7 +113,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                     } returns joinedMembership
 
                     shouldThrow<PartyJoinRequestNotFoundException> {
-                        sut.approveJoinRequest(party.uuid, host.uuid, applicant.uuid)
+                        sut.approveJoinRequest(party.uuid, applicant.uuid)
                     }
                 }
             }
@@ -110,12 +121,13 @@ class ApproveJoinRequestTest : BehaviorSpec() {
             `when`("호스트가 아닌 유저가 승인 시도하면") {
                 then("PartyUpdateAccessDeniedException을 던진다") {
                     val nonHost = UserFixtures.user(email = "other@test.com", nickname = "other", externalId = "ext3")
+                    every { currentUserProvider.uuid } returns nonHost.uuid
                     every {
                         userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, nonHost.uuid)
                     } returns NotificationCenterFixtures.pendingUserParty(party, nonHost)
 
                     shouldThrow<PartyUpdateAccessDeniedException> {
-                        sut.approveJoinRequest(party.uuid, nonHost.uuid, applicant.uuid)
+                        sut.approveJoinRequest(party.uuid, applicant.uuid)
                     }
                 }
             }

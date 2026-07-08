@@ -7,7 +7,7 @@ data class PublicUserResponse(
     val uuid: UUID,
     val nickname: String,
     val bio: String?,
-    val thumbImgUrl: String?,
+    val hasProfileImage: Boolean,
     val gender: String,
     val age: String,
     val personalities: List<String>,
@@ -16,12 +16,12 @@ data class PublicUserResponse(
     val etc: List<String>,
 ) {
     companion object {
-        fun of(user: User, prefs: UserPreferenceData, thumbImgUrl: String?): PublicUserResponse =
+        fun of(user: User, prefs: UserPreferenceData): PublicUserResponse =
             PublicUserResponse(
                 uuid = user.uuid,
                 nickname = user.nickname,
                 bio = user.bio,
-                thumbImgUrl = thumbImgUrl,
+                hasProfileImage = user.hasProfileImage,
                 gender = prefs.gender,
                 age = prefs.age,
                 personalities = prefs.personalities,

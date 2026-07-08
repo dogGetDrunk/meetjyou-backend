@@ -4,12 +4,10 @@ import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.auth.UnauthenticatedException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PushTokenNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.VersionNotFoundException
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.notification.push.dto.PushTokenResponse
 import com.dogGetDrunk.meetjyou.notification.push.dto.RegisterPushTokenRequest
-import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.version.AppVersionRepository
 import com.dogGetDrunk.meetjyou.version.Platform
 import org.slf4j.LoggerFactory
@@ -19,16 +17,15 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class PushTokenService(
     private val pushTokenRepository: PushTokenRepository,
-    private val userRepository: UserRepository,
     private val appVersionRepository: AppVersionRepository,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(PushTokenService::class.java)
 
     @Transactional
     fun register(request: RegisterPushTokenRequest): PushTokenResponse {
-        val userUuid = SecurityUtil.getCurrentUserUuid()
-        val user = userRepository.findByUuid(userUuid)
-            ?: throw UserNotFoundException(userUuid)
+        val user = currentUserProvider.user
+        val userUuid = user.uuid
 
         val appVersionPlatform = request.platformEnum.toAppVersionPlatform()
         val appVersion = appVersionRepository.findByVersionAndPlatform(request.appVersion, appVersionPlatform)
@@ -59,10 +56,11 @@ class PushTokenService(
         val entity = pushTokenRepository.findByToken(token)
             ?: throw PushTokenNotFoundException(token)
 
-        if (entity.user.uuid == SecurityUtil.getCurrentUserUuid()) {
+        val currentUserUuid = currentUserProvider.uuid
+        if (entity.user.uuid == currentUserUuid) {
             entity.active = false
         } else {
-            throw UnauthenticatedException(SecurityUtil.getCurrentUserUuid().toString())
+            throw UnauthenticatedException(currentUserUuid.toString())
         }
 
         log.info("Deactivated push token: userUuid=${entity.user.uuid}, platform=${entity.platform}, tokenUuid=${entity.uuid}")

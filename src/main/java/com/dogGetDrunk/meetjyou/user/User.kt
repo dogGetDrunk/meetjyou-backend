@@ -34,10 +34,10 @@ class User(
     val uuid: UUID = UUID.randomUUID()
     var bio: String? = null
     var participation: Int = 0
-    var imgUrl: String? = null
-    var thumbImgUrl: String? = null
+    var hasProfileImage: Boolean = false
     var notified: Boolean = true
-    var marketingConsented: Boolean = false
+    var marketingSnsConsented: Boolean = false
+    var marketingEmailConsented: Boolean = false
     var lastNoticesViewedAt: Instant? = null
     @CreationTimestamp
     val createdAt: Instant = Instant.now()
