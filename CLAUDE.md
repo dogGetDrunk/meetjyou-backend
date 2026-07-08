@@ -90,7 +90,7 @@ com.dogGetDrunk.meetjyou/
 - `DevBypassAuthFilter` — skips JWT in `dev` profile
 - Notification outbox — events written to `notification_outbox` in same transaction, dispatched async
 - Schema managed via Flyway (`db/migration/V*.sql`); `ddl-auto: none`
-- Most endpoints are currently `permit-all` (authorization enforcement is a TODO)
+- `SecurityConfig` defaults to `.anyRequest().authenticated()`; `permitAll()` is scoped to actuator health, WS handshake/pub-sub, swagger, `auth/registration|nonce|login|refresh|logout`, `dev/auth/**`, and GET-only on `notices/**`, `terms/**`, version check/latest, nickname-duplicate check. Admin actions use `@PreAuthorize("hasAuthority('ADMIN')")`.
 
 ## Compact Instructions
 
