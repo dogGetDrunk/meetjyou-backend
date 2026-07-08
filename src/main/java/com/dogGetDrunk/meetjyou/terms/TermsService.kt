@@ -5,21 +5,26 @@ import com.dogGetDrunk.meetjyou.common.exception.business.terms.InactiveTermsAcc
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.InvalidTermsAgreementException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.InvalidTermsUuidException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.MissingRequiredTermsAgreementException
+import com.dogGetDrunk.meetjyou.common.exception.business.terms.TermsContentVerificationException
+import com.dogGetDrunk.meetjyou.notification.event.TermsReconsentEvent
 import com.dogGetDrunk.meetjyou.terms.dto.GetTermsContentUrlResponse
 import com.dogGetDrunk.meetjyou.terms.dto.GetTermsResponse
+import com.dogGetDrunk.meetjyou.terms.dto.PublishTermsRequest
+import com.dogGetDrunk.meetjyou.terms.dto.TermsUploadPar
 import com.dogGetDrunk.meetjyou.user.User
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
 
-// TODO: Implement a re-consent flow that notifies existing users when a terms type is republished as a new ACTIVE version.
 @Service
 class TermsService(
     private val termsRepository: TermsRepository,
     private val userTermsRepository: UserTermsRepository,
     private val termsContentUrlGenerator: TermsContentUrlGenerator,
+    private val publisher: ApplicationEventPublisher,
 ) {
     private val log = LoggerFactory.getLogger(TermsService::class.java)
 
@@ -153,6 +158,63 @@ class TermsService(
             user.id,
             type,
             desiredAction,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun createContentUploadPar(type: TermsType, version: String): TermsUploadPar {
+        log.info("Creating terms content upload PAR. type={}, version={}", type, version)
+        return termsContentUrlGenerator.generateUploadPar(type, version)
+    }
+
+    @Transactional
+    fun publishTerms(request: PublishTermsRequest): GetTermsResponse {
+        log.info("Starting terms publish. type={}, version={}", request.type, request.version)
+
+        val objectKey = request.type.toObjectKey(request.version)
+        if (!termsContentUrlGenerator.verifyContent(objectKey, request.contentHash)) {
+            throw TermsContentVerificationException(objectKey)
+        }
+
+        val previousActiveTerms = termsRepository.findByTypeAndStatus(request.type, TermsStatus.ACTIVE)
+
+        val newTerms = termsRepository.save(
+            Terms(
+                type = request.type,
+                version = request.version,
+                displayText = request.displayText,
+                required = request.required,
+                contentObjectKey = objectKey,
+                contentHash = request.contentHash,
+                effectiveAt = request.effectiveAt ?: Instant.now(),
+            ),
+        )
+
+        if (previousActiveTerms != null) {
+            supersede(previousActiveTerms, newTerms)
+        }
+
+        log.info("Completed terms publish. termsUuid={}", newTerms.uuid)
+
+        return GetTermsResponse.of(newTerms)
+    }
+
+    private fun supersede(previousTerms: Terms, newTerms: Terms) {
+        previousTerms.status = TermsStatus.INACTIVE
+        termsRepository.save(previousTerms)
+
+        publisher.publishEvent(
+            TermsReconsentEvent(
+                termsUuid = newTerms.uuid,
+                termsType = newTerms.type,
+                displayText = newTerms.displayText,
+            ),
+        )
+
+        log.info(
+            "Superseded previous terms and published reconsent event. previousTermsUuid={}, newTermsUuid={}",
+            previousTerms.uuid,
+            newTerms.uuid,
         )
     }
 

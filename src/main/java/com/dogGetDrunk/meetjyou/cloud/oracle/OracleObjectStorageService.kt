@@ -4,10 +4,12 @@ import com.dogGetDrunk.meetjyou.cloud.oracle.dto.ParResponse
 import com.dogGetDrunk.meetjyou.config.OracleProps
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.oracle.bmc.model.BmcException
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.objectstorage.model.CreatePreauthenticatedRequestDetails
 import com.oracle.bmc.objectstorage.requests.CreatePreauthenticatedRequestRequest
 import com.oracle.bmc.objectstorage.requests.DeleteObjectRequest
+import com.oracle.bmc.objectstorage.requests.GetObjectRequest
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.Duration
@@ -50,6 +52,24 @@ class OracleObjectStorageService(
         )
         downloadParCache.put(objectKey, par)
         return par
+    }
+
+    fun getObjectContent(objectKey: String): ByteArray? {
+        val request = GetObjectRequest.builder()
+            .namespaceName(props.namespace)
+            .bucketName(props.bucketName)
+            .objectName(objectKey)
+            .build()
+
+        return try {
+            objectStorageClient.getObject(request).inputStream.use { it.readBytes() }
+        } catch (exception: BmcException) {
+            if (exception.statusCode == 404) {
+                log.warn("Object not found in OCI Object Storage. objectKey={}", objectKey)
+                return null
+            }
+            throw exception
+        }
     }
 
     fun deleteObject(objectKey: String): Boolean {
