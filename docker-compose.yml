@@ -2,7 +2,7 @@ services:
   spring_boot:
     container_name: spring_boot
     restart: always
-    image: ssove/meetjyou
+    image: ssove/meetjyou:${IMAGE_TAG:-latest}
     env_file:
       - .env
     environment:
