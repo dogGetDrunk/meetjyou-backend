@@ -55,6 +55,9 @@ dependencies {
     // Cache library - Caffeine
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
 
+    // Rate limiting
+    implementation("com.bucket4j:bucket4j-core:8.10.1")
+
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
