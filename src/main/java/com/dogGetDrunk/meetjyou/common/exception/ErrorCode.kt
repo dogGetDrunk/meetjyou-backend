@@ -89,4 +89,7 @@ enum class ErrorCode(
 
     // Server
     INTERNAL_SERVER_ERROR("Internal server error"),
+
+    // Rate limit
+    RATE_LIMIT_EXCEEDED("Too many requests"),
 }
