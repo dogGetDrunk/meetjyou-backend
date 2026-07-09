@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.dev.DevBypassAuthFilter
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtAuthFilter
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
+import com.dogGetDrunk.meetjyou.common.filter.AuthRateLimitFilter
 import com.dogGetDrunk.meetjyou.config.ApiVersionConfig.Companion.V1
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.http.HttpServletResponse
@@ -26,6 +27,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 class SecurityConfig(
     private val corsConfig: CorsConfig,
     private val jwtAuthFilter: JwtAuthFilter,
+    private val authRateLimitFilter: AuthRateLimitFilter,
     private val devBypassAuthFilterProvider: ObjectProvider<DevBypassAuthFilter>,
     private val objectMapper: ObjectMapper,
 ) {
@@ -92,6 +94,7 @@ class SecurityConfig(
         }
 
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
+        http.addFilterBefore(authRateLimitFilter, JwtAuthFilter::class.java)
 
         return http.build()
     }
