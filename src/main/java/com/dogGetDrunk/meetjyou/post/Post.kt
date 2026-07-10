@@ -9,6 +9,7 @@ import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
+import jakarta.persistence.FetchType
 import jakarta.persistence.Id
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
@@ -40,11 +41,11 @@ class Post(
     val createdAt: Instant = Instant.now()
     @UpdateTimestamp
     val lastEditedAt: Instant = Instant.now()
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     lateinit var author: User
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     var party: Party = party
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     var plan: Plan? = null
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
     var isPlanPublic: Boolean? = null

@@ -91,7 +91,8 @@ class PostService(
         val posts = postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
         if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it, 0L) }
 
-        return posts.map { buildGetPostResponse(it, loadPostContextMaps(posts.content, currentUserProvider.uuid)) }
+        val ctx = loadPostContextMaps(posts.content, currentUserProvider.uuid)
+        return posts.map { buildGetPostResponse(it, ctx) }
     }
 
     @Transactional(readOnly = true)
@@ -112,7 +113,8 @@ class PostService(
         val posts = postRepository.findAll(pageable)
         if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it, 0L) }
 
-        return posts.map { buildGetPostResponse(it, loadPostContextMaps(posts.content, currentUserProvider.uuid)) }
+        val ctx = loadPostContextMaps(posts.content, currentUserProvider.uuid)
+        return posts.map { buildGetPostResponse(it, ctx) }
     }
 
     @Transactional
@@ -213,7 +215,7 @@ class PostService(
 
     private fun buildGetPostResponse(post: Post, ctx: PostContextMaps): GetPostResponse {
         val companionSpec = (ctx.compPrefsMap[post.id] ?: emptyList()).toCompanionSpec()
-        val plan = resolvePlanResponse(post.plan?.uuid?.takeIf { post.isPlanPublic == true }, ctx.markersMap)
+        val plan = resolvePlanResponse(post, ctx.markersMap)
         val myApplicationStatus = ctx.myStatusMap[post.party.uuid]?.memberStatus
         val views = ctx.viewCountMap[post.id] ?: 0L
         return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
@@ -226,10 +228,10 @@ class PostService(
         return GetPlanResponse.of(plan, markers)
     }
 
-    private fun resolvePlanResponse(planUuid: UUID?, markersMap: Map<UUID, List<Marker>>): GetPlanResponse? {
-        if (planUuid == null) return null
-        val plan = planRepository.findByUuid(planUuid) ?: return null
-        return GetPlanResponse.of(plan, markersMap[planUuid] ?: emptyList())
+    private fun resolvePlanResponse(post: Post, markersMap: Map<UUID, List<Marker>>): GetPlanResponse? {
+        if (post.isPlanPublic != true) return null
+        val plan = post.plan ?: return null
+        return GetPlanResponse.of(plan, markersMap[plan.uuid] ?: emptyList())
     }
 
     private fun resolvePlanReference(planUuid: UUID?, isPlanPublic: Boolean?): Pair<Plan, Boolean>? {
