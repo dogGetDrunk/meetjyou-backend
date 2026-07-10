@@ -103,9 +103,9 @@ jobs:
             docker-compose pull
             docker-compose up -d
 
-            echo "헬스체크 대기 중... (OCI 프리티어 기동 시간을 고려해 최대 210초 대기)"
+            echo "헬스체크 대기 중... (OCI 프리티어 기동 시간을 고려해 최대 300초 대기)"
             HEALTHY=false
-            for i in $(seq 1 42); do
+            for i in $(seq 1 60); do
               if curl -sf http://127.0.0.1:8081/actuator/health | grep -q '"status":"UP"'; then
                 HEALTHY=true
                 break
