@@ -125,6 +125,11 @@ dev:
 admin:
   claim-passphrase: ${ADMIN_CLAIM_PASSPHRASE}
 
+load-test-token:
+  enabled: ${LOAD_TEST_TOKEN_ENABLED:false}
+  secret: ${LOAD_TEST_TOKEN_SECRET:}
+  ttl-millis: ${LOAD_TEST_TOKEN_TTL_MILLIS:300000}
+
 app:
   websocket:
     allowed-origin-patterns:

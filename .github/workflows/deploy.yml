@@ -85,6 +85,8 @@ jobs:
             APPLE_JWK_CACHE_TTL_MINUTES=${{ secrets.APPLE_JWK_CACHE_TTL_MINUTES }}
             DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}
             ADMIN_CLAIM_PASSPHRASE=${{ secrets.ADMIN_CLAIM_PASSPHRASE }}
+            LOAD_TEST_TOKEN_ENABLED=${{ secrets.LOAD_TEST_TOKEN_ENABLED }}
+            LOAD_TEST_TOKEN_SECRET=${{ secrets.LOAD_TEST_TOKEN_SECRET }}
             COMPOSE_PROJECT_NAME=meetjyou
             IMAGE_TAG=${{ github.sha }}
             EOF
