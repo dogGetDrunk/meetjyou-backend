@@ -33,6 +33,10 @@ class JwtProvider(
         return generateToken(userUuid, email, role, accessTokenExpiration)
     }
 
+    fun generateAccessToken(userUuid: UUID, email: String, role: Role, expirationMillis: Long): String {
+        return generateToken(userUuid, email, role, expirationMillis)
+    }
+
     fun generateRefreshToken(userUuid: UUID, email: String): GeneratedRefreshToken {
         val jti = UUID.randomUUID()
         val now = Date()

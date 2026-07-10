@@ -69,6 +69,8 @@ class SecurityConfig(
                     .requestMatchers("$V1/auth/refresh").permitAll()
                     .requestMatchers("$V1/auth/logout").permitAll()
                     .requestMatchers("$V1/dev/auth/**").permitAll()
+                    // Load-test synthetic token issuance — gated by a static secret header, not JWT
+                    .requestMatchers(HttpMethod.POST, "$V1/internal/load-test-token").permitAll()
                     // Public read-only
                     .requestMatchers(HttpMethod.GET, "$V1/notices/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "$V1/terms/**").permitAll()
