@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.authorization.AuthorizationDeniedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -164,6 +165,26 @@ class GlobalExceptionHandler(
 
         val status = HttpStatus.FORBIDDEN
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
+        return ResponseEntity(errorResponse, status)
+    }
+
+    @ExceptionHandler(AuthorizationDeniedException::class)
+    fun handleSpringAuthorizationDeniedException(
+        e: AuthorizationDeniedException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        log.info("Handling AuthorizationDeniedException.", e)
+
+        discordAlertService.sendAlert(
+            request = request,
+            status = HttpStatus.FORBIDDEN.value(),
+            exceptionClass = e.javaClass.simpleName,
+            summary = "[${ErrorCode.ACCESS_DENIED.name}] ${ErrorCode.ACCESS_DENIED.message}",
+            detail = null,
+        )
+
+        val status = HttpStatus.FORBIDDEN
+        val errorResponse = ErrorResponse(status.value(), ErrorCode.ACCESS_DENIED)
         return ResponseEntity(errorResponse, status)
     }
 
