@@ -100,12 +100,14 @@ class NotificationCenterServiceTest : BehaviorSpec() {
             beforeEach { every { currentUserProvider.uuid } returns hostUuid }
 
             `when`("PENDING 신청이 있고 hostRead=false인 경우") {
-                then("unreadCount가 올바르게 집계된다") {
+                then("unreadCount가 올바르게 집계되고, 목록은 페이지네이션 쿼리 결과를 그대로 사용한다") {
+                    val pageable = Pageable.ofSize(20)
                     val pending = NotificationCenterFixtures.pendingUserParty(party, applicant, "Hello!")
-                    every { userPartyRepository.findAllPendingRequestsForHost(hostUuid) } returns listOf(pending)
+                    every { userPartyRepository.countUnreadPendingRequestsForHost(hostUuid) } returns 1
+                    every { userPartyRepository.findAllPendingRequestsForHost(hostUuid, pageable) } returns PageImpl(listOf(pending))
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid)) } returns listOf(post)
 
-                    val result = sut.getReceivedApplications(Pageable.ofSize(20))
+                    val result = sut.getReceivedApplications(pageable)
 
                     result.unreadCount shouldBe 1
                     result.applications.size shouldBe 1
@@ -117,10 +119,12 @@ class NotificationCenterServiceTest : BehaviorSpec() {
 
             `when`("신청이 없는 경우") {
                 then("빈 목록과 unreadCount=0을 반환한다") {
-                    every { userPartyRepository.findAllPendingRequestsForHost(hostUuid) } returns emptyList()
+                    val pageable = Pageable.ofSize(20)
+                    every { userPartyRepository.countUnreadPendingRequestsForHost(hostUuid) } returns 0
+                    every { userPartyRepository.findAllPendingRequestsForHost(hostUuid, pageable) } returns PageImpl(emptyList())
                     every { postRepository.findAllByParty_UuidIn(emptyList()) } returns emptyList()
 
-                    val result = sut.getReceivedApplications(Pageable.ofSize(20))
+                    val result = sut.getReceivedApplications(pageable)
 
                     result.unreadCount shouldBe 0
                     result.applications shouldBe emptyList()
@@ -161,11 +165,14 @@ class NotificationCenterServiceTest : BehaviorSpec() {
 
             `when`("PENDING 신청이 있는 경우") {
                 then("pendingCount=1, status=PENDING, read=true로 반환된다") {
+                    val pageable = Pageable.ofSize(20)
                     val pending = NotificationCenterFixtures.pendingUserParty(party, user)
-                    every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid) } returns listOf(pending)
+                    every { userPartyRepository.countPendingSentApplications(userUuid) } returns 1
+                    every { userPartyRepository.countChangedUnreadSentApplications(userUuid) } returns 0
+                    every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable) } returns PageImpl(listOf(pending))
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid)) } returns listOf(post)
 
-                    val result = sut.getSentApplications(Pageable.ofSize(20))
+                    val result = sut.getSentApplications(pageable)
 
                     result.pendingCount shouldBe 1
                     result.changedCount shouldBe 0
@@ -176,12 +183,15 @@ class NotificationCenterServiceTest : BehaviorSpec() {
 
             `when`("ACCEPTED 신청(applicantRead=false)이 있는 경우") {
                 then("changedCount=1, status=ACCEPTED, read=false로 반환된다") {
+                    val pageable = Pageable.ofSize(20)
                     val accepted = NotificationCenterFixtures.pendingUserParty(party, user)
                     accepted.approve()
-                    every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid) } returns listOf(accepted)
+                    every { userPartyRepository.countPendingSentApplications(userUuid) } returns 0
+                    every { userPartyRepository.countChangedUnreadSentApplications(userUuid) } returns 1
+                    every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable) } returns PageImpl(listOf(accepted))
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid)) } returns listOf(post)
 
-                    val result = sut.getSentApplications(Pageable.ofSize(20))
+                    val result = sut.getSentApplications(pageable)
 
                     result.changedCount shouldBe 1
                     result.applications[0].status shouldBe ApplicationStatus.ACCEPTED
@@ -191,12 +201,15 @@ class NotificationCenterServiceTest : BehaviorSpec() {
 
             `when`("REJECTED 신청(applicantRead=false)이 있는 경우") {
                 then("changedCount=1, status=REJECTED, read=false로 반환된다") {
+                    val pageable = Pageable.ofSize(20)
                     val rejected = NotificationCenterFixtures.pendingUserParty(party, user)
                     rejected.reject()
-                    every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid) } returns listOf(rejected)
+                    every { userPartyRepository.countPendingSentApplications(userUuid) } returns 0
+                    every { userPartyRepository.countChangedUnreadSentApplications(userUuid) } returns 1
+                    every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable) } returns PageImpl(listOf(rejected))
                     every { postRepository.findAllByParty_UuidIn(listOf(party.uuid)) } returns listOf(post)
 
-                    val result = sut.getSentApplications(Pageable.ofSize(20))
+                    val result = sut.getSentApplications(pageable)
 
                     result.changedCount shouldBe 1
                     result.applications[0].status shouldBe ApplicationStatus.REJECTED

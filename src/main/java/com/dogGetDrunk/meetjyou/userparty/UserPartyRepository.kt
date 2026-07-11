@@ -30,9 +30,33 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
         userUuid: UUID,
     ): List<UserParty>
 
+    fun findAllByParty_UuidAndUser_UuidIn(
+        partyUuid: UUID,
+        userUuids: Collection<UUID>,
+    ): List<UserParty>
+
     fun findAllByUser_Uuid(
         userUuid: UUID,
         pageable: Pageable
+    ): Page<UserParty>
+
+    @Query(
+        value = """
+            select up
+            from UserParty up
+            join fetch up.party p
+            left join fetch p.plan
+            where up.user.uuid = :userUuid
+        """,
+        countQuery = """
+            select count(up)
+            from UserParty up
+            where up.user.uuid = :userUuid
+        """
+    )
+    fun findAllWithPartyByUserUuid(
+        @Param("userUuid") userUuid: UUID,
+        pageable: Pageable,
     ): Page<UserParty>
 
     fun findAllByParty_Uuid(partyUuid: UUID): List<UserParty>
@@ -116,6 +140,40 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
     """)
     fun findAllPendingRequestsForHost(@Param("hostUuid") hostUuid: UUID): List<UserParty>
 
+    @Query(
+        value = """
+            select up from UserParty up
+            join fetch up.user
+            join fetch up.party
+            where up.party in (
+                select h.party from UserParty h
+                where h.user.uuid = :hostUuid and h.role = 'HOST' and h.memberStatus = 'JOINED'
+            )
+            and up.memberStatus = 'PENDING'
+            order by up.joinedAt desc
+        """,
+        countQuery = """
+            select count(up) from UserParty up
+            where up.party in (
+                select h.party from UserParty h
+                where h.user.uuid = :hostUuid and h.role = 'HOST' and h.memberStatus = 'JOINED'
+            )
+            and up.memberStatus = 'PENDING'
+        """
+    )
+    fun findAllPendingRequestsForHost(@Param("hostUuid") hostUuid: UUID, pageable: Pageable): Page<UserParty>
+
+    @Query("""
+        select count(up) from UserParty up
+        where up.party in (
+            select h.party from UserParty h
+            where h.user.uuid = :hostUuid and h.role = 'HOST' and h.memberStatus = 'JOINED'
+        )
+        and up.memberStatus = 'PENDING'
+        and up.hostRead = false
+    """)
+    fun countUnreadPendingRequestsForHost(@Param("hostUuid") hostUuid: UUID): Long
+
     @Query("""
         select up from UserParty up
         join fetch up.party
@@ -125,6 +183,23 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
         order by up.statusChangedAt desc
     """)
     fun findAllSentApplicationsByUserUuid(@Param("userUuid") userUuid: UUID): List<UserParty>
+
+    @Query("""
+        select count(up) from UserParty up
+        where up.user.uuid = :userUuid
+        and up.role = 'MEMBER'
+        and up.memberStatus = 'PENDING'
+    """)
+    fun countPendingSentApplications(@Param("userUuid") userUuid: UUID): Long
+
+    @Query("""
+        select count(up) from UserParty up
+        where up.user.uuid = :userUuid
+        and up.role = 'MEMBER'
+        and up.memberStatus in ('JOINED', 'REJECTED')
+        and up.applicantRead = false
+    """)
+    fun countChangedUnreadSentApplications(@Param("userUuid") userUuid: UUID): Long
 
     @Query(
         value = """

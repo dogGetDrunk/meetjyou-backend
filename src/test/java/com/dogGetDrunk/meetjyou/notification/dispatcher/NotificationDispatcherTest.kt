@@ -37,11 +37,12 @@ class NotificationDispatcherTest : BehaviorSpec() {
 
         given("dispatchBatch 호출 시") {
 
-            `when`("processItem이 예외를 던지면") {
+            `when`("토큰 조회는 성공했지만 FCM 전송이 예외를 던지면") {
                 then("해당 item이 PENDING으로 재전환된다") {
                     val item = outbox()
                     every { outboxRepository.lockNextPendings(any()) } returns listOf(item)
-                    every { targetResolver.resolveUserTargets(any()) } throws RuntimeException("FCM error")
+                    every { targetResolver.resolveUserTargets(any()) } returns mapOf(item.user.id to listOf("token-abc"))
+                    every { sender.send(any(), any(), any(), any()) } throws RuntimeException("FCM error")
 
                     sut.dispatchBatch(1)
 
@@ -54,13 +55,14 @@ class NotificationDispatcherTest : BehaviorSpec() {
                 }
             }
 
-            `when`("첫 번째 item이 예외를 던지고 두 번째 item은 정상이면") {
+            `when`("첫 번째 item 전송은 예외를 던지고 두 번째 item은 정상이면") {
                 then("첫 번째는 PENDING, 두 번째는 SENT로 처리된다") {
                     val failItem = outbox()
                     val okItem = outbox()
                     every { outboxRepository.lockNextPendings(any()) } returns listOf(failItem, okItem)
-                    every { targetResolver.resolveUserTargets(any()) } throws RuntimeException("FCM error") andThen listOf("token-abc")
-                    every { sender.send(any(), any(), any(), any()) } returns SendResult(ok = true)
+                    every { targetResolver.resolveUserTargets(any()) } returns
+                        mapOf(failItem.user.id to listOf("token-abc"), okItem.user.id to listOf("token-abc"))
+                    every { sender.send(any(), any(), any(), any()) } throws RuntimeException("FCM error") andThen SendResult(ok = true)
 
                     sut.dispatchBatch(2)
 
@@ -74,12 +76,13 @@ class NotificationDispatcherTest : BehaviorSpec() {
             }
 
             `when`("item이 없으면") {
-                then("아무 처리도 하지 않는다") {
+                then("아무 처리도 하지 않고 토큰도 조회하지 않는다") {
                     every { outboxRepository.lockNextPendings(any()) } returns emptyList()
 
                     sut.dispatchBatch(10)
 
                     verify(exactly = 0) { outboxRepository.updateResult(any(), any(), any(), any()) }
+                    verify(exactly = 0) { targetResolver.resolveUserTargets(any()) }
                 }
             }
 
@@ -87,7 +90,7 @@ class NotificationDispatcherTest : BehaviorSpec() {
                 then("SENT로 처리된다") {
                     val item = outbox()
                     every { outboxRepository.lockNextPendings(any()) } returns listOf(item)
-                    every { targetResolver.resolveUserTargets(any()) } returns emptyList()
+                    every { targetResolver.resolveUserTargets(any()) } returns emptyMap()
 
                     sut.dispatchBatch(1)
 
@@ -101,7 +104,7 @@ class NotificationDispatcherTest : BehaviorSpec() {
                 then("SENT로 처리된다") {
                     val item = outbox()
                     every { outboxRepository.lockNextPendings(any()) } returns listOf(item)
-                    every { targetResolver.resolveUserTargets(any()) } returns listOf("token-abc")
+                    every { targetResolver.resolveUserTargets(any()) } returns mapOf(item.user.id to listOf("token-abc"))
                     every { sender.send(any(), any(), any(), any()) } returns SendResult(ok = true)
 
                     sut.dispatchBatch(1)
@@ -116,7 +119,7 @@ class NotificationDispatcherTest : BehaviorSpec() {
                 then("DEAD로 처리된다") {
                     val item = outbox()
                     every { outboxRepository.lockNextPendings(any()) } returns listOf(item)
-                    every { targetResolver.resolveUserTargets(any()) } returns listOf("token-abc")
+                    every { targetResolver.resolveUserTargets(any()) } returns mapOf(item.user.id to listOf("token-abc"))
                     every { sender.send(any(), any(), any(), any()) } returns SendResult(ok = false, permanent = true)
 
                     sut.dispatchBatch(1)
@@ -131,7 +134,7 @@ class NotificationDispatcherTest : BehaviorSpec() {
                 then("DEAD로 처리된다") {
                     val item = outbox(attempts = 4) // nextAttempts=5 >= backoffSeconds.size=5
                     every { outboxRepository.lockNextPendings(any()) } returns listOf(item)
-                    every { targetResolver.resolveUserTargets(any()) } returns listOf("token-abc")
+                    every { targetResolver.resolveUserTargets(any()) } returns mapOf(item.user.id to listOf("token-abc"))
                     every { sender.send(any(), any(), any(), any()) } returns SendResult(ok = false)
 
                     sut.dispatchBatch(1)
@@ -139,6 +142,20 @@ class NotificationDispatcherTest : BehaviorSpec() {
                     verify(exactly = 1) {
                         outboxRepository.updateResult(item.id, DeliveryStatus.DEAD, any(), any())
                     }
+                }
+            }
+
+            `when`("여러 item이 같은 유저 것이면") {
+                then("유저별 토큰 조회를 건별이 아닌 배치로 한 번만 수행한다") {
+                    val item1 = outbox()
+                    val item2 = outbox()
+                    every { outboxRepository.lockNextPendings(any()) } returns listOf(item1, item2)
+                    every { targetResolver.resolveUserTargets(any()) } returns mapOf(item1.user.id to listOf("token-abc"))
+                    every { sender.send(any(), any(), any(), any()) } returns SendResult(ok = true)
+
+                    sut.dispatchBatch(2)
+
+                    verify(exactly = 1) { targetResolver.resolveUserTargets(any()) }
                 }
             }
         }

@@ -52,15 +52,11 @@ class NotificationCenterService(
     @Transactional(readOnly = true)
     fun getReceivedApplications(pageable: Pageable): ReceivedApplicationsSectionResponse {
         val userUuid = currentUserProvider.uuid
-        val allPending = userPartyRepository.findAllPendingRequestsForHost(userUuid)
-        val unreadCount = allPending.count { !it.hostRead }
-        val totalCount = allPending.size.toLong()
-        val paged = allPending
-            .drop(pageable.pageNumber * pageable.pageSize)
-            .take(pageable.pageSize)
-        val partyUuids = paged.map { it.party.uuid }
+        val unreadCount = userPartyRepository.countUnreadPendingRequestsForHost(userUuid)
+        val page = userPartyRepository.findAllPendingRequestsForHost(userUuid, pageable)
+        val partyUuids = page.content.map { it.party.uuid }
         val postByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associateBy { it.party.uuid }
-        val items = paged.map { up ->
+        val items = page.content.map { up ->
             ReceivedApplicationItem(
                 userUuid = up.user.uuid,
                 nickname = up.user.nickname,
@@ -73,7 +69,7 @@ class NotificationCenterService(
                 read = up.hostRead,
             )
         }
-        return ReceivedApplicationsSectionResponse(unreadCount = unreadCount, totalCount = totalCount, applications = items)
+        return ReceivedApplicationsSectionResponse(unreadCount = unreadCount.toInt(), totalCount = page.totalElements, applications = items)
     }
 
     @Transactional
@@ -86,8 +82,12 @@ class NotificationCenterService(
 
     @Transactional(readOnly = true)
     fun getSentApplications(pageable: Pageable): SentApplicationsSectionResponse {
-        val allApplications = userPartyRepository.findAllSentApplicationsByUserUuid(currentUserProvider.uuid)
-        val allItems = allApplications.map { up ->
+        val userUuid = currentUserProvider.uuid
+        val pendingCount = userPartyRepository.countPendingSentApplications(userUuid)
+        val changedCount = userPartyRepository.countChangedUnreadSentApplications(userUuid)
+        val page = userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable)
+
+        val items = page.content.map { up ->
             val status = when (up.memberStatus) {
                 MemberStatus.JOINED    -> ApplicationStatus.ACCEPTED
                 MemberStatus.REJECTED  -> ApplicationStatus.REJECTED
@@ -108,16 +108,15 @@ class NotificationCenterService(
                 read = read,
             )
         }
-        val pendingCount = allItems.count { it.status == ApplicationStatus.PENDING }
-        val changedCount = allItems.count { it.status != ApplicationStatus.PENDING && !it.read }
-        val totalCount = allItems.size.toLong()
-        val paged = allItems
-            .drop(pageable.pageNumber * pageable.pageSize)
-            .take(pageable.pageSize)
-        val partyUuids = paged.map { it.partyUuid }
+        val partyUuids = items.map { it.partyUuid }
         val postByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associateBy { it.party.uuid }
-        val pagedWithPost = paged.map { it.copy(postUuid = postByPartyUuid[it.partyUuid]?.uuid) }
-        return SentApplicationsSectionResponse(pendingCount = pendingCount, changedCount = changedCount, totalCount = totalCount, applications = pagedWithPost)
+        val itemsWithPost = items.map { it.copy(postUuid = postByPartyUuid[it.partyUuid]?.uuid) }
+        return SentApplicationsSectionResponse(
+            pendingCount = pendingCount.toInt(),
+            changedCount = changedCount.toInt(),
+            totalCount = page.totalElements,
+            applications = itemsWithPost,
+        )
     }
 
     @Transactional

@@ -18,6 +18,8 @@ import com.dogGetDrunk.meetjyou.user.dto.UserPreferenceData
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import com.dogGetDrunk.meetjyou.user.dto.normalizeOrNull
 import org.slf4j.LoggerFactory
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -53,10 +55,10 @@ class UserService(
         saveUserPreference(createdUser, request.gender.name, PreferenceType.GENDER)
         saveUserPreference(createdUser, request.age.name, PreferenceType.AGE)
 
-        request.personalities.forEach { saveUserPreference(createdUser, it.name, PreferenceType.PERSONALITY) }
-        request.travelStyles.forEach { saveUserPreference(createdUser, it.name, PreferenceType.TRAVEL_STYLE) }
-        request.diet.forEach { saveUserPreference(createdUser, it.name, PreferenceType.DIET) }
-        request.etc.forEach { saveUserPreference(createdUser, it.name, PreferenceType.ETC) }
+        saveUserPreferences(createdUser, request.personalities.map { it.name }, PreferenceType.PERSONALITY)
+        saveUserPreferences(createdUser, request.travelStyles.map { it.name }, PreferenceType.TRAVEL_STYLE)
+        saveUserPreferences(createdUser, request.diet.map { it.name }, PreferenceType.DIET)
+        saveUserPreferences(createdUser, request.etc.map { it.name }, PreferenceType.ETC)
 
         log.info("User saved successfully. uuid: {}, email: {}", createdUser.uuid, createdUser.email)
 
@@ -105,10 +107,10 @@ class UserService(
     }
 
     @Transactional(readOnly = true)
-    fun getAllUsersProfile(): List<BasicUserResponse> {
-        val users = userRepository.findAll()
-        if (users.isEmpty()) return emptyList()
-        val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.map { it.id })
+    fun getAllUsersProfile(pageable: Pageable): Page<BasicUserResponse> {
+        val users = userRepository.findAll(pageable)
+        if (users.isEmpty) return users.map { BasicUserResponse.of(it, emptyList()) }
+        val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.content.map { it.id })
             .groupBy { it.user.id }
         return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList()) }
     }
@@ -142,13 +144,20 @@ class UserService(
         } ?: log.warn(PREFERENCE_NOT_FOUND, preferenceName, type)
     }
 
+    fun saveUserPreferences(user: User, preferenceNames: List<String>, type: PreferenceType) {
+        if (preferenceNames.isEmpty()) return
+        val preferenceByName = preferenceRepository.findAllByTypeAndNameIn(type, preferenceNames)
+            .associateBy { it.name }
+        val userPreferences = preferenceNames.mapNotNull { name ->
+            preferenceByName[name]?.let { UserPreference(user, it) }
+                ?: run { log.warn(PREFERENCE_NOT_FOUND, name, type); null }
+        }
+        userPreferenceRepository.saveAll(userPreferences)
+    }
+
     fun updateUserPreferences(user: User, preferenceNames: List<String>, type: PreferenceType) {
         userPreferenceRepository.deleteByUserIdAndType(user.id, type)
-        preferenceNames.forEach { preferenceName ->
-            preferenceRepository.findByNameAndType(preferenceName, type)?.let { preference ->
-                userPreferenceRepository.save(UserPreference(user, preference))
-            } ?: log.warn(PREFERENCE_NOT_FOUND, preferenceName, type)
-        }
+        saveUserPreferences(user, preferenceNames, type)
     }
 
     fun updateUserPreference(user: User, preferenceName: String?, type: PreferenceType) {
@@ -160,21 +169,22 @@ class UserService(
         }
     }
 
-    fun getPreferenceName(userId: Long, type: PreferenceType): String {
-        return userPreferenceRepository.findPreferenceByUserIdAndType(userId, type)?.name
+    // Single batch query instead of one findPreference(Name)?ByUserIdAndType call per preference type.
+    private fun loadPreferences(userId: Long): UserPreferenceData {
+        val userPrefs = userPreferenceRepository.findAllByUser_IdIn(listOf(userId))
+        fun name(type: PreferenceType) = userPrefs
+            .firstOrNull { it.preference.type == type }?.preference?.name
             ?: throw PreferenceNotFoundException(type.name)
-    }
+        fun nameList(type: PreferenceType) = userPrefs
+            .filter { it.preference.type == type }.map { it.preference.name }
 
-    private fun getPreferenceNames(userId: Long, type: PreferenceType): List<String> {
-        return userPreferenceRepository.findPreferencesByUserIdAndType(userId, type).map { it.name }
+        return UserPreferenceData(
+            gender = name(PreferenceType.GENDER),
+            age = name(PreferenceType.AGE),
+            personalities = nameList(PreferenceType.PERSONALITY),
+            travelStyles = nameList(PreferenceType.TRAVEL_STYLE),
+            diet = nameList(PreferenceType.DIET),
+            etc = nameList(PreferenceType.ETC),
+        )
     }
-
-    private fun loadPreferences(userId: Long): UserPreferenceData = UserPreferenceData(
-        gender = getPreferenceName(userId, PreferenceType.GENDER),
-        age = getPreferenceName(userId, PreferenceType.AGE),
-        personalities = getPreferenceNames(userId, PreferenceType.PERSONALITY),
-        travelStyles = getPreferenceNames(userId, PreferenceType.TRAVEL_STYLE),
-        diet = getPreferenceNames(userId, PreferenceType.DIET),
-        etc = getPreferenceNames(userId, PreferenceType.ETC),
-    )
 }

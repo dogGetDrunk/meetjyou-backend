@@ -176,17 +176,18 @@ class UserController(
             content = arrayOf(
                 Content(
                     mediaType = "application/json",
-                    schema = Schema(
-                        type = "array",
-                        implementation = BasicUserResponse::class
-                    )
+                    schema = Schema(implementation = BasicUserResponse::class)
                 )
             )
         )]
     )
     @Operation(summary = "[admin] 모든 유저 프로필 조회")
-    fun allUsersProfile(): ResponseEntity<List<BasicUserResponse>> {
-        return ResponseEntity.ok(userService.getAllUsersProfile())
+    fun allUsersProfile(
+        @ParameterObject
+        @PageableDefault(size = 20, sort = ["id"])
+        pageable: Pageable,
+    ): ResponseEntity<Page<BasicUserResponse>> {
+        return ResponseEntity.ok(userService.getAllUsersProfile(pageable))
     }
 
     @Operation(summary = "유저 닉네임 중복 확인")

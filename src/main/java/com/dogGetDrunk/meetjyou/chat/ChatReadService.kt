@@ -13,6 +13,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDen
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
+import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
@@ -166,6 +167,7 @@ class ChatReadService(
         val partyByUuid = memberships.associate { membership ->
             membership.party.uuid to membership.party
         }
+        val membershipByPartyUuid = memberships.associateBy { it.party.uuid }
 
         val rooms = chatRoomRepository.findAllWithPartyByPartyUuidIn(partyByUuid.keys)
         val roomUuidToPartyUuid = rooms.associate { it.uuid to it.party.uuid }
@@ -180,6 +182,7 @@ class ChatReadService(
 
         val unreadCountByRoomUuid = buildUnreadCountMap(
             roomUuidToPartyUuid = roomUuidToPartyUuid,
+            membershipByPartyUuid = membershipByPartyUuid,
             requesterUuid = requesterUuid,
         )
 
@@ -211,19 +214,12 @@ class ChatReadService(
 
     private fun buildUnreadCountMap(
         roomUuidToPartyUuid: Map<UUID, UUID>,
+        membershipByPartyUuid: Map<UUID, UserParty>,
         requesterUuid: UUID,
     ): Map<UUID, Long> {
         if (roomUuidToPartyUuid.isEmpty()) {
             return emptyMap()
         }
-
-        val partyUuids = roomUuidToPartyUuid.values.toSet()
-
-        val membershipByPartyUuid = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(
-            userUuid = requesterUuid,
-            memberStatus = MemberStatus.JOINED,
-        ).filter { it.party.uuid in partyUuids }
-            .associateBy { it.party.uuid }
 
         val roomUuidsWithoutLastReadMessageId = roomUuidToPartyUuid
             .filterValues { partyUuid -> membershipByPartyUuid[partyUuid]?.lastReadMessageId == null }
@@ -330,17 +326,42 @@ class ChatReadService(
             return
         }
 
+        val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid) ?: run {
+            log.debug("Read position batch update skipped - room not found. roomUuid={}", roomUuid)
+            return
+        }
+
+        val membershipByUserUuid = userPartyRepository.findAllByParty_UuidAndUser_UuidIn(partyUuid, userUuids)
+            .associateBy { it.user.uuid }
+
         userUuids.forEach { userUuid ->
-            runCatching {
-                updateLastReadPosition(roomUuid, userUuid, messageId)
-            }.onFailure { throwable ->
-                log.debug(
-                    "Read position update skipped. roomUuid={}, userUuid={}, reason={}",
-                    roomUuid,
-                    userUuid,
-                    throwable.message,
-                )
-            }
+            updateMembershipReadPosition(roomUuid, partyUuid, membershipByUserUuid[userUuid], userUuid, messageId)
+        }
+    }
+
+    private fun updateMembershipReadPosition(
+        roomUuid: UUID,
+        partyUuid: UUID,
+        membership: UserParty?,
+        userUuid: UUID,
+        messageId: Long,
+    ) {
+        if (membership == null || !membership.isActiveMember()) {
+            log.debug("Read position update skipped. roomUuid={}, userUuid={}", roomUuid, userUuid)
+            return
+        }
+
+        val previousLastReadMessageId = membership.lastReadMessageId
+        membership.updateLastReadMessageId(messageId)
+
+        if (membership.lastReadMessageId != null && membership.lastReadMessageId != previousLastReadMessageId) {
+            chatRoomEventBroadcaster.broadcastChatReadUpdated(
+                roomUuid = roomUuid,
+                partyUuid = partyUuid,
+                readerUserUuid = userUuid,
+                previousLastReadMessageId = previousLastReadMessageId,
+                currentLastReadMessageId = membership.lastReadMessageId!!,
+            )
         }
     }
 

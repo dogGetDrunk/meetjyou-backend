@@ -128,17 +128,17 @@ class PartyService(
 
     @Transactional(readOnly = true)
     fun getAllParties(pageable: Pageable): Page<GetPartyResponse> {
-        return partyRepository.findAll(pageable).map { GetPartyResponse.of(it) }
+        return partyRepository.findAllWithPlan(pageable).map { GetPartyResponse.of(it) }
     }
 
     @Transactional(readOnly = true)
     fun getPartiesByPlanUuid(planUuid: UUID, pageable: Pageable): Page<GetPartyResponse> {
-        return partyRepository.findAllByPlan_Uuid(planUuid, pageable).map { GetPartyResponse.of(it) }
+        return partyRepository.findAllByPlanUuidWithPlan(planUuid, pageable).map { GetPartyResponse.of(it) }
     }
 
     @Transactional(readOnly = true)
     fun getPartiesByUserUuid(userUuid: UUID, pageable: Pageable): Page<GetPartyResponse> {
-        return userPartyRepository.findAllByUser_Uuid(userUuid, pageable).map { GetPartyResponse.of(it.party) }
+        return userPartyRepository.findAllWithPartyByUserUuid(userUuid, pageable).map { GetPartyResponse.of(it.party) }
     }
 
     @Transactional(readOnly = true)
@@ -600,7 +600,9 @@ class PartyService(
         }
     }
 
-    @Transactional(readOnly = true)
+    // Deliberately NOT @Transactional: the OCI PAR calls below are synchronous network I/O, and
+    // must not run while holding a pooled DB connection (see ADR — Hikari pool exhaustion).
+    // The two repository calls each run in their own short-lived, auto-committed transaction.
     fun resolvePartyThumbnailImageDownloads(partyUuids: List<UUID>): List<ParResponse?> {
         val partyByUuid = partyRepository.findAllByUuidIn(partyUuids).associateBy { it.uuid }
         val postByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associateBy { it.party.uuid }

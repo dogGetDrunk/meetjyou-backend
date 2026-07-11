@@ -58,7 +58,8 @@ class MarkerService(
         markerRepository.saveAll(newMarkers)
         log.info("Markers replaced for plan=$planUuid count=${newMarkers.size}")
 
-        return markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
+        return newMarkers
+            .sortedWith(compareBy({ it.dayNum }, { it.idx }))
             .map { MarkerResponse.of(it) }
     }
 }

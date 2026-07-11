@@ -105,17 +105,15 @@ class MarkerServiceTest : BehaviorSpec() {
             )
 
             `when`("plan이 존재하고 본인 소유이면") {
-                then("기존 마커를 삭제하고 새 마커를 저장한 뒤 목록을 반환한다") {
-                    val savedMarker = PlanFixtures.marker(plan, dayNum = 1, idx = 0)
-
+                then("기존 마커를 삭제하고 새 마커를 저장한 뒤, 재조회 없이 저장한 목록을 그대로 반환한다") {
                     every { planRepository.findByUuid(plan.uuid) } returns plan
                     every { currentUserProvider.uuid } returns owner.uuid
-                    every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns listOf(savedMarker)
 
                     val result = sut.replaceMarkers(plan.uuid, markerRequests)
 
                     verify(exactly = 1) { markerRepository.deleteAllByPlan(plan) }
                     verify(exactly = 1) { markerRepository.saveAll(any<List<Marker>>()) }
+                    verify(exactly = 0) { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(any()) }
                     result.size shouldBe 1
                 }
             }

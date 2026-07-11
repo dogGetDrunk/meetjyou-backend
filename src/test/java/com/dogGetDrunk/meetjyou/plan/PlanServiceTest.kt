@@ -111,6 +111,44 @@ class PlanServiceTest : BehaviorSpec() {
             }
         }
 
+        // ── getPlansByUserUuid ───────────────────────────────────────────────
+
+        given("getPlansByUserUuid 호출 시") {
+            `when`("유저가 여러 계획서를 소유하고 있으면") {
+                then("marker를 계획서 개수만큼 반복 조회하지 않고 배치로 한 번에 조회한다") {
+                    val owner = UserFixtures.user()
+                    val planA = PlanFixtures.plan(owner)
+                    val planB = PlanFixtures.plan(owner)
+                    val page = PageImpl(listOf(planA, planB))
+                    val markerOnA = PlanFixtures.marker(planA)
+
+                    every { userRepository.existsByUuid(owner.uuid) } returns true
+                    every { planRepository.findAllByOwner_Uuid(owner.uuid, any()) } returns page
+                    every {
+                        markerRepository.findAllByPlan_UuidInOrderByDayNumAscIdxAsc(listOf(planA.uuid, planB.uuid))
+                    } returns listOf(markerOnA)
+
+                    val result = sut.getPlansByUserUuid(owner.uuid, Pageable.unpaged())
+
+                    result.content.first { it.uuid == planA.uuid }.markers.size shouldBe 1
+                    result.content.first { it.uuid == planB.uuid }.markers.size shouldBe 0
+                    verify(exactly = 1) { markerRepository.findAllByPlan_UuidInOrderByDayNumAscIdxAsc(any()) }
+                    verify(exactly = 0) { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(any()) }
+                }
+            }
+
+            `when`("유저가 존재하지 않으면") {
+                then("UserNotFoundException을 던진다") {
+                    val unknownUuid = UUID.randomUUID()
+                    every { userRepository.existsByUuid(unknownUuid) } returns false
+
+                    shouldThrow<UserNotFoundException> {
+                        sut.getPlansByUserUuid(unknownUuid, Pageable.unpaged())
+                    }
+                }
+            }
+        }
+
         // ── getPlanByUuid ────────────────────────────────────────────────────
 
         given("getPlanByUuid 호출 시") {
