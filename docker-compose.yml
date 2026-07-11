@@ -35,7 +35,8 @@ services:
     depends_on:
       - spring_boot
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.28.0.10
 
   certbot:
     container_name: certbot
@@ -51,3 +52,6 @@ services:
 networks:
   my_network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
