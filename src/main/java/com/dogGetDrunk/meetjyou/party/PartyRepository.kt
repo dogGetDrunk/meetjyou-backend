@@ -20,4 +20,16 @@ interface PartyRepository : JpaRepository<Party, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Party p WHERE p.uuid = :uuid")
     fun findByUuidForUpdate(@Param("uuid") uuid: UUID): Party?
+
+    @Query(
+        value = "SELECT p FROM Party p LEFT JOIN FETCH p.plan",
+        countQuery = "SELECT COUNT(p) FROM Party p",
+    )
+    fun findAllWithPlan(pageable: Pageable): Page<Party>
+
+    @Query(
+        value = "SELECT p FROM Party p LEFT JOIN FETCH p.plan WHERE p.plan.uuid = :planUuid",
+        countQuery = "SELECT COUNT(p) FROM Party p WHERE p.plan.uuid = :planUuid",
+    )
+    fun findAllByPlanUuidWithPlan(@Param("planUuid") planUuid: UUID, pageable: Pageable): Page<Party>
 }

@@ -37,9 +37,11 @@ class NotificationDispatcher(
         // status changed to SENDING within the same transaction to prevent duplicate dispatch
         outboxRepository.bulkUpdateStatus(items.map { it.id }, DeliveryStatus.SENDING)
 
+        val tokensByUserId = targetResolver.resolveUserTargets(items.map { it.user.id }.distinct())
+
         for (item in items) {
             try {
-                processItem(item)
+                processItem(item, tokensByUserId[item.user.id] ?: emptyList())
             } catch (e: Exception) {
                 log.error("Failed to process outbox item id={}, marking PENDING for retry", item.id, e)
                 mark(item, DeliveryStatus.PENDING, item.attempts, item.availableAt)
@@ -55,8 +57,7 @@ class NotificationDispatcher(
         }
     }
 
-    private fun processItem(item: NotificationOutbox) {
-        val tokens = targetResolver.resolveUserTargets(item.user.id)
+    private fun processItem(item: NotificationOutbox, tokens: List<String>) {
         if (tokens.isEmpty()) {
             mark(item, DeliveryStatus.SENT, item.attempts + 1, item.availableAt) // no push tokens registered — no recipients to deliver to, mark as sent
             log.info("No tokens for userId={}, mark SENT. outboxId={}", item.user.id, item.id)

@@ -85,8 +85,15 @@ class PlanService(
             throw UserNotFoundException(userUuid)
         }
 
-        return planRepository.findAllByOwner_Uuid(userUuid, pageable)
-            .map { GetPlanResponse.of(it, markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(it.uuid)) }
+        val plans = planRepository.findAllByOwner_Uuid(userUuid, pageable)
+        val markersByPlanUuid = resolveMarkersByPlan(plans.content.map { it.uuid })
+        return plans.map { GetPlanResponse.of(it, markersByPlanUuid[it.uuid] ?: emptyList()) }
+    }
+
+    private fun resolveMarkersByPlan(planUuids: List<UUID>): Map<UUID, List<Marker>> {
+        if (planUuids.isEmpty()) return emptyMap()
+        return markerRepository.findAllByPlan_UuidInOrderByDayNumAscIdxAsc(planUuids)
+            .groupBy { it.plan.uuid }
     }
 
     @Transactional(readOnly = true)

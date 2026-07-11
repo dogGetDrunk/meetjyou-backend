@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.plan
 import com.dogGetDrunk.meetjyou.user.User
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -29,7 +30,7 @@ class Plan(
     @Column(length = 500)
     var memo: String? = null,
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     var owner: User
 ) {

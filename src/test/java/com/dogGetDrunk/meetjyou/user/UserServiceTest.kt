@@ -3,7 +3,10 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.preference.Preference
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
+import com.dogGetDrunk.meetjyou.preference.PreferenceType
+import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.terms.TermsType
@@ -17,6 +20,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 
 class UserServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
@@ -139,14 +144,17 @@ class UserServiceTest : BehaviorSpec() {
         // ── getUserProfile (hasProfileImage pass-through) ─────────────────────
 
         given("getUserProfile 호출 시") {
+            fun requiredPreferences(user: User): List<UserPreference> = listOf(
+                UserPreference(user, Preference(type = PreferenceType.GENDER, name = "SOME_VALUE")),
+                UserPreference(user, Preference(type = PreferenceType.AGE, name = "SOME_VALUE")),
+            )
+
             `when`("유저에 hasProfileImage가 false인 경우") {
                 then("응답의 hasProfileImage도 false이다") {
                     val user = UserFixtures.user()
 
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { userPreferenceRepository.findPreferenceByUserIdAndType(any(), any()) } returns
-                            mockk { every { name } returns "SOME_VALUE" }
-                    every { userPreferenceRepository.findPreferencesByUserIdAndType(any(), any()) } returns emptyList()
+                    every { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) } returns requiredPreferences(user)
 
                     val result = sut.getUserProfile(user.uuid)
 
@@ -161,13 +169,36 @@ class UserServiceTest : BehaviorSpec() {
                     }
 
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { userPreferenceRepository.findPreferenceByUserIdAndType(any(), any()) } returns
-                            mockk { every { name } returns "SOME_VALUE" }
-                    every { userPreferenceRepository.findPreferencesByUserIdAndType(any(), any()) } returns emptyList()
+                    every { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) } returns requiredPreferences(user)
 
                     val result = sut.getUserProfile(user.uuid)
 
                     result.hasProfileImage shouldBe true
+                }
+            }
+        }
+
+        // ── getAllUsersProfile ───────────────────────────────────────────────
+
+        given("getAllUsersProfile 호출 시") {
+            `when`("페이지 요청이 들어오면") {
+                then("userRepository.findAll(pageable)로 페이지네이션되고, preference는 유저 수와 무관하게 배치로 한 번만 조회한다") {
+                    val user = UserFixtures.user()
+                    val pageable = PageRequest.of(0, 20)
+                    val page = PageImpl(listOf(user))
+                    val prefs = listOf(
+                        UserPreference(user, Preference(type = PreferenceType.GENDER, name = "SOME_VALUE")),
+                        UserPreference(user, Preference(type = PreferenceType.AGE, name = "SOME_VALUE")),
+                    )
+
+                    every { userRepository.findAll(pageable) } returns page
+                    every { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) } returns prefs
+
+                    val result = sut.getAllUsersProfile(pageable)
+
+                    result.content.single().uuid shouldBe user.uuid
+                    verify(exactly = 1) { userRepository.findAll(pageable) }
+                    verify(exactly = 1) { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) }
                 }
             }
         }
