@@ -90,7 +90,7 @@ class PartyController(
     @GetMapping("/plan/{planUuid}")
     fun getPartiesByPlanUuid(
         @PathVariable planUuid: UUID,
-        @ParameterObject @PageableDefault(size = 10, sort = ["party.createdAt"], direction = Sort.Direction.DESC)
+        @ParameterObject @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable,
     ): Page<GetPartyResponse> {
         return partyService.getPartiesByPlanUuid(planUuid, pageable)

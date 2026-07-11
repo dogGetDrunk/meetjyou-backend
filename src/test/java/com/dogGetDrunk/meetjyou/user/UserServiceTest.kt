@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
@@ -24,6 +25,7 @@ class UserServiceTest : BehaviorSpec() {
 
     private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val termsService = mockk<TermsService>(relaxed = true)
+    private val refreshTokenRepository = mockk<RefreshTokenRepository>(relaxed = true)
 
     private val sut = UserService(
         userRepository,
@@ -31,6 +33,7 @@ class UserServiceTest : BehaviorSpec() {
         userPreferenceRepository,
         currentUserProvider,
         termsService,
+        refreshTokenRepository,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -165,6 +168,35 @@ class UserServiceTest : BehaviorSpec() {
                     val result = sut.getUserProfile(user.uuid)
 
                     result.hasProfileImage shouldBe true
+                }
+            }
+        }
+
+        // ── withdrawUser ─────────────────────────────────────────────────────
+
+        given("withdrawUser 호출 시") {
+            val user = UserFixtures.user()
+
+            beforeEach {
+                every { currentUserProvider.uuid } returns user.uuid
+                every { userRepository.findByUuid(user.uuid) } returns user
+            }
+
+            `when`("post/plan 등 연관 데이터가 있어 하드 삭제라면 FK 위반이 날 상황이어도") {
+                then("하드 삭제 대신 status를 DELETED로 바꾸고 리프레시 토큰을 모두 무효화한다") {
+                    sut.withdrawUser()
+
+                    user.status shouldBe UserStatus.DELETED
+                    verify { refreshTokenRepository.revokeAllByUser(user) }
+                    verify(exactly = 0) { userRepository.deleteByUuid(any()) }
+                }
+            }
+
+            `when`("유저가 존재하지 않으면") {
+                then("UserNotFoundException을 던진다") {
+                    every { userRepository.findByUuid(user.uuid) } returns null
+
+                    shouldThrow<UserNotFoundException> { sut.withdrawUser() }
                 }
             }
         }

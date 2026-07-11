@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
@@ -28,6 +29,7 @@ class UserService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val currentUserProvider: CurrentUserProvider,
     private val termsService: TermsService,
+    private val refreshTokenRepository: RefreshTokenRepository,
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
@@ -64,14 +66,12 @@ class UserService(
     @Transactional
     fun withdrawUser() {
         val uuid = currentUserProvider.uuid
-        userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
 
         log.info("Processing user withdrawal (user uuid: {})", uuid)
-        if (userRepository.deleteByUuid(uuid) > 0) {
-            log.info("User withdrawal completed (user uuid: {})", uuid)
-        } else {
-            log.warn("User withdrawal completed with no rows deleted (user uuid: {})", uuid)
-        }
+        user.status = UserStatus.DELETED
+        refreshTokenRepository.revokeAllByUser(user)
+        log.info("User withdrawal completed (user uuid: {})", uuid)
     }
 
     @Transactional
