@@ -1,3 +1,10 @@
 logging:
   level:
     org.springframework.security: INFO
+
+server:
+  tomcat:
+    remoteip:
+      # Only trust X-Forwarded-For/-Proto from the nginx container's static IP
+      # (see docker-compose.yml my_network) instead of Tomcat's default RFC1918-wide range.
+      internal-proxies: 172\.28\.0\.10
