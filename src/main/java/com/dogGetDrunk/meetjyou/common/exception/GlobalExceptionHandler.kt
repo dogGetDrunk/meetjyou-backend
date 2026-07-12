@@ -8,6 +8,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.auth.AuthException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NotFoundException
 import jakarta.servlet.http.HttpServletRequest
+import org.apache.catalina.connector.ClientAbortException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -15,6 +16,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @ControllerAdvice
@@ -192,6 +194,21 @@ class GlobalExceptionHandler(
     fun handleNoResourceFoundException(): ResponseEntity<ErrorResponse> {
         val status = HttpStatus.NOT_FOUND
         return ResponseEntity(ErrorResponse(status.value(), ErrorCode.NOT_FOUND), status)
+    }
+
+    /**
+     * The client closed the connection before the response was fully written, so the socket is already
+     * gone: returning a body would only fail again. A void return tells Spring the request is handled.
+     * This is a client-side disconnect, not a server fault — no Discord alert, no ERROR log.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException::class, ClientAbortException::class)
+    fun handleClientAbortException(e: Exception, request: HttpServletRequest) {
+        log.warn(
+            "Client disconnected before the response was fully written: {} {} ({})",
+            request.method,
+            request.requestURI,
+            e.javaClass.simpleName
+        )
     }
 
     @ExceptionHandler(Exception::class)
