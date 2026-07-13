@@ -15,6 +15,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyNotFoundExc
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyRecruitmentClosedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.SelfBanNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
@@ -151,7 +152,7 @@ class PartyService(
             .associateBy { it.party.uuid }
         return membershipPage.map { userParty ->
             val chatRoom = roomByPartyUuid[userParty.party.uuid]
-                ?: error("ChatRoom not found for party ${userParty.party.uuid}")
+                ?: throw ChatRoomNotFoundException(userParty.party.uuid.toString())
             GetMyPartyResponse.of(userParty, chatRoom)
         }
     }
