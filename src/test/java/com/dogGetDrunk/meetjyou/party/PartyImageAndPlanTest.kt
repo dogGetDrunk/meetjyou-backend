@@ -86,12 +86,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     itinStart = party.itinStart,
                     itinFinish = party.itinFinish,
                     destination = party.destination,
-                    joined = party.joined,
                     capacity = party.capacity,
                     name = "New name",
                     planUuid = plan.uuid,
                 )
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
                 every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { planRepository.findByUuid(plan.uuid) } returns plan
@@ -111,12 +111,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     itinStart = party.itinStart,
                     itinFinish = party.itinFinish,
                     destination = party.destination,
-                    joined = party.joined,
                     capacity = party.capacity,
                     name = "New name",
                     planUuid = strangerPlan.uuid,
                 )
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
                 every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { planRepository.findByUuid(strangerPlan.uuid) } returns strangerPlan
@@ -140,12 +140,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     itinStart = party.itinStart,
                     itinFinish = party.itinFinish,
                     destination = party.destination,
-                    joined = party.joined,
                     capacity = party.capacity,
                     name = "New name",
                     planUuid = null,
                 )
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
                 every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { postRepository.findByParty_Uuid(party.uuid) } returns linkedPost
@@ -171,12 +171,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     itinStart = party.itinStart,
                     itinFinish = party.itinFinish,
                     destination = party.destination,
-                    joined = party.joined,
                     capacity = party.capacity,
                     name = "New name",
                     planUuid = newPlan.uuid,
                 )
                 every { partyRepository.findByUuid(party.uuid) } returns party
+                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
                 every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { planRepository.findByUuid(newPlan.uuid) } returns newPlan

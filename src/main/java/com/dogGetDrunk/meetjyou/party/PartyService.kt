@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.party.HostBanNotAllowe
 import com.dogGetDrunk.meetjyou.common.exception.business.party.HostLeaveNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberBanException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberLeaveException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyCapacityBelowJoinedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyFullException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlreadyMemberException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlreadyPendingException
@@ -165,12 +166,20 @@ class PartyService(
         if (party.recruitmentStatus != PartyRecruitmentStatus.OPEN) {
             throw PartyRecruitmentClosedException(partyUuid)
         }
-
         if (party.joined >= party.capacity) {
             throw PartyFullException(partyUuid)
         }
 
         val existing = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
+        applyJoinRequestState(party, userUuid, applicationNote, existing)
+        notifyHostOfJoinRequest(party, partyUuid, userUuid)
+
+        log.info("Party join request submitted. partyUuid={}, userUuid={}", partyUuid, userUuid)
+        return JoinPartyResponse(partyUuid = partyUuid, status = "PENDING")
+    }
+
+    private fun applyJoinRequestState(party: Party, userUuid: UUID, applicationNote: String?, existing: UserParty?) {
+        val partyUuid = party.uuid
         when (existing?.memberStatus) {
             MemberStatus.PENDING  -> throw PartyJoinAlreadyPendingException(partyUuid, userUuid)
             MemberStatus.JOINED   -> throw PartyJoinAlreadyMemberException(partyUuid, userUuid)
@@ -193,7 +202,9 @@ class PartyService(
                 )
             }
         }
+    }
 
+    private fun notifyHostOfJoinRequest(party: Party, partyUuid: UUID, userUuid: UUID) {
         userPartyRepository.findByParty_UuidAndRole(partyUuid, PartyRole.HOST)?.let { host ->
             val applicant = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
             publisher.publishEvent(
@@ -214,9 +225,6 @@ class PartyService(
                 )
             )
         }
-
-        log.info("Party join request submitted. partyUuid={}, userUuid={}", partyUuid, userUuid)
-        return JoinPartyResponse(partyUuid = partyUuid, status = "PENDING")
     }
 
     @Transactional
@@ -260,6 +268,13 @@ class PartyService(
             )
         }
 
+        notifyApplicantApproved(party, partyUuid, applicantUuid)
+        notifyExistingMembersOfNewMember(partyUuid, applicantUuid)
+
+        log.info("Join request approved. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)
+    }
+
+    private fun notifyApplicantApproved(party: Party, partyUuid: UUID, applicantUuid: UUID) {
         publisher.publishEvent(
             NotificationEvent(
                 userUuid = applicantUuid,
@@ -275,7 +290,9 @@ class PartyService(
                 ),
             )
         )
+    }
 
+    private fun notifyExistingMembersOfNewMember(partyUuid: UUID, applicantUuid: UUID) {
         val applicant = userRepository.findByUuid(applicantUuid) ?: throw UserNotFoundException(applicantUuid)
         userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(partyUuid, MemberStatus.JOINED)
             .filter { it.user.uuid != applicantUuid }
@@ -291,8 +308,6 @@ class PartyService(
                     )
                 )
             }
-
-        log.info("Join request approved. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)
     }
 
     @Transactional
@@ -412,13 +427,13 @@ class PartyService(
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
 
-        val party = partyRepository.findByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
+        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
+        validateCapacityChange(party, request.capacity)
 
         party.apply {
             name = request.name
             destination = request.destination
-            joined = request.joined
             capacity = request.capacity
             itinStart = request.itinStart
             itinFinish = request.itinFinish
@@ -426,6 +441,12 @@ class PartyService(
         applyPlanChange(party, request, userUuid)
         log.info("Party is updated: uuid=$partyUuid")
         return UpdatePartyResponse.of(party)
+    }
+
+    private fun validateCapacityChange(party: Party, newCapacity: Int) {
+        if (newCapacity < party.joined) {
+            throw PartyCapacityBelowJoinedException(party.uuid)
+        }
     }
 
     private fun applyPlanChange(party: Party, request: UpdatePartyRequest, userUuid: UUID) {
@@ -451,8 +472,8 @@ class PartyService(
         val party = partyRepository.findByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
 
-        partyRepository.delete(party)
         userPartyRepository.deleteAllByParty_Uuid(partyUuid)
+        partyRepository.delete(party)
         log.info("Party is deleted: uuid=$partyUuid")
     }
 
@@ -499,7 +520,7 @@ class PartyService(
             targetUserUuid,
         )
 
-        val party = requireParty(partyUuid)
+        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
         requireActiveHostMembership(partyUuid, userUuid)
 
@@ -519,6 +540,7 @@ class PartyService(
         }
 
         targetMembership.ban()
+        party.joined--
         removeFromChatRoom(partyUuid, targetUserUuid)
         chatRoomRepository.findByParty_Uuid(partyUuid)?.let { chatRoom ->
             chatRoomEventBroadcaster.broadcastMemberBanned(
@@ -544,7 +566,7 @@ class PartyService(
         val userUuid = currentUserProvider.uuid
         log.info("Party leave requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
 
-        val party = requireParty(partyUuid)
+        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
 
         val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)

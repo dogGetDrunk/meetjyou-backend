@@ -24,12 +24,12 @@ class GoogleVerifier(
 
     override fun verifyAndExtract(token: SocialToken, nonce: String?): SocialPrincipal {
         return when (token) {
-            is IdToken -> verifyIdToken(token)
+            is IdToken -> verifyIdToken(token, nonce)
             is AccessToken -> throw InvalidJwtException(message = "Google Access Token verification is not supported.")
         }
     }
 
-    fun verifyIdToken(token: IdToken): SocialPrincipal {
+    fun verifyIdToken(token: IdToken, nonce: String?): SocialPrincipal {
         val sample = Timer.start(meterRegistry)
         val startedNs = System.nanoTime()
 
@@ -40,6 +40,10 @@ class GoogleVerifier(
             val payload = verifiedJwt.payload
             val subject = payload.subject ?: throw InvalidJwtException()
             val email = payload.email ?: throw InvalidJwtException()
+
+            if (nonce.isNullOrBlank() || payload.nonce != nonce) {
+                throw InvalidJwtException()
+            }
 
             SocialPrincipal(
                 authProvider = AuthProvider.GOOGLE,

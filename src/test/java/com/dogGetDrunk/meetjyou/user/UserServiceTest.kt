@@ -15,6 +15,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -218,6 +219,7 @@ class UserServiceTest : BehaviorSpec() {
                     sut.withdrawUser()
 
                     user.status shouldBe UserStatus.DELETED
+                    user.withdrawnAt shouldNotBe null
                     verify { refreshTokenRepository.revokeAllByUser(user) }
                     verify(exactly = 0) { userRepository.deleteByUuid(any()) }
                 }
@@ -228,6 +230,26 @@ class UserServiceTest : BehaviorSpec() {
                     every { userRepository.findByUuid(user.uuid) } returns null
 
                     shouldThrow<UserNotFoundException> { sut.withdrawUser() }
+                }
+            }
+        }
+
+        // ── isDuplicateNickname (30일 유예기간) ─────────────────────────────────
+
+        given("isDuplicateNickname 호출 시") {
+            `when`("existsActiveNickname이 true를 반환하면") {
+                then("true를 반환한다") {
+                    every { userRepository.existsActiveNickname("nickname", any()) } returns true
+
+                    sut.isDuplicateNickname("nickname") shouldBe true
+                }
+            }
+
+            `when`("existsActiveNickname이 false를 반환하면 (탈퇴 30일 경과 등)") {
+                then("false를 반환한다") {
+                    every { userRepository.existsActiveNickname("nickname", any()) } returns false
+
+                    sut.isDuplicateNickname("nickname") shouldBe false
                 }
             }
         }

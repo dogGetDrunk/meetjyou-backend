@@ -26,17 +26,23 @@ class WebSocketEventListener(
 
         val roomUuid = sessionAttributes["roomUuid"] as? UUID
         val userUuid = sessionAttributes["userUuid"] as? UUID
+        val sessionId = accessor.sessionId
 
-        if (roomUuid == null || userUuid == null) {
+        if (roomUuid == null || userUuid == null || sessionId == null) {
             log.warn("WebSocket connect event ignored because session attributes are missing.")
             return
         }
 
-        chatSessionTracker.connectUser(roomUuid, userUuid)
-        chatParticipantService.enterRoom(roomUuid, userUuid)
-        chatReadService.markLatestMessageAsRead(roomUuid, userUuid)
+        chatSessionTracker.connectUser(roomUuid, userUuid, sessionId)
+        try {
+            chatParticipantService.enterRoom(roomUuid, userUuid)
+            chatReadService.markLatestMessageAsRead(roomUuid, userUuid)
+        } catch (e: Exception) {
+            chatSessionTracker.disconnectUser(roomUuid, userUuid, sessionId)
+            throw e
+        }
 
-        log.info("WebSocket connection established. roomUuid={}, userUuid={}", roomUuid, userUuid)
+        log.info("WebSocket connection established. roomUuid={}, userUuid={}, sessionId={}", roomUuid, userUuid, sessionId)
     }
 
     @EventListener
@@ -46,14 +52,15 @@ class WebSocketEventListener(
 
         val roomUuid = sessionAttributes["roomUuid"] as? UUID
         val userUuid = sessionAttributes["userUuid"] as? UUID
+        val sessionId = accessor.sessionId
 
-        if (roomUuid == null || userUuid == null) {
+        if (roomUuid == null || userUuid == null || sessionId == null) {
             log.warn("WebSocket disconnect event ignored because session attributes are missing.")
             return
         }
 
-        chatSessionTracker.disconnectUser(roomUuid, userUuid)
+        chatSessionTracker.disconnectUser(roomUuid, userUuid, sessionId)
 
-        log.info("WebSocket connection closed. roomUuid={}, userUuid={}", roomUuid, userUuid)
+        log.info("WebSocket connection closed. roomUuid={}, userUuid={}, sessionId={}", roomUuid, userUuid, sessionId)
     }
 }

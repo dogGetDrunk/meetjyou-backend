@@ -22,6 +22,8 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -37,6 +39,8 @@ class UserService(
 
     companion object {
         private const val PREFERENCE_NOT_FOUND = "Preference not found in DB: name={}, type={}"
+        // Nicknames of withdrawn accounts stay reserved for this long, then become reusable.
+        private val NICKNAME_GRACE_PERIOD: Duration = Duration.ofDays(30)
     }
 
     @Transactional
@@ -72,6 +76,7 @@ class UserService(
 
         log.info("Processing user withdrawal (user uuid: {})", uuid)
         user.status = UserStatus.DELETED
+        user.withdrawnAt = Instant.now()
         refreshTokenRepository.revokeAllByUser(user)
         log.info("User withdrawal completed (user uuid: {})", uuid)
     }
@@ -135,7 +140,8 @@ class UserService(
     }
 
     fun isDuplicateNickname(nickname: String): Boolean {
-        return userRepository.existsByNickname(nickname)
+        val gracePeriodCutoff = Instant.now().minus(NICKNAME_GRACE_PERIOD)
+        return userRepository.existsActiveNickname(nickname, gracePeriodCutoff)
     }
 
     fun saveUserPreference(user: User, preferenceName: String, type: PreferenceType) {

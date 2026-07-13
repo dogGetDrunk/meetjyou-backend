@@ -14,8 +14,6 @@ data class UpdatePartyRequest(
     @field:NotBlank
     val destination: String,
     @field:Min(1)
-    val joined: Int,
-    @field:Min(1)
     @field:Max(10)
     val capacity: Int,
     @field:Size(max = 20)

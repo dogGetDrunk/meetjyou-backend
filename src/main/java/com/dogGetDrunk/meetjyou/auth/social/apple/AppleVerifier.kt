@@ -43,7 +43,7 @@ class AppleVerifier(
         return try {
             val verifiedJwt = appleJwtDecoder.decode(token.value)
 
-            if (!nonce.isNullOrBlank() && verifiedJwt.claims["nonce"] != sha256(nonce)) {
+            if (nonce.isNullOrBlank() || verifiedJwt.claims["nonce"] != sha256(nonce)) {
                 throw InvalidJwtException()
             }
 

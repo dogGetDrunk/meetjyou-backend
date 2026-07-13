@@ -8,6 +8,7 @@ import com.dogGetDrunk.meetjyou.auth.social.IdToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
@@ -44,7 +45,7 @@ class UserAuthService(
         val token = if (!request.idToken.isNullOrBlank()) {
             IdToken(request.idToken)
         } else {
-            AccessToken(request.accessToken!!)
+            AccessToken(request.accessToken ?: throw InvalidJwtException(message = "No idToken or accessToken provided"))
         }
 
         val principal = socialVerifierRegistry
@@ -71,7 +72,7 @@ class UserAuthService(
         val token = if (!request.idToken.isNullOrBlank()) {
             IdToken(request.idToken)
         } else {
-            AccessToken(request.accessToken!!)
+            AccessToken(request.accessToken ?: throw InvalidJwtException(message = "No idToken or accessToken provided"))
         }
 
         log.info("Login via social request received. token: {}, provider: {}", token.value.take(5), request.authProvider)
@@ -80,14 +81,15 @@ class UserAuthService(
             .get(request.authProvider)
             .verifyAndExtract(token, nonce)
 
-        if (!userRepository.existsByAuthProviderAndExternalId(principal.authProvider, principal.subject)) {
-            throw UserNotFoundException(
+        val user = userRepository.findByAuthProviderAndExternalId(principal.authProvider, principal.subject)
+            ?: throw UserNotFoundException(
                 principal.email,
                 message = "User not found for provider ${request.authProvider}"
             )
-        }
 
-        val user = userRepository.findByAuthProviderAndExternalId(principal.authProvider, principal.subject)!!
+        if (user.status == UserStatus.DELETED) {
+            throw UserWithdrawnException(user.uuid.toString(), message = "Withdrawn user attempted to log in")
+        }
 
         log.info("User logged in successfully. uuid: {}, email: {}", user.uuid, user.email)
 
@@ -115,6 +117,10 @@ class UserAuthService(
 
         if (user.email != email) {
             throw IncorrectJwtSubjectException(email, message = "Email claim does not match user record")
+        }
+
+        if (user.status == UserStatus.DELETED) {
+            throw UserWithdrawnException(user.uuid.toString(), message = "Withdrawn user attempted to refresh token")
         }
 
         record.revoke()

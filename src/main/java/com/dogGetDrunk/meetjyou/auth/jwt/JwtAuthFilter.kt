@@ -3,6 +3,11 @@ package com.dogGetDrunk.meetjyou.auth.jwt
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
+import com.dogGetDrunk.meetjyou.user.Role
+import com.dogGetDrunk.meetjyou.user.User
+import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.UserStatus
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -21,6 +26,7 @@ import java.util.UUID
 class JwtAuthFilter(
     private val jwtProvider: JwtProvider,
     private val objectMapper: ObjectMapper,
+    private val userRepository: UserRepository,
 ) : OncePerRequestFilter() {
 
     val log = LoggerFactory.getLogger(JwtAuthFilter::class.java)
@@ -49,35 +55,49 @@ class JwtAuthFilter(
 
         if (token != null) {
             try {
-                jwtProvider.validateTokenOrThrow(token)
+                authenticateFromToken(token, request)
             } catch (e: CustomJwtException) {
                 response.status = HttpServletResponse.SC_UNAUTHORIZED
                 response.contentType = MediaType.APPLICATION_JSON_VALUE
                 objectMapper.writeValue(response.writer, ErrorResponse(401, e.errorCode, e.value))
                 return
             }
-
-            val userUuid: UUID = jwtProvider.getUserUuid(token)
-            val email: String = jwtProvider.getUsername(token)
-            val role = jwtProvider.getRole(token)
-
-            val principal = CustomUserPrincipal(
-                uuid = userUuid,
-                email = email,
-                authorities = listOf(SimpleGrantedAuthority(role.name))
-            )
-
-            val authentication = UsernamePasswordAuthenticationToken(
-                principal,
-                null,
-                principal.authorities
-            ).apply {
-                details = WebAuthenticationDetailsSource().buildDetails(request)
-            }
-
-            SecurityContextHolder.getContext().authentication = authentication
         }
 
         filterChain.doFilter(request, response)
+    }
+
+    private fun authenticateFromToken(token: String, request: HttpServletRequest) {
+        jwtProvider.validateTokenOrThrow(token)
+
+        val userUuid = jwtProvider.getUserUuid(token)
+        val user = resolveActiveUser(userUuid)
+        val authentication = buildAuthentication(user.uuid, jwtProvider.getUsername(token), jwtProvider.getRole(token), request)
+
+        SecurityContextHolder.getContext().authentication = authentication
+    }
+
+    private fun resolveActiveUser(userUuid: UUID): User {
+        val user = userRepository.findByUuid(userUuid)
+        if (user == null || user.status == UserStatus.DELETED) {
+            throw UserWithdrawnException(userUuid.toString(), message = "Withdrawn or unknown user attempted to use an access token")
+        }
+        return user
+    }
+
+    private fun buildAuthentication(
+        userUuid: UUID,
+        email: String,
+        role: Role,
+        request: HttpServletRequest,
+    ): UsernamePasswordAuthenticationToken {
+        val principal = CustomUserPrincipal(
+            uuid = userUuid,
+            email = email,
+            authorities = listOf(SimpleGrantedAuthority(role.name)),
+        )
+        return UsernamePasswordAuthenticationToken(principal, null, principal.authorities).apply {
+            details = WebAuthenticationDetailsSource().buildDetails(request)
+        }
     }
 }
