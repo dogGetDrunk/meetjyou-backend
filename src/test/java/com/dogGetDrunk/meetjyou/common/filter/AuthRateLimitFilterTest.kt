@@ -76,6 +76,28 @@ class AuthRateLimitFilterTest : BehaviorSpec() {
             }
         }
 
+        given("관리자 승격 엔드포인트에 반복 요청이 들어올 때") {
+            `when`("허용 한도(5회)를 초과하면") {
+                then("6번째 요청부터 429를 반환하고 체인을 통과시키지 않는다") {
+                    val filter = AuthRateLimitFilter(ObjectMapper().registerKotlinModule())
+                    var passedCount = 0
+                    val chain = FilterChain { _, _ -> passedCount++ }
+
+                    lateinit var lastResponse: MockHttpServletResponse
+                    repeat(6) {
+                        val request = MockHttpServletRequest("POST", "/api/v1/auth/promote-admin")
+                        request.remoteAddr = "127.0.0.1"
+                        lastResponse = MockHttpServletResponse()
+
+                        filter.doFilter(request, lastResponse, chain)
+                    }
+
+                    passedCount shouldBe 5
+                    lastResponse.status shouldBe 429
+                }
+            }
+        }
+
         given("한도 대상이 아닌 경로에 요청이 들어올 때") {
             `when`("반복 요청해도") {
                 then("항상 필터 체인을 통과시킨다") {

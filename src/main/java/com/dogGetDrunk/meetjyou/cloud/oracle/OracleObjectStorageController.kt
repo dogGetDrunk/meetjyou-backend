@@ -11,6 +11,7 @@ import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.user.UserService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -57,7 +58,7 @@ class OracleObjectStorageController(
     )
     @PostMapping("/users/img/profile/thumbnail/par/download")
     fun createUserThumbnailImgDownloadPar(
-        @RequestBody request: BulkRequest,
+        @Valid @RequestBody request: BulkRequest,
     ): ResponseEntity<List<ParResponse>> {
         val response = userImgService.createUserProfileThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
@@ -103,7 +104,7 @@ class OracleObjectStorageController(
     )
     @PostMapping("/posts/img/thumbnail/par/download")
     fun createPostThumbnailImgDownloadPar(
-        @RequestBody request: BulkRequest,
+        @Valid @RequestBody request: BulkRequest,
     ): ResponseEntity<List<ParResponse>> {
         val response = postImgService.createPostThumbnailImgDownloadPars(request.uuid)
         return ResponseEntity.ok(response)
@@ -156,7 +157,7 @@ class OracleObjectStorageController(
     )
     @PostMapping("/parties/img/thumbnail/par/download")
     fun createPartyThumbnailImgDownloadPar(
-        @RequestBody request: BulkRequest,
+        @Valid @RequestBody request: BulkRequest,
     ): ResponseEntity<List<ParResponse?>> {
         val response = partyService.resolvePartyThumbnailImageDownloads(request.uuid)
         return ResponseEntity.ok(response)

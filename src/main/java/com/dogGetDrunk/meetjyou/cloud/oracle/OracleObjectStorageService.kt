@@ -8,6 +8,7 @@ import com.oracle.bmc.model.BmcException
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.objectstorage.model.CreatePreauthenticatedRequestDetails
 import com.oracle.bmc.objectstorage.requests.CreatePreauthenticatedRequestRequest
+import com.oracle.bmc.objectstorage.model.PreauthenticatedRequest
 import com.oracle.bmc.objectstorage.requests.DeleteObjectRequest
 import com.oracle.bmc.objectstorage.requests.GetObjectRequest
 import org.slf4j.LoggerFactory
@@ -104,13 +105,35 @@ class OracleObjectStorageService(
         val now = Instant.now()
         val expiresAt = now.plus(props.parExpirationMinutes, ChronoUnit.MINUTES)
 
+        log.info("Creating OCI PAR. objectKey={}, accessType={}, httpMethod={}", objectKey, accessType, httpMethod)
+
+        val par = requestPar(objectKey, accessType, operation, now, expiresAt)
+        val parUrl = "${props.parBaseUrl}${par.accessUri}"
+
+        // The PAR URL itself grants anonymous read/write until expiresAt, so it is deliberately
+        // never logged — only enough context to correlate this creation in the logs.
         log.info(
-            "Creating OCI PAR. objectKey={}, accessType={}, httpMethod={}",
+            "Created OCI PAR. objectKey={}, accessType={}, httpMethod={}, expiresAt={}",
             objectKey,
             accessType,
             httpMethod,
+            expiresAt,
         )
 
+        return ParResponse(
+            url = parUrl,
+            httpMethod = httpMethod,
+            expiresAt = expiresAt,
+        )
+    }
+
+    private fun requestPar(
+        objectKey: String,
+        accessType: CreatePreauthenticatedRequestDetails.AccessType,
+        operation: String,
+        now: Instant,
+        expiresAt: Instant,
+    ): PreauthenticatedRequest {
         val details = CreatePreauthenticatedRequestDetails.builder()
             .name(buildParName(objectKey, operation, now))
             .objectName(objectKey)
@@ -125,26 +148,7 @@ class OracleObjectStorageService(
             .build()
 
         val response = objectStorageClient.createPreauthenticatedRequest(request)
-        val par = response.preauthenticatedRequest
-        check(par != null) { "Failed to create OCI PAR." }
-
-        val accessUri = par.accessUri
-        val parUrl = "${props.parBaseUrl}$accessUri"
-
-        log.info(
-            "Created OCI PAR. objectKey={}, accessType={}, httpMethod={}, expiresAt={}, parUrl={}",
-            objectKey,
-            accessType,
-            httpMethod,
-            expiresAt,
-            parUrl,
-        )
-
-        return ParResponse(
-            url = parUrl,
-            httpMethod = httpMethod,
-            expiresAt = expiresAt,
-        )
+        return response.preauthenticatedRequest ?: error("Failed to create OCI PAR.")
     }
 
     private fun buildParName(

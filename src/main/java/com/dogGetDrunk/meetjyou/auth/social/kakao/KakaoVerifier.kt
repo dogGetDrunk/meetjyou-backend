@@ -41,7 +41,7 @@ class KakaoVerifier(
         return try {
             val verifiedJwt = kakaoJwtDecoder.decode(token.value)
 
-            if (!nonce.isNullOrBlank() && verifiedJwt.claims["nonce"] != nonce) {
+            if (nonce.isNullOrBlank() || verifiedJwt.claims["nonce"] != nonce) {
                 throw InvalidJwtException()
             }
 

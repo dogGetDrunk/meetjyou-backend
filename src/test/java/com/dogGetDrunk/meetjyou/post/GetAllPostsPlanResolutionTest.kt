@@ -61,7 +61,7 @@ class GetAllPostsPlanResolutionTest : BehaviorSpec() {
             SecurityContextHolder.getContext().authentication =
                 UsernamePasswordAuthenticationToken(principal, null, emptyList())
             every { currentUserProvider.uuid } returns user.uuid
-            every { postRepository.findAll(any<Pageable>()) } returns PageImpl(listOf(post))
+            every { postRepository.findAllWithAuthor(any<Pageable>()) } returns PageImpl(listOf(post))
             every { compPreferenceRepository.findAllByPostIn(listOf(post)) } returns emptyList()
             every { markerRepository.findAllByPlan_UuidIn(listOf(plan.uuid)) } returns emptyList()
             every {

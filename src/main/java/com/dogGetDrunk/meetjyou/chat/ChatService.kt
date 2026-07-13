@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 @Service
@@ -39,6 +40,7 @@ class ChatService(
 
     private val log = LoggerFactory.getLogger(ChatService::class.java)
 
+    @Transactional
     fun handleChatMessage(request: ChatMessageRequest, senderUuid: UUID) {
         log.info("Chat message send requested. roomUuid={}, senderUuid={}", request.roomUuid, senderUuid)
 

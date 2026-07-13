@@ -34,6 +34,12 @@ class NotificationEventHandler(
             return
         }
 
+        val dedupKey = event.payload.dedupKey
+        if (dedupKey != null && outboxRepository.existsByDedupKey(dedupKey)) {
+            log.info("Duplicate notification suppressed: dedupKey={}, userId={}", dedupKey, user.id)
+            return
+        }
+
         val template = templateFactory.templateOf(event.payload.type)
         val title = template.makeTitle(event.preferredLocale, event.payload)
         val body = template.makeBody(event.preferredLocale, event.payload)

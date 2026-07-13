@@ -88,7 +88,7 @@ class PostService(
     fun getPostByAuthorUuid(authorUuid: UUID, pageable: Pageable): Page<GetPostResponse> {
         if (!userRepository.existsByUuid(authorUuid)) throw UserNotFoundException(authorUuid)
 
-        val posts = postRepository.findAllByAuthor_Uuid(authorUuid, pageable)
+        val posts = postRepository.findAllByAuthorUuidWithAuthor(authorUuid, pageable)
         if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it, 0L) }
 
         val ctx = loadPostContextMaps(posts.content, currentUserProvider.uuid)
@@ -110,7 +110,7 @@ class PostService(
 
     @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<GetPostResponse> {
-        val posts = postRepository.findAll(pageable)
+        val posts = postRepository.findAllWithAuthor(pageable)
         if (posts.content.isEmpty()) return posts.map { buildGetPostResponse(it, 0L) }
 
         val ctx = loadPostContextMaps(posts.content, currentUserProvider.uuid)
@@ -121,11 +121,7 @@ class PostService(
     fun updatePost(postUuid: UUID, request: UpdatePostRequest): UpdatePostResponse {
         val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
         val userUuid = currentUserProvider.uuid
-
-        if (userUuid != post.author.uuid) {
-            // comparing UUIDs forces full author entity load — potential N+1 on list operations
-            throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
-        }
+        assertIsAuthor(post, postUuid, userUuid)
 
         validatePostWritable(postUuid, post)
         applyPlanChange(post, request.planUuid, request.isPlanPublic)
@@ -154,10 +150,8 @@ class PostService(
     fun updatePostStatus(postUuid: UUID, request: UpdatePostStatusRequest): UpdatePostStatusResponse {
         val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
         val userUuid = currentUserProvider.uuid
-
-        if (userUuid != post.author.uuid) {
-            throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
-        }
+        assertIsAuthor(post, postUuid, userUuid)
+        validatePostWritable(postUuid, post)
 
         post.status = request.status
         log.info("Post status updated: uuid={} status={}", postUuid, request.status)
@@ -168,15 +162,18 @@ class PostService(
     fun deletePost(postUuid: UUID) {
         val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
         val userUuid = currentUserProvider.uuid
-
-        if (userUuid != post.author.uuid) {
-            throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
-        }
+        assertIsAuthor(post, postUuid, userUuid)
 
         validatePostWritable(postUuid, post)
         compPreferenceRepository.deleteAllByPost(post)
         postRepository.delete(post)
         log.info("Post deleted: uuid=$postUuid")
+    }
+
+    private fun assertIsAuthor(post: Post, postUuid: UUID, userUuid: UUID) {
+        if (userUuid != post.author.uuid) {
+            throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
+        }
     }
 
     private fun requireCurrentUser(): User {

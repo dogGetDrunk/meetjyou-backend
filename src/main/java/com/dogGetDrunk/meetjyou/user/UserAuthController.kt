@@ -58,7 +58,7 @@ class UserAuthController(
         if (nonce != null) {
             session.removeAttribute("SESSION_KAKAO_NONCE")
         }
-        val response = userAuthService.registerViaSocial(request)
+        val response = userAuthService.registerViaSocial(request, nonce)
         return ResponseEntity.created(URI.create("/${response.uuid}"))
             .body(response)
     }

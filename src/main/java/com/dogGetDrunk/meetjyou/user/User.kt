@@ -46,4 +46,5 @@ class User(
     val updatedAt: Instant = Instant.now()
     @Enumerated(EnumType.STRING)
     var status: UserStatus = UserStatus.NORMAL
+    var withdrawnAt: Instant? = null
 }

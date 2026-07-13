@@ -1,0 +1,1 @@
+ALTER TABLE user ADD COLUMN withdrawn_at TIMESTAMP NULL;

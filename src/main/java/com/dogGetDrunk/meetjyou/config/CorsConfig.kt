@@ -16,6 +16,8 @@ class CorsConfig(
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration()
 
+        // Frontend developers point their local dev server at the deployed (release) API,
+        // not a locally-run backend, so localhost origins must stay allowed in every profile.
         config.allowedOriginPatterns = listOf(
             dnsUrl,
             "http://localhost:*",

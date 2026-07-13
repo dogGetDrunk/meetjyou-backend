@@ -19,10 +19,12 @@ class NoticeService(
 ) {
     private val log = LoggerFactory.getLogger(NoticeService::class.java)
 
+    @Transactional(readOnly = true)
     fun getAllNotices(pageable: Pageable): Page<NoticeResponse> {
         return noticeRepository.findAllByOrderByCreatedAtDesc(pageable).map { NoticeResponse.from(it) }
     }
 
+    @Transactional(readOnly = true)
     fun getNoticeByUuid(uuid: UUID): NoticeResponse {
         return noticeRepository.findByUuid(uuid)?.let { NoticeResponse.from(it) }
             ?: throw NoticeNotFoundException(uuid)
@@ -56,7 +58,7 @@ class NoticeService(
         }
         noticeRepository.save(updated)
 
-        log.info("공지사항 수정: {}", updated)
+        log.info("Notice updated: {}", updated)
         return NoticeResponse.from(updated)
     }
 
@@ -66,6 +68,6 @@ class NoticeService(
             throw NoticeNotFoundException(uuid)
         }
         noticeRepository.deleteByUuid(uuid)
-        log.info("공지사항 삭제: {}", uuid)
+        log.info("Notice deleted: {}", uuid)
     }
 }

@@ -60,7 +60,7 @@ class ChatParticipantService(
             userUuid = userUuid,
             roomUuid = roomUuid,
         )
-        chatSessionTracker.disconnectUser(roomUuid, userUuid)
+        chatSessionTracker.disconnectAllSessions(roomUuid, userUuid)
 
         log.info("Chat participant removed. roomUuid={}, userUuid={}", roomUuid, userUuid)
     }

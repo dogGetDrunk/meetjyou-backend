@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
-import com.dogGetDrunk.meetjyou.common.util.SecurityUtil
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import org.springframework.security.access.prepost.PreAuthorize
 import java.util.UUID
 
@@ -51,6 +51,7 @@ class UserController(
     private val planService: PlanService,
     private val partyService: PartyService,
     private val notificationPreferenceService: NotificationPreferenceService,
+    private val currentUserProvider: CurrentUserProvider,
 ) {
     @Operation(
         summary = "유저의 기본 정보 조회",
@@ -124,7 +125,7 @@ class UserController(
     )
     @GetMapping("/me/profile")
     fun getMyProfile(): ResponseEntity<BasicUserResponse> {
-        val uuid = SecurityUtil.getCurrentUserUuid()
+        val uuid = currentUserProvider.uuid
         return ResponseEntity.ok(userService.getUserProfile(uuid))
     }
 
@@ -270,7 +271,7 @@ class UserController(
         @ParameterObject
         @PageableDefault(size = 10, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable,
     ): Page<GetPostResponse> {
-        val uuid = SecurityUtil.getCurrentUserUuid()
+        val uuid = currentUserProvider.uuid
         return postService.getPostByAuthorUuid(uuid, pageable)
     }
 
@@ -279,7 +280,7 @@ class UserController(
     @PutMapping("/me/profile-image")
     fun confirmProfileImage(): ResponseEntity<BasicUserResponse> {
         userService.confirmProfileImage()
-        val uuid = SecurityUtil.getCurrentUserUuid()
+        val uuid = currentUserProvider.uuid
         return ResponseEntity.ok(userService.getUserProfile(uuid))
     }
 
