@@ -10,44 +10,51 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NotFoundExcep
 import jakarta.servlet.http.HttpServletRequest
 import org.apache.catalina.connector.ClientAbortException
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.HttpStatusCode
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authorization.AuthorizationDeniedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.context.request.ServletWebRequest
+import org.springframework.web.context.request.WebRequest
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler
 import org.springframework.web.servlet.resource.NoResourceFoundException
 
+/**
+ * Extends ResponseEntityExceptionHandler so every built-in Spring MVC exception
+ * (HttpMessageNotReadableException, MissingServletRequestParameterException,
+ * HttpRequestMethodNotSupportedException, etc. - see handleExceptionInternal below)
+ * is mapped to the correct status through a single override, instead of requiring a
+ * new @ExceptionHandler each time one is found leaking through as a 500.
+ */
 @ControllerAdvice
 class GlobalExceptionHandler(
     private val discordAlertService: DiscordAlertService
-) {
+) : ResponseEntityExceptionHandler() {
 
     private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 
-    @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun handleValidationException(
+    public override fun handleMethodArgumentNotValid(
         e: MethodArgumentNotValidException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
+        headers: HttpHeaders,
+        status: HttpStatusCode,
+        request: WebRequest
+    ): ResponseEntity<Any> {
         log.info("Handling MethodArgumentNotValidException.", e)
 
         val values = e.bindingResult.fieldErrors.map { error ->
             "[${error.field}] ${error.defaultMessage}"
         }
 
-        discordAlertService.sendAlert(
-            request = request,
-            status = HttpStatus.BAD_REQUEST.value(),
-            exceptionClass = e.javaClass.simpleName,
-            summary = "Validation failed",
-            detail = values.joinToString("\n")
-        )
+        alert(request, HttpStatus.BAD_REQUEST.value(), e.javaClass.simpleName, "Validation failed", values.joinToString("\n"))
 
-        val status = HttpStatus.BAD_REQUEST
-        val errorResponse = ErrorResponse(status.value(), ErrorCode.INVALID_INPUT_VALUE, values)
-        return ResponseEntity(errorResponse, status)
+        val httpStatus = HttpStatus.BAD_REQUEST
+        val errorResponse = ErrorResponse(httpStatus.value(), ErrorCode.INVALID_INPUT_VALUE, values)
+        return ResponseEntity(errorResponse, httpStatus)
     }
 
     @ExceptionHandler(DuplicateException::class)
@@ -190,19 +197,38 @@ class GlobalExceptionHandler(
         return ResponseEntity(errorResponse, status)
     }
 
-    @ExceptionHandler(NoResourceFoundException::class)
-    fun handleNoResourceFoundException(): ResponseEntity<ErrorResponse> {
-        val status = HttpStatus.NOT_FOUND
-        return ResponseEntity(ErrorResponse(status.value(), ErrorCode.NOT_FOUND), status)
+    public override fun handleNoResourceFoundException(
+        e: NoResourceFoundException,
+        headers: HttpHeaders,
+        status: HttpStatusCode,
+        request: WebRequest
+    ): ResponseEntity<Any> {
+        val httpStatus = HttpStatus.NOT_FOUND
+        return ResponseEntity(ErrorResponse(httpStatus.value(), ErrorCode.NOT_FOUND), httpStatus)
     }
 
     /**
      * The client closed the connection before the response was fully written, so the socket is already
-     * gone: returning a body would only fail again. A void return tells Spring the request is handled.
-     * This is a client-side disconnect, not a server fault — no Discord alert, no ERROR log.
+     * gone: returning a body would only fail again. This is a client-side disconnect, not a server
+     * fault — no Discord alert, no ERROR log.
      */
-    @ExceptionHandler(AsyncRequestNotUsableException::class, ClientAbortException::class)
-    fun handleClientAbortException(e: Exception, request: HttpServletRequest) {
+    @ExceptionHandler(ClientAbortException::class)
+    fun handleClientAbortException(e: ClientAbortException, request: HttpServletRequest) {
+        logClientDisconnect(request, e)
+    }
+
+    /**
+     * AsyncRequestNotUsableException is one of the exception types ResponseEntityExceptionHandler
+     * already dispatches via its inherited handleException(), so it must be overridden here rather
+     * than declared as a new @ExceptionHandler - doing both would register two candidate methods for
+     * the same exception type and fail with an "Ambiguous @ExceptionHandler method mapped" error.
+     */
+    public override fun handleAsyncRequestNotUsableException(e: AsyncRequestNotUsableException, request: WebRequest): ResponseEntity<Any>? {
+        logClientDisconnect(request.asServletRequest(), e)
+        return null
+    }
+
+    private fun logClientDisconnect(request: HttpServletRequest, e: Exception) {
         log.warn(
             "Client disconnected before the response was fully written: {} {} ({})",
             request.method,
@@ -242,4 +268,42 @@ class GlobalExceptionHandler(
         val errorResponse = ErrorResponse(status.value(), ErrorCode.INTERNAL_SERVER_ERROR)
         return ResponseEntity(errorResponse, status)
     }
+
+    /**
+     * Single interception point for every built-in Spring MVC exception not given a dedicated
+     * override above - HttpMessageNotReadableException, MissingServletRequestParameterException,
+     * MethodArgumentTypeMismatchException, HttpRequestMethodNotSupportedException,
+     * HttpMediaTypeNotSupportedException, NoHandlerFoundException, MaxUploadSizeExceededException,
+     * and the rest of the ~20 types listed in ResponseEntityExceptionHandler#handleException.
+     * Maps them all to their correct status code (typically 400) instead of letting them fall
+     * through to the catch-all Exception handler as a 500.
+     */
+    public override fun handleExceptionInternal(
+        e: Exception,
+        body: Any?,
+        headers: HttpHeaders,
+        statusCode: HttpStatusCode,
+        request: WebRequest
+    ): ResponseEntity<Any> {
+        val httpStatus = HttpStatus.valueOf(statusCode.value())
+        log.info("Handling built-in Spring MVC exception: {}", e.javaClass.simpleName, e)
+
+        alert(request, httpStatus.value(), e.javaClass.simpleName, e.message ?: httpStatus.reasonPhrase, null)
+
+        val message = e.message ?: httpStatus.reasonPhrase
+        val errorResponse = ErrorResponse(httpStatus.value(), ErrorCode.INVALID_INPUT_VALUE.name, message)
+        return ResponseEntity(errorResponse, httpStatus)
+    }
+
+    private fun alert(request: WebRequest, status: Int, exceptionClass: String, summary: String, detail: String?) {
+        discordAlertService.sendAlert(
+            request = request.asServletRequest(),
+            status = status,
+            exceptionClass = exceptionClass,
+            summary = summary,
+            detail = detail
+        )
+    }
+
+    private fun WebRequest.asServletRequest(): HttpServletRequest = (this as ServletWebRequest).request
 }
