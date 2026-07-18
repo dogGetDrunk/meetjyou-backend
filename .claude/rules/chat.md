@@ -10,6 +10,6 @@ WebSocket-based chat. Key classes:
 - `ChatConnectionService` — manages WS sessions
 - `ChatEventService` — publishes events to notification outbox
 
-**Pattern:** All chat events go through `notification_outbox` (same-transaction write). Do NOT call notification services directly.
+**Pattern:** Chat events follow the outbox pattern — see `.claude/rules/notification.md`. Do NOT call notification services directly.
 
 **Testing:** Use `@SpringBootTest(webEnvironment = RANDOM_PORT)` + SockJS client for integration tests.
