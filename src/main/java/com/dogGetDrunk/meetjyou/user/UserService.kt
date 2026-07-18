@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
@@ -45,6 +46,8 @@ class UserService(
 
     @Transactional
     fun createUser(request: RegistrationRequest, principal: SocialPrincipal): User {
+        validateNicknameAvailable(request.nickname)
+
         val createdUser = userRepository.save(
             User(
                 email = request.email,
@@ -84,6 +87,9 @@ class UserService(
     @Transactional
     fun updateUser(request: UserUpdateRequest): BasicUserResponse {
         val user = currentUserProvider.user
+        if (request.nickname != user.nickname) {
+            validateNicknameAvailable(request.nickname)
+        }
         user.nickname = request.nickname
         user.bio = request.bio.normalizeOrNull()
 
@@ -142,6 +148,15 @@ class UserService(
     fun isDuplicateNickname(nickname: String): Boolean {
         val gracePeriodCutoff = Instant.now().minus(NICKNAME_GRACE_PERIOD)
         return userRepository.existsActiveNickname(nickname, gracePeriodCutoff)
+    }
+
+    // Checks the raw unique constraint, not the grace-period view: the nickname column is
+    // UNIQUE in the DB, so any existing row — including one held by a withdrawn account —
+    // would otherwise surface as a 500 on insert instead of a 409 here.
+    private fun validateNicknameAvailable(nickname: String) {
+        if (userRepository.existsByNickname(nickname)) {
+            throw DuplicateNicknameException(nickname)
+        }
     }
 
     fun saveUserPreference(user: User, preferenceName: String, type: PreferenceType) {
