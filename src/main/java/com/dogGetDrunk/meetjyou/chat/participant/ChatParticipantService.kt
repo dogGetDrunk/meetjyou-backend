@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.chat.participant
 
 import com.dogGetDrunk.meetjyou.chat.connection.ChatSessionTracker
+import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
@@ -15,6 +16,7 @@ import java.util.UUID
 @Service
 class ChatParticipantService(
     private val chatParticipantRepository: ChatParticipantRepository,
+    private val chatMessageRepository: ChatMessageRepository,
     private val chatRoomRepository: ChatRoomRepository,
     private val userRepository: UserRepository,
     private val userPartyRepository: UserPartyRepository,
@@ -63,6 +65,14 @@ class ChatParticipantService(
         chatSessionTracker.disconnectAllSessions(roomUuid, userUuid)
 
         log.info("Chat participant removed. roomUuid={}, userUuid={}", roomUuid, userUuid)
+    }
+
+    @Transactional
+    fun purgeRoomData(roomUuid: UUID) {
+        chatMessageRepository.deleteAllByRoomUuid(roomUuid)
+        chatParticipantRepository.deleteAllByRoomUuid(roomUuid)
+
+        log.info("Chat room data purged. roomUuid={}", roomUuid)
     }
 
     private fun validateMembership(

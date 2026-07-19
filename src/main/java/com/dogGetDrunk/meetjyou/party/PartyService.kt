@@ -172,16 +172,16 @@ class PartyService(
         }
 
         val existing = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
-        applyJoinRequestState(party, userUuid, applicationNote, existing)
-        notifyHostOfJoinRequest(party, partyUuid, userUuid)
+        val membership = applyJoinRequestState(party, userUuid, applicationNote, existing)
+        notifyHostOfJoinRequest(party, partyUuid, userUuid, membership)
 
         log.info("Party join request submitted. partyUuid={}, userUuid={}", partyUuid, userUuid)
         return JoinPartyResponse(partyUuid = partyUuid, status = "PENDING")
     }
 
-    private fun applyJoinRequestState(party: Party, userUuid: UUID, applicationNote: String?, existing: UserParty?) {
+    private fun applyJoinRequestState(party: Party, userUuid: UUID, applicationNote: String?, existing: UserParty?): UserParty {
         val partyUuid = party.uuid
-        when (existing?.memberStatus) {
+        return when (existing?.memberStatus) {
             MemberStatus.PENDING  -> throw PartyJoinAlreadyPendingException(partyUuid, userUuid)
             MemberStatus.JOINED   -> throw PartyJoinAlreadyMemberException(partyUuid, userUuid)
             MemberStatus.BANNED   -> throw PartyJoinBannedException(partyUuid, userUuid)
@@ -192,6 +192,7 @@ class PartyService(
                 }
                 existing.applicationNote = applicationNote
                 existing.pending()
+                existing
             }
             null -> {
                 val user = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
@@ -205,7 +206,7 @@ class PartyService(
         }
     }
 
-    private fun notifyHostOfJoinRequest(party: Party, partyUuid: UUID, userUuid: UUID) {
+    private fun notifyHostOfJoinRequest(party: Party, partyUuid: UUID, userUuid: UUID, membership: UserParty) {
         userPartyRepository.findByParty_UuidAndRole(partyUuid, PartyRole.HOST)?.let { host ->
             val applicant = userRepository.findByUuid(userUuid) ?: throw UserNotFoundException(userUuid)
             publisher.publishEvent(
@@ -221,7 +222,10 @@ class PartyService(
                             "applicantNickname" to applicant.nickname,
                             "requestedAt" to Instant.now().toString(),
                         ),
-                        dedupKey = "join_request:${partyUuid}:${userUuid}",
+                        // statusChangedAt distinguishes re-applications (cancel + re-apply, or
+                        // re-apply after the rejection cooldown) from the original request, so
+                        // dedup only suppresses duplicates of the same application.
+                        dedupKey = "join_request:${partyUuid}:${userUuid}:${membership.statusChangedAt.toEpochMilli()}",
                     ),
                 )
             )
@@ -473,6 +477,13 @@ class PartyService(
         val party = partyRepository.findByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
 
+        // chat_room, post and user_party all hold FK references to party without
+        // ON DELETE CASCADE, so every dependent row must go before the party itself.
+        chatRoomRepository.findByParty_Uuid(partyUuid)?.let { chatRoom ->
+            chatParticipantService.purgeRoomData(chatRoom.uuid)
+            chatRoomRepository.delete(chatRoom)
+        }
+        postRepository.findByParty_Uuid(partyUuid)?.let { postRepository.delete(it) }
         userPartyRepository.deleteAllByParty_Uuid(partyUuid)
         partyRepository.delete(party)
         log.info("Party is deleted: uuid=$partyUuid")

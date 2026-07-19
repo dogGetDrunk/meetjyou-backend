@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
 import kotlin.math.min
 
@@ -20,6 +20,7 @@ class NotificationDispatcher(
     private val targetResolver: NotificationTargetResolver,
     private val sender: PushNotificationSender,
     private val objectMapper: ObjectMapper,
+    private val transactionTemplate: TransactionTemplate,
 ) {
     private val log = LoggerFactory.getLogger(NotificationDispatcher::class.java)
     private val backoffSeconds = listOf(5L, 15L, 60L, 180L, 600L)
@@ -29,13 +30,9 @@ class NotificationDispatcher(
         dispatchBatch(limit = 200)
     }
 
-    @Transactional
     fun dispatchBatch(limit: Int) {
-        val items = outboxRepository.lockNextPendings(limit)
+        val items = claimBatch(limit)
         if (items.isEmpty()) return
-
-        // status changed to SENDING within the same transaction to prevent duplicate dispatch
-        outboxRepository.bulkUpdateStatus(items.map { it.id }, DeliveryStatus.SENDING)
 
         val tokensByUserId = targetResolver.resolveUserTargets(items.map { it.user.id }.distinct())
 
@@ -43,10 +40,34 @@ class NotificationDispatcher(
             try {
                 processItem(item, tokensByUserId[item.user.id] ?: emptyList())
             } catch (e: Exception) {
-                log.error("Failed to process outbox item id={}, marking PENDING for retry", item.id, e)
-                mark(item, DeliveryStatus.PENDING, item.attempts, item.availableAt)
+                log.error("Failed to process outbox item id={}, scheduling retry", item.id, e)
+                retryOrGiveUp(item)
             }
         }
+    }
+
+    // TransactionTemplate instead of @Transactional: this is called from scheduledDispatch in
+    // the same bean, and a self-invocation would silently bypass the transactional proxy. The
+    // SKIP LOCKED row locks and the SENDING status change must commit as one unit so another
+    // worker cannot pick up the same rows; the FCM I/O afterwards stays outside the transaction.
+    private fun claimBatch(limit: Int): List<NotificationOutbox> {
+        return transactionTemplate.execute {
+            val items = outboxRepository.lockNextPendings(limit)
+            if (items.isNotEmpty()) {
+                outboxRepository.bulkUpdateStatus(items.map { it.id }, DeliveryStatus.SENDING)
+            }
+            items
+        } ?: emptyList()
+    }
+
+    private fun retryOrGiveUp(item: NotificationOutbox) {
+        val nextAttempts = item.attempts + 1
+        if (nextAttempts >= backoffSeconds.size) {
+            mark(item, DeliveryStatus.DEAD, nextAttempts, item.availableAt)
+            return
+        }
+        val delay = backoffSeconds[min(nextAttempts, backoffSeconds.size - 1)]
+        mark(item, DeliveryStatus.PENDING, nextAttempts, Instant.now().plusSeconds(delay))
     }
 
     @Scheduled(fixedDelay = 60_000L)

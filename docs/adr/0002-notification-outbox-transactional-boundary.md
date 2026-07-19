@@ -2,6 +2,7 @@
 
 **Status:** Accepted (Critical fix only) — Part 2 (outbox 원자성 개선)는 미착수, 별도 세션에서 이어서 진행 예정
 **Date:** 2026-07-13
+**Updated:** 2026-07-19 — `NotificationEventHandler`의 REQUIRES_NEW 부재에 대한 위험도 분석 정정 (하단 Update 섹션 참고)
 **Deciders:** damiannlee
 
 ## Context
@@ -22,6 +23,8 @@
 `NotificationEventHandler.kt`, `NoticeBroadcastEventHandler.kt:30-31`, `TermsReconsentEventHandler.kt:31-32` 세 핸들러 모두 `@TransactionalEventListener(phase = AFTER_COMMIT)` 패턴을 쓰는데, 이 중 두 곳(`NoticeBroadcastEventHandler`, `TermsReconsentEventHandler`)은 `@Transactional(propagation = Propagation.REQUIRES_NEW)`까지 명시되어 있음. 즉 **outbox 기록이 원 비즈니스 트랜잭션과 별개의 새 트랜잭션에서, 원 트랜잭션이 커밋된 "이후"에** 실행됨.
 
 `notification.md`는 "이벤트는 원 트랜잭션 내에서 outbox에 기록되어야 한다"고 규정하는데, 현재 구조는 이 규정을 문자 그대로 지키지 않음. 원 트랜잭션 커밋과 outbox insert 사이의 그 짧은 창(process crash, 재기동 등)에 놓이면 알림이 유실될 수 있음 — 단, 이건 "100% 항상 발생"이 아니라 "그 좁은 시간대에 크래시가 나야만" 발생하는 훨씬 드문 케이스.
+
+> ⚠️ **2026-07-19 정정:** 위 문단은 "REQUIRES_NEW가 *있는* 핸들러"에 대해서만 맞는 분석이다. REQUIRES_NEW가 *없던* `NotificationEventHandler`는 드문 크래시 케이스가 아니라 100% 유실 조건이었다. 하단 Update 섹션 참고.
 
 ## Decision
 
@@ -57,9 +60,24 @@
 
 **선택 이유:** Critical 버그는 "오프라인 유저는 항상 알림을 못 받는다"는 100% 재현 문제였던 반면, 이 구조적 이슈는 "크래시 타이밍"이라는 훨씬 드문 조건에서만 발생. 이번엔 급한 불부터 끄고, 구조 변경은 범위와 위험을 고려해 별도로 계획하기로 함.
 
+## Update (2026-07-19) — REQUIRES_NEW 부재는 "드문 케이스"가 아니라 100% 유실 버그였음
+
+이 ADR 작성 당시 `NotificationEventHandler`에 REQUIRES_NEW가 없는 것을 "커밋 직후 크래시라는 드문 창에서만 문제되는 구조적 이슈"로 분류했는데, 이는 잘못된 분석이었다.
+
+Spring 공식 문서에 따르면 `AFTER_COMMIT` 리스너 안에서 실행되는 데이터 접근 코드는, 별도 트랜잭션을 명시하지 않는 한 **이미 커밋된 원 트랜잭션에 "참여"하며 이후 flush/commit이 다시는 일어나지 않는다.** `SimpleJpaRepository.save()`의 기본 전파(REQUIRED)도 이미 커밋된 트랜잭션에 join할 뿐이다. 즉:
+
+- `bd7097e`에서 `ChatService.handleChatMessage()`에 `@Transactional`이 추가되어 리스너가 실제로 발화하기 시작한 순간부터,
+- REQUIRES_NEW가 없던 `NotificationEventHandler.on()`의 `outboxRepository.save(outbox)`는 **조용히 유실되는 상태**였다 (에러 로그 없음, mock 기반 단위 테스트로는 검출 불가).
+- `NoticeBroadcastEventHandler`/`TermsReconsentEventHandler`가 REQUIRES_NEW를 명시한 것은 바로 이 때문이며, `NotificationEventHandler`만 누락되어 있었다.
+
+**조치:** PR #113에서 `NotificationEventHandler.on()`에 `@Transactional(propagation = Propagation.REQUIRES_NEW)`를 추가해 다른 두 핸들러와 동일한 패턴으로 정렬함.
+
+이 정정은 Option A/B 선택 자체를 뒤집지 않는다 — "커밋 직후~REQUIRES_NEW insert 사이의 좁은 크래시 창" 이슈(Option A의 Cons)는 REQUIRES_NEW가 추가된 지금도 그대로 남아 있으며, Option B(원 트랜잭션 내 기록) 논의는 여전히 유효한 후속 과제다.
+
 ## 다음 세션에서 할 일 (Action Items)
 
 - [x] `ChatService.kt:42` `handleChatMessage()`에 `@Transactional` 추가 (Critical, 완료)
+- [x] `NotificationEventHandler.on()`에 `@Transactional(REQUIRES_NEW)` 추가 — outbox save가 이미 커밋된 트랜잭션에 join되어 flush되지 않던 버그 (PR #113, 완료)
 - [ ] Option B(원 트랜잭션 내 outbox 기록) 적용 여부를 팀과 논의해서 결정
   - 적용하기로 하면: `ChatService`/`NoticeService`/`TermsService`가 각자 `outboxRepository`를 직접 호출하도록 변경, `NotificationEventHandler`/`NoticeBroadcastEventHandler`/`TermsReconsentEventHandler`의 title/body 생성 로직(`NotificationTemplateFactory` 호출부)을 비즈니스 서비스가 쓸 수 있는 공용 헬퍼로 추출
   - 적용 안 하기로 하면: 이 ADR을 "Rejected"로 갱신하고, 대신 dedup_key 기반 재처리 배치(크래시로 유실된 outbox를 감지/보정)를 별도로 설계

@@ -9,6 +9,8 @@ import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 
@@ -22,7 +24,10 @@ class NotificationEventHandler(
 ) {
     private val log = LoggerFactory.getLogger(NotificationEventHandler::class.java)
 
+    // REQUIRES_NEW is mandatory in an AFTER_COMMIT listener: without it the repository
+    // save joins the already-committed transaction and the outbox row is never flushed.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun on(event: NotificationEvent) {
         val user = userRepository.findByUuid(event.userUuid) ?: run {
             log.warn("User not found for UUID: {}, skipping notification.", event.userUuid)

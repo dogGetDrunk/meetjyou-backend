@@ -2,7 +2,10 @@ package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.preference.Age
+import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.preference.Preference
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
@@ -10,6 +13,7 @@ import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.terms.TermsType
+import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
@@ -250,6 +254,43 @@ class UserServiceTest : BehaviorSpec() {
                     every { userRepository.existsActiveNickname("nickname", any()) } returns false
 
                     sut.isDuplicateNickname("nickname") shouldBe false
+                }
+            }
+        }
+
+        given("updateUser 닉네임 변경 시") {
+            val user = UserFixtures.user()
+            val request = UserUpdateRequest(
+                nickname = "taken",
+                bio = null,
+                gender = Gender.M,
+                age = Age.TWENTY,
+                personalities = emptyList(),
+                travelStyles = emptyList(),
+                diet = emptyList(),
+                etc = emptyList(),
+            )
+
+            `when`("다른 계정이 이미 쓰는 닉네임으로 바꾸면") {
+                then("DuplicateNicknameException을 던지고 닉네임은 변경되지 않는다") {
+                    val originalNickname = user.nickname
+                    every { currentUserProvider.user } returns user
+                    every { userRepository.existsByNickname("taken") } returns true
+
+                    shouldThrow<DuplicateNicknameException> {
+                        sut.updateUser(request)
+                    }
+                    user.nickname shouldBe originalNickname
+                    verify(exactly = 0) { userRepository.save(any()) }
+                }
+            }
+
+            `when`("자기 자신의 기존 닉네임을 그대로 보내면") {
+                then("중복 검사를 건너뛴다") {
+                    every { currentUserProvider.user } returns user
+                    runCatching { sut.updateUser(request.copy(nickname = user.nickname)) }
+
+                    verify(exactly = 0) { userRepository.existsByNickname(any()) }
                 }
             }
         }
