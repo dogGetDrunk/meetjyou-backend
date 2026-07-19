@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundE
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
@@ -27,6 +28,7 @@ class PlanService(
     private val markerRepository: MarkerRepository,
     private val userRepository: UserRepository,
     private val postRepository: PostRepository,
+    private val partyRepository: PartyRepository,
     private val planAccessGuard: PlanAccessGuard,
     private val currentUserProvider: CurrentUserProvider,
 ) {
@@ -149,6 +151,16 @@ class PlanService(
 
         if (plan.owner.uuid != currentUserUuid) {
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
+        }
+
+        // party.plan_id and post.plan_id reference plan without ON DELETE CASCADE,
+        // so linked parties and posts must be detached before the plan row is removed.
+        partyRepository.findAllByPlan_Uuid(planUuid).forEach { party ->
+            party.plan = null
+        }
+        postRepository.findAllByPlan_UuidIn(listOf(planUuid)).forEach { post ->
+            post.plan = null
+            post.isPlanPublic = null
         }
 
         markerRepository.deleteAllByPlan(plan)

@@ -6,9 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Meetjyou (만나쥬)** — 여행 동행 찾기 서비스. Kotlin + Spring Boot + MySQL 기반으로 Oracle OCI에 배포되어 있다.
 
-## Branch Check Protocol
+## Git Workflow
 
-본격적인 작업 시작 전, 반드시 `git branch --show-current`로 현재 브랜치를 확인하고 사용자에게 알릴 것. 예상 브랜치가 아닌 경우 작업을 시작하지 말고 사용자에게 확인을 받을 것.
+### Before starting
+`git branch --show-current`로 현재 브랜치를 확인하고 사용자에게 알릴 것. 예상 브랜치가 아니면 작업을 시작하지 말고 사용자에게 확인받을 것.
+
+### Committing & PRs
+- 커밋 생성, PR 생성은 사용자가 명시적으로 요청할 때만 수행. 작업을 마쳤다고 자동으로 커밋하거나 PR을 올리지 말 것.
+- 커밋 메시지와 PR 본문은 한국어 + 개조식(불릿 위주 요약, 서술형 문장 지양)으로 작성.
+
+### After a PR merges
+로컬을 main으로 전환하고 pull할 것: `git checkout main && git pull origin main`
 
 ## Commands
 
@@ -88,7 +96,7 @@ com.dogGetDrunk.meetjyou/
 
 **Key patterns:**
 - `DevBypassAuthFilter` — skips JWT in `dev` profile
-- Notification outbox — events written to `notification_outbox` in same transaction, dispatched async
+- Notification outbox — see `.claude/rules/notification.md` for the full pattern
 - Schema managed via Flyway (`db/migration/V*.sql`); `ddl-auto: none`
 - `SecurityConfig` defaults to `.anyRequest().authenticated()`; `permitAll()` is scoped to actuator health, WS handshake/pub-sub, swagger, `auth/registration|nonce|login|refresh|logout`, `dev/auth/**`, and GET-only on `notices/**`, `terms/**`, version check/latest, nickname-duplicate check. Admin actions use `@PreAuthorize("hasAuthority('ADMIN')")`.
 

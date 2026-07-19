@@ -33,6 +33,11 @@ class PushTokenService(
 
         val existing = pushTokenRepository.findByToken(request.token)
         val entity = if (existing != null) {
+            // The same device token can be re-registered by a different account after a
+            // re-login; keeping the old owner would deliver that account's pushes here.
+            existing.user = user
+            existing.appVersion = appVersion
+            existing.deviceModel = request.deviceModel
             existing.active = true
             existing
         } else {

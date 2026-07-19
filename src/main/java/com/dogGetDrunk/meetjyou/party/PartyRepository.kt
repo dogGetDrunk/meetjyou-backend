@@ -15,6 +15,7 @@ interface PartyRepository : JpaRepository<Party, Long> {
     fun findByUuid(uuid: UUID): Party?
     fun findAllByUuidIn(uuids: List<UUID>): List<Party>
     fun findAllByPlan_Uuid(planUuid: UUID, pageable: Pageable): Page<Party>
+    fun findAllByPlan_Uuid(planUuid: UUID): List<Party>
     fun existsByPlan_Uuid(planUuid: UUID): Boolean
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

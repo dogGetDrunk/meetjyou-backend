@@ -15,13 +15,16 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 
 class NotificationDispatcherTest : BehaviorSpec() {
     private val outboxRepository = mockk<NotificationOutboxRepository>(relaxed = true)
     private val targetResolver = mockk<NotificationTargetResolver>()
     private val sender = mockk<PushNotificationSender>()
     private val objectMapper = ObjectMapper()
-    private val sut = NotificationDispatcher(outboxRepository, targetResolver, sender, objectMapper)
+    private val transactionTemplate = TransactionTemplate(mockk<PlatformTransactionManager>(relaxed = true))
+    private val sut = NotificationDispatcher(outboxRepository, targetResolver, sender, objectMapper, transactionTemplate)
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
@@ -38,7 +41,7 @@ class NotificationDispatcherTest : BehaviorSpec() {
         given("dispatchBatch 호출 시") {
 
             `when`("토큰 조회는 성공했지만 FCM 전송이 예외를 던지면") {
-                then("해당 item이 PENDING으로 재전환된다") {
+                then("해당 item이 attempts를 증가시키고 backoff와 함께 PENDING으로 재전환된다") {
                     val item = outbox()
                     every { outboxRepository.lockNextPendings(any()) } returns listOf(item)
                     every { targetResolver.resolveUserTargets(any()) } returns mapOf(item.user.id to listOf("token-abc"))
@@ -47,10 +50,25 @@ class NotificationDispatcherTest : BehaviorSpec() {
                     sut.dispatchBatch(1)
 
                     verify(exactly = 1) {
-                        outboxRepository.updateResult(item.id, DeliveryStatus.PENDING, item.attempts, item.availableAt)
+                        outboxRepository.updateResult(item.id, DeliveryStatus.PENDING, item.attempts + 1, any())
                     }
                     verify(exactly = 0) {
                         outboxRepository.updateResult(any(), DeliveryStatus.SENT, any(), any())
+                    }
+                }
+            }
+
+            `when`("예외를 던지는 item의 재시도 횟수가 backoff 한도에 도달하면") {
+                then("무한 재시도 대신 DEAD로 처리된다") {
+                    val item = outbox(attempts = 4) // nextAttempts=5 >= backoffSeconds.size=5
+                    every { outboxRepository.lockNextPendings(any()) } returns listOf(item)
+                    every { targetResolver.resolveUserTargets(any()) } returns mapOf(item.user.id to listOf("token-abc"))
+                    every { sender.send(any(), any(), any(), any()) } throws RuntimeException("FCM error")
+
+                    sut.dispatchBatch(1)
+
+                    verify(exactly = 1) {
+                        outboxRepository.updateResult(item.id, DeliveryStatus.DEAD, item.attempts + 1, any())
                     }
                 }
             }

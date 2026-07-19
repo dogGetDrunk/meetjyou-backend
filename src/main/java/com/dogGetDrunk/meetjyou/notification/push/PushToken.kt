@@ -22,16 +22,16 @@ class PushToken(
     @Enumerated(EnumType.STRING)
     val platform: PushPlatform,
 
-    val deviceModel: String? = null,
+    var deviceModel: String? = null,
 
     @Column(name = "is_active")
     var active: Boolean = true,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    val user: User,
+    var user: User,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    val appVersion: AppVersion,
+    var appVersion: AppVersion,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
