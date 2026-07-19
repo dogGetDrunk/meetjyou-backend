@@ -28,17 +28,17 @@ SPRING_PROFILES_ACTIVE=dev,db,secrets \
 ./gradlew test --tests "FullyQualifiedClass.methodName"  # single test
 ```
 
-## Testing
-
-- 새로운 기능을 구현한 이후엔 반드시 해당 기능을 검증하는 테스트 코드를 추가할 것
-- 기능 추가 또는 코드 수정 후 최종 반영 전 항상 `./gradlew test`로 전체 테스트를 실행해 오류가 없는지 확인할 것
-
 ## Code Style
 
+- Kotlin coding conventions
 - No wildcard imports
-- Follow Kotlin coding conventions
-- All log messages in English
-- All code comments in English — no Korean comments
+- Logs & comments in English (docs/commits in Korean)
+- Magic numbers / repeated strings → constants
+
+## Testing
+
+- New features ship with unit + integration tests
+- Run full `./gradlew test` before finalizing any change; report actual output
 
 ## Conventions
 
@@ -62,7 +62,7 @@ return GetPartyResponse.of(party)   // in service
 ```
 
 ### Method length
-30-line hard cap on function bodies. Extract private helpers named `validateXxx` / `buildXxx` / `resolveXxx`.
+30-line hard cap on function bodies. Extract private helpers (`validateXxx` / `buildXxx` / `resolveXxx`).
 
 ### N+1 prevention
 Never call a repository inside a loop. Batch-load with `findAllByXxxIn(ids)`, then `groupBy` or `associateBy`.
@@ -102,11 +102,4 @@ com.dogGetDrunk.meetjyou/
 
 ## Compact Instructions
 
-When compacting, preserve:
-- Current task goal and any pending TODOs
-- File paths and class names touched this session
-- Test results (pass/fail counts, failing test names)
-- Key decisions made (e.g., chosen approach, rejected alternatives)
-- Any error messages not yet resolved
-
-Drop: file contents already saved, repeated tool call outputs, resolved errors.
+Context-compaction preserve/drop rules → global CLAUDE.md §9 (pure meta, not a project spec).
