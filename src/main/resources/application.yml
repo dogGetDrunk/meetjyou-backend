@@ -24,7 +24,8 @@ spring:
       keepalive-time: 240000      # 4분마다 idle connection ping
       idle-timeout: 600000
       max-lifetime: 1800000
-      maximum-pool-size: 30       # OCI DB max_connections=151 확인 완료, 단일 인스턴스 기준 여유 있게 설정 (50VU 부하테스트에서 풀 고갈 해소 확인됨)
+      maximum-pool-size: 50       # OCI DB max_connections=151 확인 완료, 여유 있음. 30에서 프로덕션 capacity sweep(70VU) 중
+                                  # actuator hikaricp.connections.pending이 두 자릿수까지 관측되어(active=30 고정) 50으로 상향
       minimum-idle: 2
       connection-timeout: 5000    # 풀 고갈 시 30초 대기 대신 5초 내 빠른 실패
       connection-test-query: SELECT 1
