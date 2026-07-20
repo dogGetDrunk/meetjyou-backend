@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.loadtest;
 
 import io.gatling.javaapi.core.ChainBuilder;
+import io.gatling.javaapi.core.ClosedInjectionStep;
 import io.gatling.javaapi.core.ScenarioBuilder;
 import io.gatling.javaapi.core.Simulation;
 import io.gatling.javaapi.http.HttpProtocolBuilder;
@@ -12,8 +13,15 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,6 +54,16 @@ import static io.gatling.javaapi.http.HttpDsl.*;
 //   environment — so it is not done here.
 // - Chat message send (STOMP, not REST — see .claude/rules/chat.md).
 //
+// Capacity sweep: injection profile below doubles VUs each stage (5 -> 10 -> 20 -> 40 -> 70)
+// against the real OCI Always Free boxes (AMD E2.1.Micro, 1/8 OCPU / 1GB each, app and MySQL
+// on separate instances). The goal is finding where this hardware actually breaks — not
+// hitting a pre-picked target RPS — so the global assertions below are expected to start
+// failing at one of the higher stages by design; that failure point IS the benchmark result.
+// before() prints a wall-clock timestamp table for the stage boundaries so `vmstat`/OCI console
+// metrics captured on both boxes during the run can be lined up against a specific stage. The
+// synthetic token is refreshed on a background schedule (see TOKEN_REFRESH_INTERVAL) because the
+// sweep's total run time exceeds the token's TTL — see fetchToken()/before() for why.
+//
 // Run: ./gradlew gatlingRun --simulation com.dogGetDrunk.meetjyou.loadtest.ProdFullReadScenarioSimulation -DSECRET=<LOAD_TEST_TOKEN_SECRET>
 public class ProdFullReadScenarioSimulation extends Simulation {
 
@@ -59,6 +77,55 @@ public class ProdFullReadScenarioSimulation extends Simulation {
 
     private static String accessToken;
     private static String syntheticUserUuid;
+
+    // Each stage ramps from the previous target up to targetVUs, then holds there.
+    // holdDuration is deliberately long (30s) relative to rampDuration (10s) so vmstat/OCI
+    // console readings taken a few seconds apart both land inside the "settled" window.
+    private record Stage(int targetVUs, Duration rampDuration, Duration holdDuration) {
+    }
+
+    private static final List<Stage> CAPACITY_SWEEP_STAGES = List.of(
+            new Stage(5, Duration.ofSeconds(10), Duration.ofSeconds(30)),
+            new Stage(10, Duration.ofSeconds(10), Duration.ofSeconds(30)),
+            new Stage(20, Duration.ofSeconds(10), Duration.ofSeconds(30)),
+            new Stage(40, Duration.ofSeconds(10), Duration.ofSeconds(30)),
+            new Stage(70, Duration.ofSeconds(10), Duration.ofSeconds(30)));
+
+    private static final Duration RAMP_DOWN_DURATION = Duration.ofSeconds(10);
+
+    private static ClosedInjectionStep[] buildCapacitySweepProfile() {
+        List<ClosedInjectionStep> steps = new ArrayList<>();
+        int previousVUs = 0;
+        for (Stage stage : CAPACITY_SWEEP_STAGES) {
+            steps.add(rampConcurrentUsers(previousVUs).to(stage.targetVUs()).during(stage.rampDuration()));
+            steps.add(constantConcurrentUsers(stage.targetVUs()).during(stage.holdDuration()));
+            previousVUs = stage.targetVUs();
+        }
+        steps.add(rampConcurrentUsers(previousVUs).to(0).during(RAMP_DOWN_DURATION));
+        return steps.toArray(new ClosedInjectionStep[0]);
+    }
+
+    // Prints when each stage is expected to start, in both elapsed-seconds and wall-clock form,
+    // so a human watching `vmstat`/OCI console metrics on the app and DB boxes can tell which
+    // stage a given reading belongs to without doing the arithmetic by hand mid-run.
+    private static void logCapacitySweepSchedule(Instant startedAt) {
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_TIME;
+        System.out.println("capacity sweep schedule (start=" + formatter.format(startedAt.atZone(java.time.ZoneId.systemDefault())) + "):");
+        long elapsedSeconds = 0;
+        int previousVUs = 0;
+        for (Stage stage : CAPACITY_SWEEP_STAGES) {
+            long rampStart = elapsedSeconds;
+            elapsedSeconds += stage.rampDuration().toSeconds();
+            long holdStart = elapsedSeconds;
+            elapsedSeconds += stage.holdDuration().toSeconds();
+            System.out.println("  t+" + rampStart + "s (" + formatter.format(startedAt.plusSeconds(rampStart).atZone(java.time.ZoneId.systemDefault()))
+                    + "): ramp " + previousVUs + " -> " + stage.targetVUs() + " VUs over " + stage.rampDuration().toSeconds() + "s");
+            System.out.println("  t+" + holdStart + "s (" + formatter.format(startedAt.plusSeconds(holdStart).atZone(java.time.ZoneId.systemDefault()))
+                    + "): hold at " + stage.targetVUs() + " VUs until t+" + elapsedSeconds + "s");
+            previousVUs = stage.targetVUs();
+        }
+        System.out.println("  t+" + elapsedSeconds + "s: ramp " + previousVUs + " -> 0 VUs over " + RAMP_DOWN_DURATION.toSeconds() + "s");
+    }
 
     // LoadTestTokenResponse only carries {accessToken, expiresAt} — no uuid field. The synthetic
     // account's uuid lives in the JWT's own "userUuid" claim (JwtProvider.generateAccessToken),
@@ -76,35 +143,69 @@ public class ProdFullReadScenarioSimulation extends Simulation {
         return matcher.group(1);
     }
 
+    // The load-test-token TTL defaults to 300s (LoadTestTokenProperties.ttlMillis) and the
+    // capacity sweep's total wall-clock time (injection profile + each VU's trailing 140s
+    // session) comfortably exceeds that. Fetching the token once in before() and holding it for
+    // the whole run — as this simulation originally did — means everything after ~300s starts
+    // failing with 401 EXPIRED_TOKEN, which shows up as a wall of "capacity" failures that are
+    // actually just an expired credential, not a server-side error. Refreshing well inside the
+    // TTL keeps failures meaningful: a KO past this point reflects the server, not the harness.
+    private static final Duration TOKEN_REFRESH_INTERVAL = Duration.ofSeconds(120);
+
+    private static ScheduledExecutorService tokenRefreshExecutor;
+
+    private static void fetchToken() throws IOException, InterruptedException {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/v1/internal/load-test-token"))
+                .header("X-Load-Test-Secret", SECRET)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException(
+                    "Failed to obtain load-test token: " + response.statusCode() + " " + response.body());
+        }
+        Matcher matcher = ACCESS_TOKEN_PATTERN.matcher(response.body());
+        if (!matcher.find()) {
+            throw new IllegalStateException("accessToken missing from load-test-token response");
+        }
+        accessToken = matcher.group(1);
+    }
+
     // Fetch the synthetic-account token once, outside the load-generation engine, and share it
     // across all injected users — the token endpoint issues a fixed-identity JWT and there is no
-    // reason for every user to mint its own.
+    // reason for every user to mint its own. authHeader() re-reads the `accessToken` field on
+    // every request build, so a background refresh below is picked up without any Gatling-side
+    // session plumbing.
     @Override
     public void before() {
         try {
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + "/api/v1/internal/load-test-token"))
-                    .header("X-Load-Test-Secret", SECRET)
-                    .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                throw new IllegalStateException(
-                        "Failed to obtain load-test token: " + response.statusCode() + " " + response.body());
-            }
-            Matcher matcher = ACCESS_TOKEN_PATTERN.matcher(response.body());
-            if (!matcher.find()) {
-                throw new IllegalStateException("accessToken missing from load-test-token response");
-            }
-            accessToken = matcher.group(1);
+            fetchToken();
             syntheticUserUuid = decodeJwtUuid(accessToken);
             if (syntheticUserUuid == null) {
                 throw new IllegalStateException(
                         "Failed to decode userUuid claim from load-test token — aborting to avoid null-path requests.");
             }
+            logCapacitySweepSchedule(Instant.now());
         } catch (IOException | InterruptedException e) {
             throw new IllegalStateException("Failed to obtain load-test token", e);
+        }
+
+        tokenRefreshExecutor = Executors.newSingleThreadScheduledExecutor();
+        tokenRefreshExecutor.scheduleAtFixedRate(() -> {
+            try {
+                fetchToken();
+            } catch (IOException | InterruptedException e) {
+                System.out.println("token refresh failed, keeping previous token: " + e.getMessage());
+            }
+        }, TOKEN_REFRESH_INTERVAL.toSeconds(), TOKEN_REFRESH_INTERVAL.toSeconds(), TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void after() {
+        if (tokenRefreshExecutor != null) {
+            tokenRefreshExecutor.shutdownNow();
         }
     }
 
@@ -235,12 +336,7 @@ public class ProdFullReadScenarioSimulation extends Simulation {
                     pause(Duration.ofSeconds(1), Duration.ofSeconds(2)));
 
     {
-        setUp(scn.injectClosed(
-                rampConcurrentUsers(0).to(10).during(Duration.ofSeconds(20)),
-                constantConcurrentUsers(10).during(Duration.ofSeconds(40)),
-                rampConcurrentUsers(10).to(30).during(Duration.ofSeconds(20)),
-                constantConcurrentUsers(30).during(Duration.ofSeconds(40)),
-                rampConcurrentUsers(30).to(0).during(Duration.ofSeconds(20))))
+        setUp(scn.injectClosed(buildCapacitySweepProfile()))
                 .protocols(httpProtocol)
                 .assertions(
                         global().responseTime().percentile(95.0).lt(800),

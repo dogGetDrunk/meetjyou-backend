@@ -18,5 +18,7 @@ WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
 
 
-# Spring Boot 실행
-CMD ["java", "-jar", "/app/app.jar"]
+# Explicit heap cap sized against docker-compose's mem_limit (OCI Always Free, 1GB host).
+# ExitOnOutOfMemoryError kills the container on OOM instead of leaving it in a degraded
+# zombie state, so restart: always can bring it back up.
+CMD ["java", "-XX:MaxRAMPercentage=70.0", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/app.jar"]

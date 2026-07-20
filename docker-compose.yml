@@ -3,6 +3,7 @@ services:
     container_name: spring_boot
     restart: always
     image: ssove/meetjyou:${IMAGE_TAG:-latest}
+    mem_limit: 700m
     env_file:
       - .env
     environment:
