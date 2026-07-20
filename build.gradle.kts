@@ -11,10 +11,40 @@ plugins {
     kotlin("plugin.noarg")
     id("org.springframework.boot")
     id("io.spring.dependency-management")
+    id("io.gatling.gradle") version "3.15.1.1"
 }
 
 group = "com.example"
 version = "0.0.1-SNAPSHOT"
+
+// The Gatling simulations under src/gatling are self-contained (java.net.http + Gatling DSL
+// only) and don't reuse any main/test classes. Keeping the default includeMainOutput=true would
+// pull io.spring.dependency-management's project-wide Netty version pin into the gatling
+// configurations too, which conflicts with the Netty version Gatling itself needs
+// (NoClassDefFoundError: io/netty/channel/IoOps) — see
+// https://community.gatling.io/t/gatling-and-netty-version-conflicts/4246
+gatling {
+    includeMainOutput = false
+    includeTestOutput = false
+}
+
+// includeMainOutput=false alone isn't enough: io.spring.dependency-management applies its BOM
+// project-wide by default, so it still force-downgrades most io.netty artifacts in the gatling
+// configurations to Spring Boot's managed version while leaving Netty-4.2-only artifacts (e.g.
+// netty-transport-classes-io_uring, which Gatling itself pulls in) at the originally requested
+// 4.2.x version. That mismatch is what throws NoClassDefFoundError: io/netty/channel/IoOps.
+// Re-pin the gatling configuration's Netty artifacts back to the version Gatling actually
+// requested; version filter excludes the unrelated 2.x-versioned netty-tcnative-* artifacts.
+// resolutionStrategy must be applied directly to the resolvable configurations
+// (gatlingCompileClasspath/gatlingRuntimeClasspath), not the declarative "gatling" one —
+// extendsFrom does not propagate resolutionStrategy rules.
+configurations.matching { it.name.startsWith("gatling") }.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "io.netty" && requested.version?.startsWith("4.") == true) {
+            useVersion("4.2.14.Final")
+        }
+    }
+}
 
 java {
     toolchain {
