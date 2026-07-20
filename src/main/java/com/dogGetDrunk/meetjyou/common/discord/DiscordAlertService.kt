@@ -31,6 +31,11 @@ class DiscordAlertService(props: DiscordProperties) {
     ) {
         val client = restClient ?: return
 
+        if (status < 500) {
+            log.debug("Skipping Discord alert for client error: {} {}", status, exceptionClass)
+            return
+        }
+
         val dedupKey = "$status:$exceptionClass:${request.method}:${request.requestURI}"
         if (dedupCache.getIfPresent(dedupKey) != null) {
             log.debug("Skipping duplicate Discord alert: {}", dedupKey)
@@ -38,9 +43,8 @@ class DiscordAlertService(props: DiscordProperties) {
         }
         dedupCache.put(dedupKey, true)
 
-        val isServerError = status >= 500
-        val color = if (isServerError) 16711680 else 16763904
-        val title = if (isServerError) "서버 에러 ($status)" else "클라이언트 에러 ($status)"
+        val color = 16711680
+        val title = "서버 에러 ($status)"
 
         val fields = mutableListOf(
             mapOf("name" to "Path", "value" to "${request.method} ${request.requestURI}", "inline" to false),
