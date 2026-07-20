@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantRepository
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
+import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutboxRepository
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.plan.Plan
@@ -28,6 +29,7 @@ class ChatTestDataHelper(
     private val userPartyRepository: UserPartyRepository,
     private val chatParticipantRepository: ChatParticipantRepository,
     private val chatMessageRepository: ChatMessageRepository,
+    private val notificationOutboxRepository: NotificationOutboxRepository,
 ) {
     data class TestData(val userUuid: UUID, val userEmail: String, val roomUuid: UUID)
 
@@ -75,6 +77,7 @@ class ChatTestDataHelper(
         chatRoomRepository.deleteAll()
         partyRepository.deleteAll()
         planRepository.deleteAll()
+        notificationOutboxRepository.deleteAll()
         userRepository.deleteAll()
     }
 }
