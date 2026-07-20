@@ -20,13 +20,13 @@ interface PostRepository : JpaRepository<Post, Long> {
     fun findAllByPlan_UuidIn(planUuids: Collection<UUID>): List<Post>
 
     @Query(
-        value = "SELECT p FROM Post p LEFT JOIN FETCH p.author WHERE p.author.uuid = :authorUuid",
+        value = "SELECT p FROM Post p LEFT JOIN FETCH p.author LEFT JOIN FETCH p.party LEFT JOIN FETCH p.plan WHERE p.author.uuid = :authorUuid",
         countQuery = "SELECT COUNT(p) FROM Post p WHERE p.author.uuid = :authorUuid",
     )
     fun findAllByAuthorUuidWithAuthor(@Param("authorUuid") authorUuid: UUID, pageable: Pageable): Page<Post>
 
     @Query(
-        value = "SELECT p FROM Post p LEFT JOIN FETCH p.author",
+        value = "SELECT p FROM Post p LEFT JOIN FETCH p.author LEFT JOIN FETCH p.party LEFT JOIN FETCH p.plan",
         countQuery = "SELECT COUNT(p) FROM Post p",
     )
     fun findAllWithAuthor(pageable: Pageable): Page<Post>
