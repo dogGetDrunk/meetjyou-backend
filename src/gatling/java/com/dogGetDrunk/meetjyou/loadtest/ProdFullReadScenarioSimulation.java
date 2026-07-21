@@ -282,8 +282,11 @@ public class ProdFullReadScenarioSimulation extends Simulation {
 
     // Only exercised when a listed post happens to carry a public planUuid — the synthetic
     // account owns no plans of its own, and there is no plan-listing endpoint to discover one.
+    // planUuid is a nullable field, so posts without a plan serialize it as JSON null rather
+    // than omitting it — session.contains() is still true for a null-valued attribute, so we
+    // must null-check the value itself instead.
     private static final ChainBuilder planAuthBestEffort = group("plan (auth, best-effort)").on(
-            doIf(session -> session.contains("samplePlanUuid")).then(
+            doIf(session -> session.get("samplePlanUuid") != null).then(
                     exec(http("GET /plans/{uuid}").get("/api/v1/plans/#{samplePlanUuid}")
                             .header("Authorization", ProdFullReadScenarioSimulation::authHeader)
                             .check(status().in(200, 403, 404))),
