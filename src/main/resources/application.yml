@@ -26,7 +26,9 @@ spring:
       max-lifetime: 1800000
       maximum-pool-size: 50       # OCI DB max_connections=151 확인 완료, 여유 있음. 30에서 프로덕션 capacity sweep(70VU) 중
                                   # actuator hikaricp.connections.pending이 두 자릿수까지 관측되어(active=30 고정) 50으로 상향
-      minimum-idle: 2
+      minimum-idle: 50            # 기존 2 → 50(=maximum-pool-size)로 고정. JFR 프로파일링으로 HikariPool.getConnection
+                                  # 대기(median 615ms, p99 8.76s, connection-timeout 근접 32건)가 실제 tail latency 원인으로
+                                  # 확인됨 — VU 램프업 중 유휴 커넥션 2개로는 부족해 매번 신규 물리 커넥션을 맺는 게 원인일 가능성 검증
       connection-timeout: 5000    # 풀 고갈 시 30초 대기 대신 5초 내 빠른 실패
       connection-test-query: SELECT 1
   servlet:
