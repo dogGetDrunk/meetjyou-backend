@@ -88,6 +88,7 @@ enum class ErrorCode(
     INVALID_TERMS_AGREEMENT("Invalid terms agreement"),
     MISSING_REQUIRED_TERMS_AGREEMENT("Missing required terms agreement"),
     TERMS_CONTENT_VERIFICATION_FAILED("Terms content object could not be verified"),
+    DUPLICATE_TERMS_VERSION("Duplicate terms version for type"),
 
     // Server
     INTERNAL_SERVER_ERROR("Internal server error"),
