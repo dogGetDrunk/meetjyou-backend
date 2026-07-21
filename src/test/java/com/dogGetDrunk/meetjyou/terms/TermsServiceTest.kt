@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.terms
 
 import com.dogGetDrunk.meetjyou.cloud.oracle.dto.ParResponse
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.TermsNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.terms.DuplicateTermsVersionException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.TermsContentVerificationException
 import com.dogGetDrunk.meetjyou.notification.event.TermsReconsentEvent
 import com.dogGetDrunk.meetjyou.terms.dto.PublishTermsRequest
@@ -135,6 +136,22 @@ class TermsServiceTest : BehaviorSpec() {
                 contentHash = "hash-v2",
             )
             val objectKey = TermsType.TERMS_OF_SERVICE.toObjectKey(request.version)
+
+            `when`("동일한 타입·버전의 약관이 이미 존재하면") {
+                then("DuplicateTermsVersionException을 던지고 본문 검증이나 저장을 하지 않는다") {
+                    every {
+                        termsRepository.existsByTypeAndVersion(TermsType.TERMS_OF_SERVICE, "2.0")
+                    } returns true
+
+                    shouldThrow<DuplicateTermsVersionException> {
+                        sut.publishTerms(request)
+                    }
+
+                    verify(exactly = 0) { termsContentUrlGenerator.verifyContent(any(), any()) }
+                    verify(exactly = 0) { termsRepository.save(any()) }
+                    verify(exactly = 0) { publisher.publishEvent(any<TermsReconsentEvent>()) }
+                }
+            }
 
             `when`("본문 오브젝트 검증에 실패하면") {
                 then("TermsContentVerificationException을 던지고 약관을 저장하지 않는다") {

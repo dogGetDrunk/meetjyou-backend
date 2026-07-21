@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.terms
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.TermsNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.terms.DuplicateTermsVersionException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.InactiveTermsAccessException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.InvalidTermsAgreementException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.InvalidTermsUuidException
@@ -170,6 +171,10 @@ class TermsService(
     @Transactional
     fun publishTerms(request: PublishTermsRequest): GetTermsResponse {
         log.info("Starting terms publish. type={}, version={}", request.type, request.version)
+
+        if (termsRepository.existsByTypeAndVersion(request.type, request.version)) {
+            throw DuplicateTermsVersionException("${request.type} ${request.version}")
+        }
 
         val objectKey = request.type.toObjectKey(request.version)
         if (!termsContentUrlGenerator.verifyContent(objectKey, request.contentHash)) {

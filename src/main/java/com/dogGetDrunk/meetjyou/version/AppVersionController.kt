@@ -130,14 +130,15 @@ class AppVersionController(
 
 
     @Operation(
-        summary = "[admin] 강제 업데이트 마커 설정/해제",
-        description = "이 버전을 강제 업데이트 최소 기준 마커로 사용할지 토글합니다.",
+        summary = "[admin] 강제 업데이트 마커 설정",
+        description = "이 버전을 강제 업데이트 최소 기준 마커로 사용할지 명시적으로 설정합니다. " +
+            "동일한 값으로 반복 호출해도 결과가 바뀌지 않는 멱등 연산입니다.",
     )
     @ApiResponses(
         value = [ApiResponse(
             responseCode = "200",
             description = "변경 완료",
-            content = [Content(mediaType = "application/json", schema = Schema(example = "{ \"message\": \"Force update toggled: true -> false\" }"))],
+            content = [Content(mediaType = "application/json", schema = Schema(example = "{ \"message\": \"Force update set: true -> false\" }"))],
         ), ApiResponse(
             responseCode = "404",
             description = "등록되지 않은 버전",
@@ -146,25 +147,27 @@ class AppVersionController(
     )
     @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/{version}/force-update")
-    fun toggleForceUpdate(
+    fun setForceUpdate(
         @PathVariable platform: String,
         @PathVariable version: String,
+        @RequestParam forceUpdate: Boolean,
     ): ResponseEntity<Map<String, String>> {
-        val current = appVersionService.toggleForceUpdate(version, toPlatform(platform))
-        return ResponseEntity.ok(mapOf("message" to "Force update toggled: ${!current} -> $current"))
+        val previous = appVersionService.setForceUpdate(version, toPlatform(platform), forceUpdate)
+        return ResponseEntity.ok(mapOf("message" to "Force update set: $previous -> $forceUpdate"))
     }
 
 
     @Operation(
-        summary = "[admin] 스토어 배포 확인 토글",
+        summary = "[admin] 스토어 배포 확인 설정",
         description = "스토어 심사 통과 및 실제 배포가 확인된 버전만 최신/강제 업데이트 판단에 반영됩니다. " +
-            "등록 직후엔 기본적으로 false이며, 실제 다운로드 가능 여부를 확인한 뒤에만 켜세요.",
+            "등록 직후엔 기본적으로 false이며, 실제 다운로드 가능 여부를 확인한 뒤에만 true로 설정하세요. " +
+            "동일한 값으로 반복 호출해도 결과가 바뀌지 않는 멱등 연산입니다.",
     )
     @ApiResponses(
         value = [ApiResponse(
             responseCode = "200",
             description = "변경 완료",
-            content = [Content(mediaType = "application/json", schema = Schema(example = "{ \"message\": \"Store release toggled: false -> true\" }"))],
+            content = [Content(mediaType = "application/json", schema = Schema(example = "{ \"message\": \"Store release set: false -> true\" }"))],
         ), ApiResponse(
             responseCode = "404",
             description = "등록되지 않은 버전",
@@ -173,12 +176,13 @@ class AppVersionController(
     )
     @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/{version}/release")
-    fun toggleStoreReleased(
+    fun setStoreReleased(
         @PathVariable platform: String,
         @PathVariable version: String,
+        @RequestParam storeReleased: Boolean,
     ): ResponseEntity<Map<String, String>> {
-        val current = appVersionService.toggleStoreReleased(version, toPlatform(platform))
-        return ResponseEntity.ok(mapOf("message" to "Store release toggled: ${!current} -> $current"))
+        val previous = appVersionService.setStoreReleased(version, toPlatform(platform), storeReleased)
+        return ResponseEntity.ok(mapOf("message" to "Store release set: $previous -> $storeReleased"))
     }
 
 
