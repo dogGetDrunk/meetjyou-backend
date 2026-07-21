@@ -249,26 +249,32 @@ class AppVersionServiceTest : BehaviorSpec() {
             }
         }
 
-        // ── toggleForceUpdate ─────────────────────────────────────────────────
+        // ── setForceUpdate ───────────────────────────────────────────────────
 
-        given("toggleForceUpdate 호출 시") {
-            `when`("forceUpdate=false인 버전이면") {
-                then("true로 전환하고 true를 반환한다") {
-                    every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.IOS) } returns version("1.0.0", forceUpdate = false)
+        given("setForceUpdate 호출 시") {
+            `when`("forceUpdate=false인 버전에 true를 설정하면") {
+                then("값이 true로 바뀌고 이전 값(false)을 반환한다") {
+                    val appVersion = version("1.0.0", forceUpdate = false)
+                    every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.IOS) } returns appVersion
 
-                    val result = sut.toggleForceUpdate("1.0.0", Platform.IOS)
+                    val result = sut.setForceUpdate("1.0.0", Platform.IOS, true)
 
-                    result shouldBe true
+                    result shouldBe false
+                    appVersion.forceUpdate shouldBe true
                 }
             }
 
-            `when`("forceUpdate=true인 버전이면") {
-                then("false로 전환하고 false를 반환한다") {
-                    every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.IOS) } returns version("1.0.0", forceUpdate = true)
+            `when`("이미 설정된 값과 동일한 값을 반복 설정하면") {
+                then("상태 변화 없이 매번 같은 이전 값을 반환한다 (멱등)") {
+                    val appVersion = version("1.0.0", forceUpdate = true)
+                    every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.IOS) } returns appVersion
 
-                    val result = sut.toggleForceUpdate("1.0.0", Platform.IOS)
+                    val first = sut.setForceUpdate("1.0.0", Platform.IOS, true)
+                    val second = sut.setForceUpdate("1.0.0", Platform.IOS, true)
 
-                    result shouldBe false
+                    first shouldBe true
+                    second shouldBe true
+                    appVersion.forceUpdate shouldBe true
                 }
             }
 
@@ -277,7 +283,7 @@ class AppVersionServiceTest : BehaviorSpec() {
                     every { appVersionRepository.findByVersionAndPlatform("9.9.9", Platform.IOS) } returns null
 
                     shouldThrow<VersionNotFoundException> {
-                        sut.toggleForceUpdate("9.9.9", Platform.IOS)
+                        sut.setForceUpdate("9.9.9", Platform.IOS, true)
                     }
                 }
             }
@@ -307,17 +313,32 @@ class AppVersionServiceTest : BehaviorSpec() {
             }
         }
 
-        // ── toggleStoreReleased ──────────────────────────────────────────────
+        // ── setStoreReleased ─────────────────────────────────────────────────
 
-        given("toggleStoreReleased 호출 시") {
-            `when`("storeReleased=false인 버전이면") {
-                then("true로 전환하고 true를 반환한다") {
-                    every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.IOS) } returns
-                        version("1.0.0", storeReleased = false)
+        given("setStoreReleased 호출 시") {
+            `when`("storeReleased=false인 버전에 true를 설정하면") {
+                then("값이 true로 바뀌고 이전 값(false)을 반환한다") {
+                    val appVersion = version("1.0.0", storeReleased = false)
+                    every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.IOS) } returns appVersion
 
-                    val result = sut.toggleStoreReleased("1.0.0", Platform.IOS)
+                    val result = sut.setStoreReleased("1.0.0", Platform.IOS, true)
 
-                    result shouldBe true
+                    result shouldBe false
+                    appVersion.storeReleased shouldBe true
+                }
+            }
+
+            `when`("이미 설정된 값과 동일한 값을 반복 설정하면") {
+                then("상태 변화 없이 매번 같은 이전 값을 반환한다 (멱등)") {
+                    val appVersion = version("1.0.0", storeReleased = true)
+                    every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.IOS) } returns appVersion
+
+                    val first = sut.setStoreReleased("1.0.0", Platform.IOS, true)
+                    val second = sut.setStoreReleased("1.0.0", Platform.IOS, true)
+
+                    first shouldBe true
+                    second shouldBe true
+                    appVersion.storeReleased shouldBe true
                 }
             }
 
@@ -326,7 +347,7 @@ class AppVersionServiceTest : BehaviorSpec() {
                     every { appVersionRepository.findByVersionAndPlatform("9.9.9", Platform.IOS) } returns null
 
                     shouldThrow<VersionNotFoundException> {
-                        sut.toggleStoreReleased("9.9.9", Platform.IOS)
+                        sut.setStoreReleased("9.9.9", Platform.IOS, true)
                     }
                 }
             }

@@ -99,30 +99,30 @@ class AppVersionService(
         )
     }
 
-    fun toggleForceUpdate(version: String, platform: Platform): Boolean {
+    fun setForceUpdate(version: String, platform: Platform, forceUpdate: Boolean): Boolean {
         val appVersion = appVersionRepository.findByVersionAndPlatform(version, platform)
             ?: throw VersionNotFoundException("$version (${platform.name})")
 
-        val original = appVersion.forceUpdate
-        appVersion.forceUpdate = !original
+        val previous = appVersion.forceUpdate
+        appVersion.forceUpdate = forceUpdate
         appVersionRepository.save(appVersion)
         summaryCache.remove(platform)
 
-        log.info("Force update toggled: {} -> {} (version: {}, platform: {})", original, !original, version, platform)
-        return !original
+        log.info("Force update set: {} -> {} (version: {}, platform: {})", previous, forceUpdate, version, platform)
+        return previous
     }
 
-    fun toggleStoreReleased(version: String, platform: Platform): Boolean {
+    fun setStoreReleased(version: String, platform: Platform, storeReleased: Boolean): Boolean {
         val appVersion = appVersionRepository.findByVersionAndPlatform(version, platform)
             ?: throw VersionNotFoundException("$version (${platform.name})")
 
-        val original = appVersion.storeReleased
-        appVersion.storeReleased = !original
+        val previous = appVersion.storeReleased
+        appVersion.storeReleased = storeReleased
         appVersionRepository.save(appVersion)
         summaryCache.remove(platform)
 
-        log.info("Store release toggled: {} -> {} (version: {}, platform: {})", original, !original, version, platform)
-        return !original
+        log.info("Store release set: {} -> {} (version: {}, platform: {})", previous, storeReleased, version, platform)
+        return previous
     }
 
     fun updateStoreUrl(platform: Platform, newUrl: String) {
