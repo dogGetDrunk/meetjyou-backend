@@ -109,7 +109,8 @@ class PlanService(
     private fun resolveRecruitStatuses(planUuids: List<UUID>): Map<UUID, PlanRecruitStatus> {
         if (planUuids.isEmpty()) return emptyMap()
         return postRepository.findAllByPlan_UuidIn(planUuids)
-            .associateBy({ it.plan!!.uuid }, { it.toRecruitStatus() })
+            .mapNotNull { post -> post.plan?.let { it.uuid to post.toRecruitStatus() } }
+            .toMap()
     }
 
     private fun Post.toRecruitStatus(): PlanRecruitStatus = when {
