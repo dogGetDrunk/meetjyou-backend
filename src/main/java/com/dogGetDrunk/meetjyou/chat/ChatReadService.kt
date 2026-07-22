@@ -126,7 +126,8 @@ class ChatReadService(
             userUuid = requesterUuid,
         ) ?: throw ChatRoomAccessDeniedException(requesterUuid.toString())
 
-        val unreadCount = if (membership.lastReadMessageId == null) {
+        val lastReadMessageId = membership.lastReadMessageId
+        val unreadCount = if (lastReadMessageId == null) {
             chatMessageRepository.countByRoom_UuidAndSender_UuidNot(
                 roomUuid = roomUuid,
                 senderUuid = requesterUuid,
@@ -134,7 +135,7 @@ class ChatReadService(
         } else {
             chatMessageRepository.countByRoom_UuidAndIdGreaterThanAndSender_UuidNot(
                 roomUuid = roomUuid,
-                id = membership.lastReadMessageId!!,
+                id = lastReadMessageId,
                 senderUuid = requesterUuid,
             )
         }
@@ -354,13 +355,14 @@ class ChatReadService(
         val previousLastReadMessageId = membership.lastReadMessageId
         membership.updateLastReadMessageId(messageId)
 
-        if (membership.lastReadMessageId != null && membership.lastReadMessageId != previousLastReadMessageId) {
+        val currentLastReadMessageId = membership.lastReadMessageId
+        if (currentLastReadMessageId != null && currentLastReadMessageId != previousLastReadMessageId) {
             chatRoomEventBroadcaster.broadcastChatReadUpdated(
                 roomUuid = roomUuid,
                 partyUuid = partyUuid,
                 readerUserUuid = userUuid,
                 previousLastReadMessageId = previousLastReadMessageId,
-                currentLastReadMessageId = membership.lastReadMessageId!!,
+                currentLastReadMessageId = currentLastReadMessageId,
             )
         }
     }
@@ -382,13 +384,14 @@ class ChatReadService(
         val previousLastReadMessageId = membership.lastReadMessageId
         membership.updateLastReadMessageId(messageId)
 
-        if (membership.lastReadMessageId != null && membership.lastReadMessageId != previousLastReadMessageId) {
+        val currentLastReadMessageId = membership.lastReadMessageId
+        if (currentLastReadMessageId != null && currentLastReadMessageId != previousLastReadMessageId) {
             chatRoomEventBroadcaster.broadcastChatReadUpdated(
                 roomUuid = roomUuid,
                 partyUuid = partyUuid,
                 readerUserUuid = requesterUuid,
                 previousLastReadMessageId = previousLastReadMessageId,
-                currentLastReadMessageId = membership.lastReadMessageId!!,
+                currentLastReadMessageId = currentLastReadMessageId,
             )
         }
     }

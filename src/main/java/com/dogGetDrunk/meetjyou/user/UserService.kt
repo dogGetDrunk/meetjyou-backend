@@ -145,6 +145,7 @@ class UserService(
         termsService.recordConsentChange(user, TermsType.MARKETING_EMAIL_EVENTS, emailConsented)
     }
 
+    @Transactional(readOnly = true)
     fun isDuplicateNickname(nickname: String): Boolean {
         val gracePeriodCutoff = Instant.now().minus(NICKNAME_GRACE_PERIOD)
         return userRepository.existsActiveNickname(nickname, gracePeriodCutoff)
