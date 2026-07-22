@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.chat.room.dto.ChatRoomResponse
@@ -234,6 +235,13 @@ class PostService(
     private fun resolvePlanReference(planUuid: UUID?, isPlanPublic: Boolean?): Pair<Plan, Boolean>? {
         if (planUuid == null) return null
         val plan = planRepository.findByUuid(planUuid) ?: throw PlanNotFoundException(planUuid)
+        // Ownership guard: a post may only reference a plan owned by the author. Without this,
+        // attaching someone else's private plan with isPlanPublic=true would expose it (both
+        // embedded in the post response and made world-readable via PlanAccessGuard).
+        val currentUserUuid = currentUserProvider.uuid
+        if (plan.owner.uuid != currentUserUuid) {
+            throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
+        }
         val public = isPlanPublic
             ?: throw InvalidInputException(value = "isPlanPublic", message = "isPlanPublic is required when planUuid is provided")
         return Pair(plan, public)
