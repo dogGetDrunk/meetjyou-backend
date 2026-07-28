@@ -42,6 +42,7 @@ jwt:
   access-expiration: 1800000
   refresh-expiration: 2592000000000
   secret-key: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItaW50ZWdyYXRpb24tdGVzdCE=
+  rotation-overlap-seconds: 30
 
 auth:
   kakao:

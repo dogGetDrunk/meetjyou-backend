@@ -21,6 +21,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
+import java.time.Instant
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -43,6 +44,7 @@ class UserAuthServiceTest : BehaviorSpec() {
         refreshTokenRepository,
         adminProperties,
         currentUserProvider,
+        rotationOverlapSeconds = 30L,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -122,6 +124,88 @@ class UserAuthServiceTest : BehaviorSpec() {
                     shouldThrow<InvalidJwtException> {
                         sut.refreshToken(rawToken)
                     }
+                }
+            }
+
+            `when`("revoked이지만 grace window 안의 최신 교체 토큰(N-1)이면") {
+                then("교체 토큰을 기준으로 회전하고 새 TokenResponse를 반환한다") {
+                    val replacementJti = UUID.randomUUID().toString()
+                    val replacement = RefreshTokenFixtures.refreshToken(user = user, jti = replacementJti)
+                    val revokedRecord = RefreshTokenFixtures.refreshToken(
+                        user = user,
+                        jti = jti,
+                        revoked = true,
+                        revokedAt = Instant.now().minusSeconds(5),
+                        replacedByJti = replacementJti,
+                    )
+
+                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.getJti(rawToken) } returns jti
+                    every { refreshTokenRepository.findByJti(jti) } returns revokedRecord
+                    every { refreshTokenRepository.findByJti(replacementJti) } returns replacement
+                    every { jwtProvider.getUserUuid(rawToken) } returns user.uuid
+                    every { jwtProvider.getUsername(rawToken) } returns user.email
+                    every { userRepository.findByUuid(user.uuid) } returns user
+                    every { jwtProvider.generateAccessToken(any(), any(), any()) } returns "new.access.token"
+                    every { jwtProvider.generateRefreshToken(any(), any()) } returns generatedRefreshToken
+
+                    val result = sut.refreshToken(rawToken)
+
+                    replacement.revoked shouldBe true
+                    replacement.replacedByJti shouldBe generatedRefreshToken.jti.toString()
+                    verify(exactly = 0) { refreshTokenRepository.revokeAllByUser(any()) }
+                    result.refreshToken shouldBe "new.refresh.token"
+                }
+            }
+
+            `when`("revoked이고 grace window를 벗어났으면") {
+                then("InvalidJwtException을 던지고 전체 세션을 무효화한다") {
+                    val revokedRecord = RefreshTokenFixtures.refreshToken(
+                        user = user,
+                        jti = jti,
+                        revoked = true,
+                        revokedAt = Instant.now().minusSeconds(60),
+                        replacedByJti = UUID.randomUUID().toString(),
+                    )
+
+                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.getJti(rawToken) } returns jti
+                    every { refreshTokenRepository.findByJti(jti) } returns revokedRecord
+
+                    shouldThrow<InvalidJwtException> {
+                        sut.refreshToken(rawToken)
+                    }
+
+                    verify(exactly = 1) { refreshTokenRepository.revokeAllByUser(user) }
+                }
+            }
+
+            `when`("revoked이고 교체 토큰도 이미 소진됐으면(재사용 공격)") {
+                then("InvalidJwtException을 던지고 전체 세션을 무효화한다") {
+                    val replacementJti = UUID.randomUUID().toString()
+                    val consumedReplacement = RefreshTokenFixtures.refreshToken(
+                        user = user,
+                        jti = replacementJti,
+                        revoked = true,
+                    )
+                    val revokedRecord = RefreshTokenFixtures.refreshToken(
+                        user = user,
+                        jti = jti,
+                        revoked = true,
+                        revokedAt = Instant.now().minusSeconds(5),
+                        replacedByJti = replacementJti,
+                    )
+
+                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.getJti(rawToken) } returns jti
+                    every { refreshTokenRepository.findByJti(jti) } returns revokedRecord
+                    every { refreshTokenRepository.findByJti(replacementJti) } returns consumedReplacement
+
+                    shouldThrow<InvalidJwtException> {
+                        sut.refreshToken(rawToken)
+                    }
+
+                    verify(exactly = 1) { refreshTokenRepository.revokeAllByUser(user) }
                 }
             }
 

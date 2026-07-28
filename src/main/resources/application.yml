@@ -96,6 +96,7 @@ jwt:
   access-expiration: ${JWT_AT_EXP} # 30분
   refresh-expiration: ${JWT_RT_EXP} # 30일
   secret-key: ${JWT_SECRET_KEY} # 256 bits for HS256
+  rotation-overlap-seconds: ${JWT_ROTATION_OVERLAP_SECONDS:30} # refresh 응답 유실 재시도 허용 구간(Auth0/Okta rotation overlap period)
 
 auth:
   kakao:

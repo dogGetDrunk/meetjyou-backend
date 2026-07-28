@@ -18,10 +18,13 @@ import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import java.time.Duration
+import java.time.Instant
 
 @Service
 class UserAuthService(
@@ -33,6 +36,7 @@ class UserAuthService(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val adminProperties: AdminProperties,
     private val currentUserProvider: CurrentUserProvider,
+    @Value("\${jwt.rotation-overlap-seconds}") private val rotationOverlapSeconds: Long,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -106,9 +110,7 @@ class UserAuthService(
         val record = refreshTokenRepository.findByJti(jti)
             ?: throw InvalidJwtException(message = "Refresh token record not found")
 
-        if (!record.isValid) {
-            throw InvalidJwtException(message = "Refresh token is revoked or expired")
-        }
+        val activeRecord = resolveActiveRecord(record)
 
         val userUuid = jwtProvider.getUserUuid(rawRefreshToken)
         val email = jwtProvider.getUsername(rawRefreshToken)
@@ -123,9 +125,36 @@ class UserAuthService(
             throw UserWithdrawnException(user.uuid.toString(), message = "Withdrawn user attempted to refresh token")
         }
 
-        record.revoke()
         log.info("Refresh token rotated. uuid: {}", user.uuid)
-        return issueTokenPair(user)
+        return issueTokenPair(user, rotatedFrom = activeRecord)
+    }
+
+    /**
+     * Resolves the record to rotate from. A revoked record is still accepted when it is the
+     * immediately-preceding token in the chain (its replacement has not itself been consumed yet)
+     * and the rotation happened within the overlap window — this covers a client retry after a
+     * lost response, matching the Auth0/Okta "rotation overlap period" pattern. Any other reuse of
+     * a revoked token is treated as a breach: the entire session family is revoked.
+     */
+    private fun resolveActiveRecord(record: RefreshToken): RefreshToken {
+        if (record.isValid) return record
+
+        resolveGraceRetryRecord(record)?.let { return it }
+
+        if (record.revoked) {
+            log.warn("Refresh token reuse detected outside rotation grace window. uuid: {}", record.user.uuid)
+            refreshTokenRepository.revokeAllByUser(record.user)
+        }
+        throw InvalidJwtException(message = "Refresh token is revoked or expired")
+    }
+
+    private fun resolveGraceRetryRecord(record: RefreshToken): RefreshToken? {
+        if (!record.revoked) return null
+        val revokedAt = record.revokedAt ?: return null
+        if (Duration.between(revokedAt, Instant.now()) > Duration.ofSeconds(rotationOverlapSeconds)) return null
+
+        val replacement = record.replacedByJti?.let { refreshTokenRepository.findByJti(it) } ?: return null
+        return replacement.takeIf { it.isValid }
     }
 
     @Transactional
@@ -153,9 +182,10 @@ class UserAuthService(
         return issueTokenPair(user)
     }
 
-    private fun issueTokenPair(user: User): TokenResponse {
+    private fun issueTokenPair(user: User, rotatedFrom: RefreshToken? = null): TokenResponse {
         val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email, user.role)
         val generated = jwtProvider.generateRefreshToken(user.uuid, user.email)
+        rotatedFrom?.revoke(generated.jti.toString())
         refreshTokenRepository.save(
             RefreshToken(
                 jti = generated.jti.toString(),
