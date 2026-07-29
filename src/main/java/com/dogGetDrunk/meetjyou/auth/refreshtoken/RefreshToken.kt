@@ -29,6 +29,12 @@ class RefreshToken(
 
     @Column(nullable = false)
     var revoked: Boolean = false,
+
+    @Column(name = "revoked_at")
+    var revokedAt: Instant? = null,
+
+    @Column(name = "replaced_by_jti", length = 36)
+    var replacedByJti: String? = null,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,8 +44,10 @@ class RefreshToken(
     @Column(nullable = false, updatable = false)
     val createdAt: Instant = Instant.now()
 
-    fun revoke() {
+    fun revoke(replacedByJti: String? = null) {
         revoked = true
+        revokedAt = Instant.now()
+        this.replacedByJti = replacedByJti
     }
 
     val isValid: Boolean

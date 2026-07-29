@@ -35,6 +35,7 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
     private val sut = UserAuthService(
         socialVerifierRegistry, userRepository, userService, jwtProvider,
         termsService, refreshTokenRepository, adminProperties, currentUserProvider,
+        rotationOverlapSeconds = 30L,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
