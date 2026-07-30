@@ -29,9 +29,6 @@ data class CreatePostRequest(
     val companionSpec: CompanionSpec?,
     val planUuid: UUID?,
     val isPlanPublic: Boolean?,
-    // Optional for backward compatibility with clients that don't send it yet; only requests
-    // carrying it get retry-safe deduplication.
-    val clientRequestId: UUID? = null,
 ) {
 
     @AssertTrue(message = "일정 시작 시각은 현재 시각 이후여야 합니다. (Buffer = 2 min)")

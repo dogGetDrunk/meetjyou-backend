@@ -4,7 +4,6 @@ import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.time.Instant
-import java.util.UUID
 
 data class CreatePlanRequest(
     @field:NotBlank
@@ -20,9 +19,6 @@ data class CreatePlanRequest(
     @field:Size(max = 500)
     val memo: String?,
     val markers: List<CreateMarkerRequest> = emptyList(),
-    // Optional for backward compatibility with clients that don't send it yet; only requests
-    // carrying it get retry-safe deduplication.
-    val clientRequestId: UUID? = null,
 ) {
     @AssertTrue(message = "일정 종료 시각은 일정 시작 시각 이후여야 합니다.")
     fun isItinFinishAfterItinStart(): Boolean = itinFinish.isAfter(itinStart)

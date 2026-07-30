@@ -91,30 +91,6 @@ class PlanServiceTest : BehaviorSpec() {
                     }
                 }
             }
-
-            `when`("동일한 clientRequestId로 이미 생성된 Plan이 있으면(응답 유실 재시도)") {
-                then("새로 생성하지 않고 기존 Plan을 반환한다") {
-                    val clientRequestId = UUID.randomUUID()
-                    val retryRequest = request.copy(clientRequestId = clientRequestId)
-                    val existingPlan = PlanFixtures.plan(owner)
-                    val existingMarker = PlanFixtures.marker(existingPlan)
-
-                    every { currentUserProvider.user } returns owner
-                    every {
-                        planRepository.findByOwner_UuidAndClientRequestId(owner.uuid, clientRequestId)
-                    } returns existingPlan
-                    every {
-                        markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(existingPlan.uuid)
-                    } returns listOf(existingMarker)
-
-                    val result = sut.createPlan(retryRequest)
-
-                    result.uuid shouldBe existingPlan.uuid
-                    result.markers.size shouldBe 1
-                    verify(exactly = 0) { planRepository.save(any()) }
-                    verify(exactly = 0) { markerRepository.saveAll(any<List<Marker>>()) }
-                }
-            }
         }
 
         // ── getMyPlans ───────────────────────────────────────────────────────

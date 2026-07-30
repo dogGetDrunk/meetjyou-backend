@@ -1,6 +1,5 @@
 package com.dogGetDrunk.meetjyou.post
 
-import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
@@ -9,7 +8,6 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundE
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.chat.room.dto.ChatRoomResponse
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyService
@@ -56,7 +54,6 @@ class PostService(
     private val markerRepository: MarkerRepository,
     private val userPartyRepository: UserPartyRepository,
     private val postViewService: PostViewService,
-    private val chatRoomRepository: ChatRoomRepository,
     private val currentUserProvider: CurrentUserProvider,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
@@ -64,31 +61,13 @@ class PostService(
     @Transactional
     fun createPost(request: CreatePostRequest): CreatePostResponse {
         val author = requireCurrentUser()
-
-        // A lost response can make the client resubmit a create that already landed; recognize
-        // that resubmit via the client-generated id and return the existing post instead of
-        // creating a duplicate party/chat room/post.
-        request.clientRequestId?.let { clientRequestId ->
-            postRepository.findByAuthor_UuidAndClientRequestId(author.uuid, clientRequestId)?.let { existing ->
-                log.info("Duplicate post submission ignored (client retry). authorUuid={}, clientRequestId={}", author.uuid, clientRequestId)
-                return buildExistingPostResponse(existing, request.companionSpec)
-            }
-        }
-
         val planRef = resolvePlanReference(request.planUuid, request.isPlanPublic)
         val partyResult = partyService.createParty(buildCreatePartyRequest(request, author.uuid))
         val post = buildPost(author, partyResult.party, request, planRef)
-        post.clientRequestId = request.clientRequestId
         postRepository.save(post)
         if (request.companionSpec != null) saveCompPreference(post, request.companionSpec)
         log.info("New post created: $post")
         return CreatePostResponse.of(post, request.companionSpec, ChatRoomResponse.of(partyResult.chatRoom))
-    }
-
-    private fun buildExistingPostResponse(post: Post, companionSpec: CompanionSpec?): CreatePostResponse {
-        val chatRoom = chatRoomRepository.findByParty_Uuid(post.party.uuid)
-            ?: throw ChatRoomNotFoundException(post.party.uuid.toString())
-        return CreatePostResponse.of(post, companionSpec, ChatRoomResponse.of(chatRoom))
     }
 
     @Transactional(readOnly = true)

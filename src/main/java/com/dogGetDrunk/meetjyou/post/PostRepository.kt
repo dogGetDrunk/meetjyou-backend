@@ -18,7 +18,6 @@ interface PostRepository : JpaRepository<Post, Long> {
     fun existsByUuidAndAuthor_Uuid(uuid: UUID, authorUuid: UUID): Boolean
     fun existsByPlan_UuidAndIsPlanPublicTrue(planUuid: UUID): Boolean
     fun findAllByPlan_UuidIn(planUuids: Collection<UUID>): List<Post>
-    fun findByAuthor_UuidAndClientRequestId(authorUuid: UUID, clientRequestId: UUID): Post?
 
     @Query(
         value = "SELECT p FROM Post p LEFT JOIN FETCH p.author LEFT JOIN FETCH p.party LEFT JOIN FETCH p.plan WHERE p.author.uuid = :authorUuid",

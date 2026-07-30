@@ -38,17 +38,6 @@ class PlanService(
     fun createPlan(request: CreatePlanRequest): CreatePlanResponse {
         val user = currentUserProvider.user
 
-        // A lost response can make the client resubmit a create that already landed; recognize
-        // that resubmit via the client-generated id and return the existing plan instead of
-        // creating a duplicate.
-        request.clientRequestId?.let { clientRequestId ->
-            planRepository.findByOwner_UuidAndClientRequestId(user.uuid, clientRequestId)?.let { existing ->
-                log.info("Duplicate plan submission ignored (client retry). ownerUuid={}, clientRequestId={}", user.uuid, clientRequestId)
-                val existingMarkers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(existing.uuid)
-                return CreatePlanResponse.of(existing, existingMarkers)
-            }
-        }
-
         val plan = Plan(
             title = request.title,
             itinStart = request.itinStart,
@@ -57,8 +46,7 @@ class PlanService(
             centerLat = request.centerLat,
             centerLng = request.centerLng,
             memo = request.memo,
-            owner = user,
-            clientRequestId = request.clientRequestId,
+            owner = user
         )
 
         planRepository.save(plan)
