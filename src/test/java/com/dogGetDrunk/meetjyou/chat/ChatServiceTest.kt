@@ -75,6 +75,23 @@ class ChatServiceTest : BehaviorSpec() {
                 }
             }
 
+            `when`("동일한 clientMessageId로 이미 저장된 메시지가 있으면") {
+                then("재저장/재알림 없이 조용히 무시한다") {
+                    val clientMessageId = java.util.UUID.randomUUID()
+                    val retryRequest = request.copy(clientMessageId = clientMessageId)
+                    val membership = NotificationCenterFixtures.hostUserParty(party, sender)
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, senderUuid) } returns membership
+                    every {
+                        chatMessageRepository.findByRoom_UuidAndSender_UuidAndClientMessageId(roomUuid, senderUuid, clientMessageId)
+                    } returns mockk(relaxed = true)
+
+                    sut.handleChatMessage(retryRequest, senderUuid)
+
+                    verify(exactly = 0) { chatMessageRepository.save(any()) }
+                    verify(exactly = 0) { publisher.publishEvent(any()) }
+                }
+            }
+
             `when`("파티에 가입되지 않은 유저가 메시지를 전송하면") {
                 then("ChatRoomAccessDeniedException을 던진다") {
                     every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, senderUuid) } returns null

@@ -3,14 +3,21 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.jwt.GeneratedRefreshToken
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
+import com.dogGetDrunk.meetjyou.auth.social.IdToken
+import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
+import com.dogGetDrunk.meetjyou.auth.social.SocialVerifier
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.auth.support.RefreshTokenFixtures
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.config.property.AdminProperties
+import com.dogGetDrunk.meetjyou.preference.Age
+import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.terms.TermsService
+import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
@@ -262,6 +269,82 @@ class UserAuthServiceTest : BehaviorSpec() {
             }
         }
 
+        // ── registerViaSocial ────────────────────────────────────────────────
+
+        given("registerViaSocial 호출 시") {
+            val provider = AuthProvider.KAKAO
+            val externalId = "ext-register-1"
+            val principal = SocialPrincipal(authProvider = provider, subject = externalId, email = "new@test.com")
+            val socialVerifier = mockk<SocialVerifier>(relaxed = true)
+            val request = RegistrationRequest(
+                email = "new@test.com",
+                nickname = "newbie",
+                bio = null,
+                gender = Gender.M,
+                age = Age.TWENTY,
+                personalities = emptyList(),
+                travelStyles = emptyList(),
+                diet = emptyList(),
+                etc = emptyList(),
+                authProvider = provider,
+                idToken = "id-token-value",
+                accessToken = null,
+                agreedTermsUuids = emptyList(),
+            )
+            val generatedRefreshToken = GeneratedRefreshToken(
+                token = "new.refresh.token",
+                jti = UUID.randomUUID(),
+                expiresAt = LocalDateTime.now().plusDays(30),
+            )
+
+            beforeEach {
+                every { socialVerifierRegistry.get(provider) } returns socialVerifier
+                every { socialVerifier.verifyAndExtract(IdToken("id-token-value"), any()) } returns principal
+                every { jwtProvider.generateAccessToken(any(), any(), any()) } returns "new.access.token"
+                every { jwtProvider.generateRefreshToken(any(), any()) } returns generatedRefreshToken
+            }
+
+            `when`("가입 이력이 없으면") {
+                then("신규 유저를 생성하고 토큰을 발급한다") {
+                    val newUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns null
+                    every { userService.createUser(request, principal) } returns newUser
+
+                    val result = sut.registerViaSocial(request)
+
+                    result.refreshToken shouldBe "new.refresh.token"
+                    verify(exactly = 1) { userService.createUser(request, principal) }
+                    verify(exactly = 1) { termsService.saveUserTerms(newUser, any()) }
+                }
+            }
+
+            `when`("grace window(30초) 이내에 생성된 동일 계정이 이미 존재하면(응답 유실 재시도)") {
+                then("UserAlreadyExistsException 대신 그 유저의 로그인 토큰을 반환한다") {
+                    val existingUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns existingUser
+
+                    val result = sut.registerViaSocial(request)
+
+                    result.uuid shouldBe existingUser.uuid
+                    result.refreshToken shouldBe "new.refresh.token"
+                    verify(exactly = 0) { userService.createUser(any(), any()) }
+                    verify(exactly = 0) { termsService.saveUserTerms(any(), any()) }
+                }
+            }
+
+            `when`("grace window(30초)를 벗어나 생성된 동일 계정이 이미 존재하면") {
+                then("UserAlreadyExistsException을 던진다") {
+                    val oldUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    forceCreatedAt(oldUser, Instant.now().minusSeconds(60))
+                    every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns oldUser
+
+                    shouldThrow<UserAlreadyExistsException> {
+                        sut.registerViaSocial(request)
+                    }
+                }
+            }
+        }
+
         // ── logout ────────────────────────────────────────────────────────────
 
         given("logout 호출 시") {
@@ -305,5 +388,13 @@ class UserAuthServiceTest : BehaviorSpec() {
                 }
             }
         }
+    }
+
+    // User.createdAt is a @CreationTimestamp val with no setter; force it via reflection to
+    // simulate an account created outside the registration retry grace window.
+    private fun forceCreatedAt(user: User, instant: Instant) {
+        val field = User::class.java.getDeclaredField("createdAt")
+        field.isAccessible = true
+        field.set(user, instant)
     }
 }

@@ -2,10 +2,8 @@ package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
-import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
-import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRequestNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
@@ -15,19 +13,20 @@ import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import io.mockk.verifyOrder
 import org.springframework.context.ApplicationEventPublisher
 
-class DeletePartyTest : BehaviorSpec() {
+class RejectJoinRequestTest : BehaviorSpec() {
 
     private val partyRepository = mockk<PartyRepository>(relaxed = true)
     private val postRepository = mockk<PostRepository>(relaxed = true)
@@ -54,69 +53,54 @@ class DeletePartyTest : BehaviorSpec() {
     init {
         beforeEach { clearAllMocks() }
 
-        given("deleteParty 호출 시") {
+        given("rejectJoinRequest 호출 시") {
             val host = UserFixtures.user()
+            val applicant = UserFixtures.user(email = "app@test.com", nickname = "applicant", externalId = "ext2")
             val party = NotificationCenterFixtures.party()
             val hostMembership = NotificationCenterFixtures.hostUserParty(party, host)
 
             beforeEach {
                 every { currentUserProvider.uuid } returns host.uuid
-                every { partyRepository.findByUuid(party.uuid) } returns party
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership
             }
 
-            `when`("채팅방과 모집글이 연결된 파티를 삭제하면") {
-                then("FK 의존 행(채팅 데이터, 채팅방, 모집글, 멤버십)을 모두 정리한 뒤 파티를 삭제한다") {
-                    val chatRoom = ChatRoom(party = party)
-                    val post = NotificationCenterFixtures.post(party, host)
-                    every { chatRoomRepository.findByParty_Uuid(party.uuid) } returns chatRoom
-                    every { postRepository.findByParty_Uuid(party.uuid) } returns post
+            `when`("PENDING 상태의 신청을 거절하면") {
+                then("REJECTED로 전이되고 알림 이벤트가 발행된다") {
+                    val pendingMembership = NotificationCenterFixtures.pendingUserParty(party, applicant)
+                    every {
+                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                    } returns pendingMembership
 
-                    sut.deleteParty(party.uuid)
+                    sut.rejectJoinRequest(party.uuid, applicant.uuid)
 
-                    verifyOrder {
-                        chatParticipantService.purgeRoomData(chatRoom.uuid)
-                        chatRoomRepository.delete(chatRoom)
-                        postRepository.delete(post)
-                        userPartyRepository.deleteAllByParty_Uuid(party.uuid)
-                        partyRepository.delete(party)
-                    }
+                    pendingMembership.memberStatus shouldBe MemberStatus.REJECTED
+                    verify(exactly = 1) { publisher.publishEvent(any<Any>()) }
                 }
             }
 
-            `when`("채팅방과 모집글이 없는 레거시 파티를 삭제하면") {
-                then("멤버십만 정리하고 파티를 삭제한다") {
-                    every { chatRoomRepository.findByParty_Uuid(party.uuid) } returns null
-                    every { postRepository.findByParty_Uuid(party.uuid) } returns null
+            `when`("이미 REJECTED 상태인 신청을 재거절 시도하면(응답 유실 재시도)") {
+                then("예외 없이 조용히 종료하고 알림을 재발행하지 않는다") {
+                    val rejectedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.reject() }
+                    every {
+                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                    } returns rejectedMembership
 
-                    sut.deleteParty(party.uuid)
+                    sut.rejectJoinRequest(party.uuid, applicant.uuid)
 
-                    verify(exactly = 0) { chatParticipantService.purgeRoomData(any()) }
-                    verify(exactly = 0) { postRepository.delete(any()) }
-                    verify(exactly = 1) { userPartyRepository.deleteAllByParty_Uuid(party.uuid) }
-                    verify(exactly = 1) { partyRepository.delete(party) }
+                    verify(exactly = 0) { publisher.publishEvent(any<Any>()) }
                 }
             }
 
-            `when`("이미 삭제된 파티를 재삭제 시도하면(응답 유실 재시도)") {
-                then("PartyUpdateAccessDeniedException(403) 대신 PartyNotFoundException(404)을 던진다") {
-                    every { partyRepository.findByUuid(party.uuid) } returns null
+            `when`("BANNED 상태의 신청을 거절 시도하면") {
+                then("PartyJoinRequestNotFoundException을 던진다") {
+                    val bannedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.ban() }
+                    every {
+                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                    } returns bannedMembership
 
-                    shouldThrow<PartyNotFoundException> {
-                        sut.deleteParty(party.uuid)
+                    shouldThrow<PartyJoinRequestNotFoundException> {
+                        sut.rejectJoinRequest(party.uuid, applicant.uuid)
                     }
-                    verify(exactly = 0) { partyRepository.delete(any()) }
-                }
-            }
-
-            `when`("종료된 파티를 삭제하려 하면") {
-                then("PartyUpdateAccessDeniedException을 던지고 아무것도 삭제하지 않는다") {
-                    party.complete()
-
-                    shouldThrow<PartyUpdateAccessDeniedException> {
-                        sut.deleteParty(party.uuid)
-                    }
-                    verify(exactly = 0) { partyRepository.delete(any()) }
                 }
             }
         }

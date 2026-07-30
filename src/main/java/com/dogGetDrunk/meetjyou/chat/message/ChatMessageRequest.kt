@@ -10,4 +10,8 @@ data class ChatMessageRequest(
     @field:NotBlank(message = "Message must not be blank.")
     @field:Size(max = 1000, message = "Message must not exceed 1000 characters.")
     val message: String,
+
+    // Optional for backward compatibility with clients that don't send it yet; only messages
+    // carrying it get retry-safe deduplication.
+    val clientMessageId: UUID? = null,
 )

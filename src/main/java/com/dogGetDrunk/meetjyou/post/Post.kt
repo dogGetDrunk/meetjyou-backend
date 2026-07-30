@@ -12,6 +12,8 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.FetchType
 import jakarta.persistence.Id
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
@@ -20,6 +22,7 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
+@Table(uniqueConstraints = [UniqueConstraint(name = "uk_post_author_client_request_id", columnNames = ["author_id", "client_request_id"])])
 class Post(
     party: Party,
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
@@ -52,6 +55,13 @@ class Post(
     @Enumerated(EnumType.STRING)
     var status: PostStatus = PostStatus.RECRUITING
     var joined: Int = 1
+
+    // Client-generated id for a single create attempt; lets a resubmit after a lost response be
+    // recognized as the same request instead of creating a duplicate party/chat room/post. Null
+    // for older clients that don't send it yet, so no dedup is possible for them.
+    @Column(name = "client_request_id")
+    @JdbcTypeCode(Types.VARCHAR)
+    var clientRequestId: UUID? = null
 
     fun completeRecruitment() {
         status = PostStatus.RECRUITMENT_COMPLETED

@@ -37,6 +37,13 @@ class ChatMessage(
     @Column(length = 1000, nullable = false)
     val body: String,
 
+    // Client-generated id for a single send attempt; lets a WS reconnect-and-resend after a lost
+    // ack be recognized as the same message instead of persisted twice. Null for older clients
+    // that don't send it yet, so no dedup is possible for them.
+    @Column(name = "client_message_id")
+    @JdbcTypeCode(Types.VARCHAR)
+    val clientMessageId: UUID? = null,
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now()

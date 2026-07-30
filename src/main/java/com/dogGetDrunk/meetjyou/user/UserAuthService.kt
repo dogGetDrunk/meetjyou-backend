@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshToken
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.auth.social.AccessToken
 import com.dogGetDrunk.meetjyou.auth.social.IdToken
+import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
@@ -56,11 +57,8 @@ class UserAuthService(
             .get(request.authProvider)
             .verifyAndExtract(token, nonce)
 
-        if (userRepository.existsByAuthProviderAndExternalId(principal.authProvider, principal.subject)) {
-            throw UserAlreadyExistsException(
-                principal.email,
-                message = "User already exists for provider ${request.authProvider}"
-            )
+        userRepository.findByAuthProviderAndExternalId(principal.authProvider, principal.subject)?.let { existing ->
+            return resolveDuplicateRegistration(existing, principal, request.authProvider)
         }
 
         val user = userService.createUser(request, principal)
@@ -69,6 +67,27 @@ class UserAuthService(
         log.info("User registered successfully. uuid: {}, email: {}", user.uuid, user.email)
 
         return issueTokenPair(user)
+    }
+
+    /**
+     * A lost response can make the client redo the whole social-login round trip (fresh nonce,
+     * fresh idToken) and resubmit registration for an account that was already created by the
+     * first attempt. If that account was created just now, treat it as the same retry and log the
+     * caller into it instead of failing — matching the refresh-token rotation grace window. An
+     * account created outside the window is a genuine pre-existing account, not a retry.
+     */
+    private fun resolveDuplicateRegistration(existing: User, principal: SocialPrincipal, authProvider: AuthProvider): TokenResponse {
+        if (Duration.between(existing.createdAt, Instant.now()) > Duration.ofSeconds(rotationOverlapSeconds)) {
+            throw UserAlreadyExistsException(
+                principal.email,
+                message = "User already exists for provider $authProvider"
+            )
+        }
+        if (existing.status == UserStatus.DELETED) {
+            throw UserWithdrawnException(existing.uuid.toString(), message = "Withdrawn user attempted to register")
+        }
+        log.info("Registration retried within grace window after a likely lost response. uuid: {}", existing.uuid)
+        return issueTokenPair(existing)
     }
 
     @Transactional

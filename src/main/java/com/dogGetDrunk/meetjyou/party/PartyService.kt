@@ -7,7 +7,6 @@ import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberLe
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyCapacityBelowJoinedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyFullException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlreadyMemberException
-import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlreadyPendingException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinBannedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRequestNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyMemberAccessDeniedException
@@ -182,7 +181,10 @@ class PartyService(
     private fun applyJoinRequestState(party: Party, userUuid: UUID, applicationNote: String?, existing: UserParty?): UserParty {
         val partyUuid = party.uuid
         return when (existing?.memberStatus) {
-            MemberStatus.PENDING  -> throw PartyJoinAlreadyPendingException(partyUuid, userUuid)
+            // A lost response can make the client resubmit a request that already landed as
+            // PENDING; treat it as the same application rather than an error. statusChangedAt is
+            // untouched here, so notifyHostOfJoinRequest's dedupKey still suppresses the repeat.
+            MemberStatus.PENDING  -> existing
             MemberStatus.JOINED   -> throw PartyJoinAlreadyMemberException(partyUuid, userUuid)
             MemberStatus.BANNED   -> throw PartyJoinBannedException(partyUuid, userUuid)
             MemberStatus.LEFT     -> throw PartyJoinNotAllowedException(partyUuid, userUuid)
@@ -252,14 +254,25 @@ class PartyService(
 
         requireActiveHostMembership(partyUuid, hostUuid)
 
+        // Looked up and status-checked before the party lock/capacity check so a lost-response
+        // retry of an already-approved request short-circuits here instead of failing a capacity
+        // check that only holds because this same applicant is already counted in party.joined.
+        val request = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid)
+            ?: throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
+
+        when (request.memberStatus) {
+            MemberStatus.JOINED -> {
+                log.info("Join request already approved; treating retry as success. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)
+                return
+            }
+            MemberStatus.PENDING -> Unit
+            else -> throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
+        }
+
         val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         if (party.joined >= party.capacity) {
             throw PartyFullException(partyUuid)
         }
-
-        val request = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid)
-            ?.takeIf { it.memberStatus == MemberStatus.PENDING }
-            ?: throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
 
         request.approve()
         party.joined++
@@ -323,8 +336,16 @@ class PartyService(
         requireActiveHostMembership(partyUuid, hostUuid)
 
         val request = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid)
-            ?.takeIf { it.memberStatus == MemberStatus.PENDING }
             ?: throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
+
+        when (request.memberStatus) {
+            MemberStatus.REJECTED -> {
+                log.info("Join request already rejected; treating retry as success. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)
+                return
+            }
+            MemberStatus.PENDING -> Unit
+            else -> throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
+        }
 
         request.reject()
 
@@ -470,11 +491,14 @@ class PartyService(
     fun deleteParty(partyUuid: UUID) {
         val userUuid = currentUserProvider.uuid
         log.info("Party deletion request received: uuid=$partyUuid")
+
+        // Looked up before the host check so a lost-response retry of an already-completed
+        // deletion reports 404 (nothing left to delete) instead of verifyPartyHost's 403, which
+        // is meant for "not your party," not "no longer exists."
+        val party = partyRepository.findByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         if (!verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
-
-        val party = partyRepository.findByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
 
         // chat_room, post and user_party all hold FK references to party without
@@ -543,6 +567,15 @@ class PartyService(
         val targetMembership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, targetUserUuid)
             ?: throw UserNotFoundException(targetUserUuid)
 
+        // A lost response can make the host resubmit a ban that already landed; a member who is
+        // already BANNED is exactly the state this call would have produced, so treat it as
+        // success instead of InactiveMemberBanException. Any other inactive state (PENDING,
+        // REJECTED, LEFT) is a real conflict, not a retry.
+        if (targetMembership.memberStatus == MemberStatus.BANNED) {
+            log.info("Member already banned; treating retry as success. partyUuid={}, targetUserUuid={}", partyUuid, targetUserUuid)
+            return
+        }
+
         if (targetMembership.role == PartyRole.HOST) {
             throw HostBanNotAllowedException(targetUserUuid)
         }
@@ -583,6 +616,13 @@ class PartyService(
 
         val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
             ?: throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
+
+        // Same idea as banMember: a member who already left is exactly the state this call would
+        // have produced, so a lost-response retry succeeds silently instead of throwing.
+        if (membership.memberStatus == MemberStatus.LEFT) {
+            log.info("Member already left; treating retry as success. partyUuid={}, userUuid={}", partyUuid, userUuid)
+            return
+        }
 
         if (membership.role == PartyRole.HOST) {
             throw HostLeaveNotAllowedException(partyUuid, userUuid)

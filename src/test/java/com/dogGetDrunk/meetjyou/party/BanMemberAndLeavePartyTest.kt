@@ -93,6 +93,18 @@ class BanMemberAndLeavePartyTest : BehaviorSpec() {
                     party.joined shouldBe joinedBefore
                 }
             }
+
+            `when`("이미 BANNED 상태인 대상을 재차 강퇴 시도하면(응답 유실 재시도)") {
+                then("예외 없이 조용히 종료하고 joined를 다시 감소시키지 않는다") {
+                    val bannedMembership = UserParty(party, target, PartyRole.MEMBER).also { it.ban() }
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, target.uuid) } returns bannedMembership
+
+                    val joinedBefore = party.joined
+                    sut.banMember(party.uuid, target.uuid)
+
+                    party.joined shouldBe joinedBefore
+                }
+            }
         }
 
         given("leaveParty 호출 시") {
@@ -129,6 +141,19 @@ class BanMemberAndLeavePartyTest : BehaviorSpec() {
                     shouldThrow<HostLeaveNotAllowedException> {
                         sut.leaveParty(party.uuid)
                     }
+                    party.joined shouldBe joinedBefore
+                }
+            }
+
+            `when`("이미 LEFT 상태인 멤버가 재차 탈퇴 시도하면(응답 유실 재시도)") {
+                then("예외 없이 조용히 종료하고 joined를 다시 감소시키지 않는다") {
+                    val leftMembership = UserParty(party, member, PartyRole.MEMBER).also { it.leave() }
+                    every { currentUserProvider.uuid } returns member.uuid
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, member.uuid) } returns leftMembership
+
+                    val joinedBefore = party.joined
+                    sut.leaveParty(party.uuid)
+
                     party.joined shouldBe joinedBefore
                 }
             }

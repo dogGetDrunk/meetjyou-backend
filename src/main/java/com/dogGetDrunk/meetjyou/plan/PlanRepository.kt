@@ -9,4 +9,5 @@ interface PlanRepository : JpaRepository<Plan, Long> {
     fun findByUuid(uuid: UUID): Plan?
     fun findAllByOwner_Uuid(ownerUuid: UUID, pageable: Pageable): Page<Plan>
     fun existsByUuid(uuid: UUID): Boolean
+    fun findByOwner_UuidAndClientRequestId(ownerUuid: UUID, clientRequestId: UUID): Plan?
 }

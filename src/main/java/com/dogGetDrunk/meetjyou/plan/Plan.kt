@@ -9,6 +9,8 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
@@ -17,6 +19,7 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
+@Table(uniqueConstraints = [UniqueConstraint(name = "uk_plan_owner_client_request_id", columnNames = ["owner_id", "client_request_id"])])
 class Plan(
     @Column(length = 20)
     var title: String,
@@ -32,7 +35,14 @@ class Plan(
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
-    var owner: User
+    var owner: User,
+
+    // Client-generated id for a single create attempt; lets a resubmit after a lost response be
+    // recognized as the same request instead of creating a duplicate plan. Null for older clients
+    // that don't send it yet, so no dedup is possible for them.
+    @Column(name = "client_request_id")
+    @JdbcTypeCode(Types.VARCHAR)
+    var clientRequestId: UUID? = null,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
