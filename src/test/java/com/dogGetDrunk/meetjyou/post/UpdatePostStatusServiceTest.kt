@@ -1,7 +1,9 @@
 package com.dogGetDrunk.meetjyou.post
 
+import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
 import com.dogGetDrunk.meetjyou.party.PartyService
@@ -34,10 +36,12 @@ class UpdatePostStatusServiceTest : BehaviorSpec() {
     private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
     private val postViewService = mockk<PostViewService>(relaxed = true)
     private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
+    private val chatRoomRepository = mockk<ChatRoomRepository>(relaxed = true)
+    private val idempotencyKeyService = mockk<IdempotencyKeyService>(relaxed = true)
     private val sut = PostService(
         postRepository, userRepository, compPreferenceRepository, preferenceRepository,
         partyService, planRepository, markerRepository, userPartyRepository, postViewService,
-        currentUserProvider,
+        currentUserProvider, chatRoomRepository, idempotencyKeyService,
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
