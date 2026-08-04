@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import jakarta.validation.Valid
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.Max
@@ -30,12 +31,17 @@ data class UpdatePostRequest(
     val isPlanPublic: Boolean?,
 ) {
 
+    // @JsonIgnore: Jackson bean introspection treats any public is-prefixed no-arg method as a
+    // serializable property regardless of validation-only intent. See CreatePostRequest for the
+    // concrete failure mode this caused (idempotency hash pollution via Instant.now()).
     @AssertTrue(message = "일정 시작 시각은 현재 시각 이후여야 합니다. (Buffer = 2 min)")
+    @JsonIgnore
     fun isItinStartAfterNow(): Boolean =
         !itinStart.truncatedTo(ChronoUnit.MINUTES)
             .isBefore(Instant.now().truncatedTo(ChronoUnit.MINUTES).minus(2, ChronoUnit.MINUTES))
 
     @AssertTrue(message = "일정 종료 시각은 일정 시작 시각 이후여야 합니다.")
+    @JsonIgnore
     fun isItinFinishAfterItinStart(): Boolean =
         itinFinish.isAfter(itinStart)
 }
