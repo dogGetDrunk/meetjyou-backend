@@ -7,7 +7,10 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNot
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
+import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyScope
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.chat.room.dto.ChatRoomResponse
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyService
@@ -55,19 +58,62 @@ class PostService(
     private val userPartyRepository: UserPartyRepository,
     private val postViewService: PostViewService,
     private val currentUserProvider: CurrentUserProvider,
+    private val chatRoomRepository: ChatRoomRepository,
+    private val idempotencyKeyService: IdempotencyKeyService,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
 
     @Transactional
-    fun createPost(request: CreatePostRequest): CreatePostResponse {
+    fun createPost(request: CreatePostRequest, idempotencyKey: String? = null): CreatePostResponse {
         val author = requireCurrentUser()
+
+        if (idempotencyKey != null) {
+            val requestHash = idempotencyKeyService.hashRequest(request)
+            idempotencyKeyService.resolveExisting(IdempotencyScope.CREATE_POST, author, idempotencyKey, requestHash)
+                ?.let { return buildCreatePostResponse(it) }
+        }
+
         val planRef = resolvePlanReference(request.planUuid, request.isPlanPublic)
         val partyResult = partyService.createParty(buildCreatePartyRequest(request, author.uuid))
         val post = buildPost(author, partyResult.party, request, planRef)
         postRepository.save(post)
         if (request.companionSpec != null) saveCompPreference(post, request.companionSpec)
+
+        if (idempotencyKey != null) {
+            val requestHash = idempotencyKeyService.hashRequest(request)
+            idempotencyKeyService.record(IdempotencyScope.CREATE_POST, author, idempotencyKey, post.uuid, requestHash)
+        }
+
         log.info("New post created: $post")
         return CreatePostResponse.of(post, request.companionSpec, ChatRoomResponse.of(partyResult.chatRoom))
+    }
+
+    /**
+     * Recovery path for the concurrent-double-submit race: two requests carrying the same
+     * Idempotency-Key both pass createPost's pre-check (neither has committed yet), both enter
+     * creation, and the loser's idempotencyKeyService.record() insert fails on the unique
+     * constraint, rolling back its whole transaction (Post/Party/ChatRoom/CompPreference).
+     * PostController catches that constraint violation and calls this instead of a bare
+     * re-fetch-by-key - a bare re-fetch would hand the loser the winner's resource even if the two
+     * requests carried different bodies, silently defeating the hash check. Re-running
+     * resolveExisting here re-validates the hash, so a genuine same-body double-tap resolves to
+     * the winner's resource while a same-key-different-body collision still 409s.
+     */
+    @Transactional(readOnly = true)
+    fun resolveAfterConflict(request: CreatePostRequest, idempotencyKey: String): CreatePostResponse {
+        val author = requireCurrentUser()
+        val requestHash = idempotencyKeyService.hashRequest(request)
+        val resourceUuid = idempotencyKeyService
+            .resolveExisting(IdempotencyScope.CREATE_POST, author, idempotencyKey, requestHash)
+            ?: throw PostNotFoundException(author.uuid)
+        return buildCreatePostResponse(resourceUuid)
+    }
+
+    private fun buildCreatePostResponse(postUuid: UUID): CreatePostResponse {
+        val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
+        val companionSpec = compPreferenceRepository.findAllByPost(post).toCompanionSpec()
+        val chatRoom = chatRoomRepository.findByParty_Uuid(post.party.uuid) ?: throw PostNotFoundException(postUuid)
+        return CreatePostResponse.of(post, companionSpec, ChatRoomResponse.of(chatRoom))
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.plan.dto
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
@@ -20,6 +21,9 @@ data class CreatePlanRequest(
     val memo: String?,
     val markers: List<CreateMarkerRequest> = emptyList(),
 ) {
+    // See CreatePostRequest.isItinStartAfterNow for why @JsonIgnore is required on
+    // is-prefixed validator methods, not just @Schema(hidden=true).
     @AssertTrue(message = "일정 종료 시각은 일정 시작 시각 이후여야 합니다.")
+    @JsonIgnore
     fun isItinFinishAfterItinStart(): Boolean = itinFinish.isAfter(itinStart)
 }

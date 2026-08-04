@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.AssertTrue
@@ -31,14 +32,21 @@ data class CreatePostRequest(
     val isPlanPublic: Boolean?,
 ) {
 
+    // @JsonIgnore is required, not cosmetic: Jackson's bean introspection treats any public
+    // is-prefixed no-arg method as a serializable property regardless of @Schema(hidden=true)
+    // (that annotation only affects Swagger docs). Without it, IdempotencyKeyService.hashRequest
+    // would fold isItinStartAfterNow()'s Instant.now()-dependent result into the hash, so a
+    // byte-identical retry sent moments later could hash differently and be misread as a conflict.
     @AssertTrue(message = "일정 시작 시각은 현재 시각 이후여야 합니다. (Buffer = 2 min)")
     @Schema(hidden = true)
+    @JsonIgnore
     fun isItinStartAfterNow(): Boolean =
         !itinStart.truncatedTo(ChronoUnit.MINUTES)
             .isBefore(Instant.now().truncatedTo(ChronoUnit.MINUTES).minus(2, ChronoUnit.MINUTES))
 
     @AssertTrue(message = "일정 종료 시각은 일정 시작 시각 이후여야 합니다.")
     @Schema(hidden = true)
+    @JsonIgnore
     fun isItinFinishAfterItinStart(): Boolean =
         itinFinish.isAfter(itinStart)
 }

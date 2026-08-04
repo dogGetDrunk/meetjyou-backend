@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springdoc.core.annotations.ParameterObject
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
 import java.util.UUID
@@ -59,9 +61,16 @@ class PostController(
         ]
     )
     @PostMapping
-    fun createPost(@Valid @RequestBody createPostRequest: CreatePostRequest): CreatePostResponse {
-        return postService.createPost(createPostRequest)
-    }
+    fun createPost(
+        @Valid @RequestBody createPostRequest: CreatePostRequest,
+        @RequestHeader("Idempotency-Key", required = false) idempotencyKey: String?,
+    ): CreatePostResponse =
+        try {
+            postService.createPost(createPostRequest, idempotencyKey)
+        } catch (e: DataIntegrityViolationException) {
+            val key = idempotencyKey ?: throw e
+            postService.resolveAfterConflict(createPostRequest, key)
+        }
 
     @Operation(summary = "모든 모집글 조회하기", description = "등록된 모든 모집글을 페이지네이션하여 조회합니다.")
     @ApiResponses(
