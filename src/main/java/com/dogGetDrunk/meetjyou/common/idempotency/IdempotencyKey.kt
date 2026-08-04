@@ -14,6 +14,8 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.JdbcTypeCode
+import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 
@@ -42,6 +44,7 @@ class IdempotencyKey(
     @Column(name = "idempotency_key", nullable = false, length = 255)
     val idempotencyKey: String,
 
+    @JdbcTypeCode(Types.VARCHAR)
     @Column(name = "resource_uuid", nullable = false)
     val resourceUuid: UUID,
 
