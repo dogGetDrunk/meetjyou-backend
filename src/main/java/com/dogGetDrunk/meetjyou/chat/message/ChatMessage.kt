@@ -10,13 +10,27 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 
+// Test profile drives its schema off these JPA annotations (ddl-auto: create-drop, flyway
+// disabled), so the unique constraint from V32 must be declared here too, not only in SQL -
+// otherwise H2 never enforces it and a concurrent-duplicate test would pass without exercising
+// the real constraint. See IdempotencyKey for the same pattern.
 @Entity
+@Table(
+    uniqueConstraints = [
+        UniqueConstraint(
+            name = "uk_chat_message_room_sender_client_id",
+            columnNames = ["room_id", "sender_id", "client_message_id"],
+        )
+    ],
+)
 class ChatMessage(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
