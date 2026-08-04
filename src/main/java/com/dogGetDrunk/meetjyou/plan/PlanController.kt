@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springdoc.core.annotations.ParameterObject
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
 import java.util.UUID
@@ -52,9 +54,16 @@ class PlanController(
         ]
     )
     @PostMapping
-    fun createPlan(@Valid @RequestBody request: CreatePlanRequest): CreatePlanResponse {
-        return planService.createPlan(request)
-    }
+    fun createPlan(
+        @Valid @RequestBody request: CreatePlanRequest,
+        @RequestHeader("Idempotency-Key", required = false) idempotencyKey: String?,
+    ): CreatePlanResponse =
+        try {
+            planService.createPlan(request, idempotencyKey)
+        } catch (e: DataIntegrityViolationException) {
+            val key = idempotencyKey ?: throw e
+            planService.resolveAfterConflict(request, key)
+        }
 
     @Operation(summary = "단건 조회", description = "UUID로 여행 계획을 조회합니다.")
     @GetMapping("/{planUuid}")

@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundE
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyRepository
@@ -39,7 +40,11 @@ class PlanServiceTest : BehaviorSpec() {
     private val userPartyRepository: UserPartyRepository = mockk(relaxed = true)
     private val planAccessGuard = PlanAccessGuard(postRepository, userPartyRepository)
     private val currentUserProvider: CurrentUserProvider = mockk(relaxed = true)
-    private val sut = PlanService(planRepository, markerRepository, userRepository, postRepository, partyRepository, planAccessGuard, currentUserProvider)
+    private val idempotencyKeyService: IdempotencyKeyService = mockk(relaxed = true)
+    private val sut = PlanService(
+        planRepository, markerRepository, userRepository, postRepository, partyRepository,
+        planAccessGuard, currentUserProvider, idempotencyKeyService,
+    )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 

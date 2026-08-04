@@ -3,6 +3,8 @@ package com.dogGetDrunk.meetjyou.plan
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
+import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyScope
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.post.PostRepository
@@ -31,12 +33,19 @@ class PlanService(
     private val partyRepository: PartyRepository,
     private val planAccessGuard: PlanAccessGuard,
     private val currentUserProvider: CurrentUserProvider,
+    private val idempotencyKeyService: IdempotencyKeyService,
 ) {
     private val log = LoggerFactory.getLogger(PlanService::class.java)
 
     @Transactional
-    fun createPlan(request: CreatePlanRequest): CreatePlanResponse {
+    fun createPlan(request: CreatePlanRequest, idempotencyKey: String? = null): CreatePlanResponse {
         val user = currentUserProvider.user
+
+        if (idempotencyKey != null) {
+            val requestHash = idempotencyKeyService.hashRequest(request)
+            idempotencyKeyService.resolveExisting(IdempotencyScope.CREATE_PLAN, user, idempotencyKey, requestHash)
+                ?.let { return buildCreatePlanResponse(it) }
+        }
 
         val plan = Plan(
             title = request.title,
@@ -65,8 +74,34 @@ class PlanService(
         }
 
         markerRepository.saveAll(markers)
+
+        if (idempotencyKey != null) {
+            val requestHash = idempotencyKeyService.hashRequest(request)
+            idempotencyKeyService.record(IdempotencyScope.CREATE_PLAN, user, idempotencyKey, plan.uuid, requestHash)
+        }
+
         log.info("New plan created: uuid=${plan.uuid} markers=${markers.size}")
 
+        return CreatePlanResponse.of(plan, markers)
+    }
+
+    /**
+     * See PostService.resolveAfterConflict for why the controller's recovery path must re-run
+     * resolveExisting (re-validating the request hash) rather than a bare re-fetch by key.
+     */
+    @Transactional(readOnly = true)
+    fun resolveAfterConflict(request: CreatePlanRequest, idempotencyKey: String): CreatePlanResponse {
+        val user = currentUserProvider.user
+        val requestHash = idempotencyKeyService.hashRequest(request)
+        val resourceUuid = idempotencyKeyService
+            .resolveExisting(IdempotencyScope.CREATE_PLAN, user, idempotencyKey, requestHash)
+            ?: throw PlanNotFoundException(user.uuid)
+        return buildCreatePlanResponse(resourceUuid)
+    }
+
+    private fun buildCreatePlanResponse(planUuid: UUID): CreatePlanResponse {
+        val plan = planRepository.findByUuid(planUuid) ?: throw PlanNotFoundException(planUuid)
+        val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
         return CreatePlanResponse.of(plan, markers)
     }
 

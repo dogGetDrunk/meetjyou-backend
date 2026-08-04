@@ -90,6 +90,9 @@ enum class ErrorCode(
     TERMS_CONTENT_VERIFICATION_FAILED("Terms content object could not be verified"),
     DUPLICATE_TERMS_VERSION("Duplicate terms version for type"),
 
+    // Idempotency
+    IDEMPOTENCY_KEY_REUSED("Idempotency key reused with a different request body"),
+
     // Server
     INTERNAL_SERVER_ERROR("Internal server error"),
 
