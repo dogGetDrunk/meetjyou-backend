@@ -9,6 +9,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
@@ -56,9 +57,14 @@ class IdempotencyKeyServiceTest : BehaviorSpec() {
             `when`("직렬화 결과를 들여다보면") {
                 then("@AssertTrue 검증 메서드 유래 프로퍼티가 섞여있지 않다 (@JsonIgnore 회귀 방지)") {
                     val json = objectMapper.writeValueAsString(samplePostRequest())
+                    // Jackson keeps the method's "is" prefix verbatim in the property name
+                    // (isItinStartAfterNow, not itinStartAfterNow) - a lowercase-i substring
+                    // check would silently never match and pass even with @JsonIgnore missing,
+                    // so this parses the actual key set instead of pattern-matching the raw string.
+                    val keys = objectMapper.readValue(json, Map::class.java).keys
 
-                    json.contains("itinStartAfterNow") shouldBe false
-                    json.contains("itinFinishAfterItinStart") shouldBe false
+                    keys shouldNotContain "isItinStartAfterNow"
+                    keys shouldNotContain "isItinFinishAfterItinStart"
                 }
             }
 
