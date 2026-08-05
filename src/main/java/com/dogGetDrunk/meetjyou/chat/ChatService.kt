@@ -58,11 +58,25 @@ class ChatService(
         val normalizedMessage = request.message.trim()
         validateMessageBody(normalizedMessage)
 
+        // A WS reconnect can make the client resend a message whose ack was lost even though it
+        // already persisted and broadcast. clientMessageId lets us recognize that resend and no-op
+        // instead of persisting a visible duplicate and re-notifying every offline recipient.
+        request.clientMessageId?.let { clientMessageId ->
+            if (chatMessageRepository.findByRoom_UuidAndSender_UuidAndClientMessageId(room.uuid, senderUuid, clientMessageId) != null) {
+                log.info(
+                    "Duplicate chat message submission ignored. roomUuid={}, senderUuid={}, clientMessageId={}",
+                    room.uuid, senderUuid, clientMessageId,
+                )
+                return
+            }
+        }
+
         val savedMessage = chatMessageRepository.save(
             ChatMessage(
                 room = room,
                 sender = sender,
                 body = normalizedMessage,
+                clientMessageId = request.clientMessageId,
             )
         )
 

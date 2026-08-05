@@ -12,6 +12,12 @@ interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
 
     fun findByUuid(uuid: UUID): ChatMessage?
 
+    fun findByRoom_UuidAndSender_UuidAndClientMessageId(
+        roomUuid: UUID,
+        senderUuid: UUID,
+        clientMessageId: UUID,
+    ): ChatMessage?
+
     @Modifying
     @Query("delete from ChatMessage cm where cm.room.uuid = :roomUuid")
     fun deleteAllByRoomUuid(@Param("roomUuid") roomUuid: UUID)

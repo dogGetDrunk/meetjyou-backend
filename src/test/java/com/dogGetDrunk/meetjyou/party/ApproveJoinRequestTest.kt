@@ -89,6 +89,10 @@ class ApproveJoinRequestTest : BehaviorSpec() {
 
             `when`("정원이 꽉 찬 파티에서 승인 시도하면") {
                 then("PartyFullException을 던진다") {
+                    val pendingMembership = NotificationCenterFixtures.pendingUserParty(party, applicant)
+                    every {
+                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                    } returns pendingMembership
                     val fullParty = Party(
                         itinStart = party.itinStart,
                         itinFinish = party.itinFinish,
@@ -105,16 +109,51 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                 }
             }
 
-            `when`("PENDING이 아닌 상태의 신청을 승인 시도하면") {
+            `when`("BANNED 상태의 신청을 승인 시도하면") {
                 then("PartyJoinRequestNotFoundException을 던진다") {
-                    val joinedMembership = NotificationCenterFixtures.hostUserParty(party, applicant)
+                    val bannedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.ban() }
                     every {
                         userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
-                    } returns joinedMembership
+                    } returns bannedMembership
 
                     shouldThrow<PartyJoinRequestNotFoundException> {
                         sut.approveJoinRequest(party.uuid, applicant.uuid)
                     }
+                }
+            }
+
+            `when`("이미 JOINED 상태인 신청을 재승인 시도하면(응답 유실 재시도)") {
+                then("예외 없이 조용히 종료하고 joined 카운터를 다시 증가시키지 않는다") {
+                    val alreadyJoinedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.approve() }
+                    every {
+                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                    } returns alreadyJoinedMembership
+
+                    val joinedBefore = party.joined
+                    sut.approveJoinRequest(party.uuid, applicant.uuid)
+
+                    party.joined shouldBe joinedBefore
+                    verify(exactly = 0) { publisher.publishEvent(any<Any>()) }
+                }
+            }
+
+            `when`("파티 정원이 꽉 찬 상태에서 이미 JOINED인 신청을 재승인 시도하면") {
+                then("PartyFullException 대신 예외 없이 종료된다") {
+                    val alreadyJoinedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.approve() }
+                    every {
+                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                    } returns alreadyJoinedMembership
+                    val fullParty = Party(
+                        itinStart = party.itinStart,
+                        itinFinish = party.itinFinish,
+                        destination = party.destination,
+                        joined = 5,
+                        capacity = 5,
+                        name = party.name,
+                    )
+                    every { partyRepository.findByUuidForUpdate(party.uuid) } returns fullParty
+
+                    sut.approveJoinRequest(party.uuid, applicant.uuid)
                 }
             }
 
