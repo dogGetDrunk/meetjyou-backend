@@ -7,6 +7,10 @@ WORKDIR /app
 # 프로젝트 소스 코드 복사
 COPY . .
 
+# gradlew가 xargs를 요구하는데, amazoncorretto 베이스 이미지(Amazon Linux 2023)에는
+# findutils가 기본 포함돼 있지 않아 "xargs is not available"로 빌드 자체가 실패함.
+RUN dnf install -y findutils && dnf clean all
+
 # Gradle 캐시 최적화 및 빌드 실행
 RUN ./gradlew clean bootJar
 
