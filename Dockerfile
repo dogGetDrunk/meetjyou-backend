@@ -1,5 +1,9 @@
+# major 태그(예: amazoncorretto:21)는 Amazon이 같은 이름표로 다른 이미지를 계속 재발행하는
+# 움직이는 타겟이라, 어느 날 갑자기 내용물이 바뀌어 빌드가 깨질 수 있음(findutils가 빠지며 실제로 발생).
+# patch 버전까지 고정해 재현성을 확보하되, 다이제스트까지는 안 박아서(과함, 보안 패치 자동 반영 포기) 절충함.
+# 갱신 시점: Corretto 21의 다음 patch 릴리즈로 의도적으로 올릴 때만 이 태그를 수동으로 변경할 것.
 # 1️⃣ 빌드 단계 (Gradle 빌드 수행)
-FROM amazoncorretto:21 AS builder
+FROM amazoncorretto:21.0.12 AS builder
 
 # 작업 디렉토리 설정
 WORKDIR /app
@@ -15,7 +19,7 @@ RUN dnf install -y findutils && dnf clean all
 RUN ./gradlew clean bootJar
 
 # 2️⃣ 실행 단계 (최종 컨테이너)
-FROM amazoncorretto:21
+FROM amazoncorretto:21.0.12
 WORKDIR /app
 
 # 빌드된 JAR 파일만 복사
