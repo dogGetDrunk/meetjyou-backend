@@ -51,7 +51,6 @@ class Post(
     var isPlanPublic: Boolean? = null
     @Enumerated(EnumType.STRING)
     var status: PostStatus = PostStatus.RECRUITING
-    var joined: Int = 1
 
     fun completeRecruitment() {
         status = PostStatus.RECRUITMENT_COMPLETED

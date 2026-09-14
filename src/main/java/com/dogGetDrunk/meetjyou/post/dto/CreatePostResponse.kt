@@ -40,7 +40,7 @@ data class CreatePostResponse(
                 itinFinish = post.itinFinish,
                 location = post.location,
                 capacity = post.capacity,
-                joined = post.joined,
+                joined = post.party.joined,
                 companionSpec = companionSpec,
                 planUuid = post.plan?.uuid,
                 isPlanPublic = post.isPlanPublic,
