@@ -51,7 +51,7 @@ data class GetPostResponse(
                 itinFinish = post.itinFinish,
                 location = post.location,
                 capacity = post.capacity,
-                joined = post.joined,
+                joined = post.party.joined,
                 companionSpec = companionSpec,
                 partyUuid = post.party.uuid,
                 planUuid = post.plan?.uuid,
