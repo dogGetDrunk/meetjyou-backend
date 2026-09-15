@@ -21,7 +21,7 @@ data class UserUpdateRequest(
     val bio: String?,
     val gender: Gender,
     val age: Age,
-    @field:Size(max = 3)
+    @field:Size(min = 1, max = 3)
     @field:UniqueElements
     val personalities: List<Personality>,
     @field:Size(max = 3)

@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.preference.Age
 import com.dogGetDrunk.meetjyou.preference.Gender
@@ -152,6 +153,7 @@ class UserServiceTest : BehaviorSpec() {
             fun requiredPreferences(user: User): List<UserPreference> = listOf(
                 UserPreference(user, Preference(type = PreferenceType.GENDER, name = "SOME_VALUE")),
                 UserPreference(user, Preference(type = PreferenceType.AGE, name = "SOME_VALUE")),
+                UserPreference(user, Preference(type = PreferenceType.PERSONALITY, name = "INTROVERTED")),
             )
 
             `when`("유저에 hasProfileImage가 false인 경우") {
@@ -179,6 +181,23 @@ class UserServiceTest : BehaviorSpec() {
                     val result = sut.getUserProfile(user.uuid)
 
                     result.hasProfileImage shouldBe true
+                }
+            }
+
+            `when`("유저에게 personality가 하나도 없으면") {
+                then("PreferenceNotFoundException을 던진다") {
+                    val user = UserFixtures.user()
+                    val prefsWithoutPersonality = listOf(
+                        UserPreference(user, Preference(type = PreferenceType.GENDER, name = "SOME_VALUE")),
+                        UserPreference(user, Preference(type = PreferenceType.AGE, name = "SOME_VALUE")),
+                    )
+
+                    every { userRepository.findByUuid(user.uuid) } returns user
+                    every {
+                        userPreferenceRepository.findAllByUser_IdIn(listOf(user.id))
+                    } returns prefsWithoutPersonality
+
+                    shouldThrow<PreferenceNotFoundException> { sut.getUserProfile(user.uuid) }
                 }
             }
         }
@@ -291,6 +310,98 @@ class UserServiceTest : BehaviorSpec() {
                     runCatching { sut.updateUser(request.copy(nickname = user.nickname)) }
 
                     verify(exactly = 0) { userRepository.existsByNickname(any()) }
+                }
+            }
+        }
+
+        // ── saveUserPreference(s) / updateUserPreference(s) ─────────────────────
+        // enum 값은 유효한데 preference 테이블에 매칭되는 row가 없는 경우 (시드 데이터 drift):
+        // 조용히 드롭하지 않고 IllegalStateException을 던져야 한다 (-> 500 + Discord 알림).
+
+        given("saveUserPreference 호출 시") {
+            val user = UserFixtures.user()
+
+            `when`("DB에 매칭되는 preference row가 있으면") {
+                then("정상 저장된다") {
+                    val preference = Preference(type = PreferenceType.GENDER, name = "M")
+                    every {
+                        preferenceRepository.findAllByTypeAndNameIn(PreferenceType.GENDER, listOf("M"))
+                    } returns listOf(preference)
+                    every { userPreferenceRepository.save(any()) } returns UserPreference(user, preference)
+
+                    sut.saveUserPreference(user, "M", PreferenceType.GENDER)
+
+                    verify(exactly = 1) { userPreferenceRepository.save(any()) }
+                }
+            }
+
+            `when`("DB에 매칭되는 preference row가 없으면") {
+                then("IllegalStateException을 던지고 저장하지 않는다") {
+                    every {
+                        preferenceRepository.findAllByTypeAndNameIn(PreferenceType.GENDER, listOf("M"))
+                    } returns emptyList()
+
+                    shouldThrow<IllegalStateException> {
+                        sut.saveUserPreference(user, "M", PreferenceType.GENDER)
+                    }
+                    verify(exactly = 0) { userPreferenceRepository.save(any()) }
+                }
+            }
+        }
+
+        given("saveUserPreferences 호출 시") {
+            val user = UserFixtures.user()
+
+            `when`("요청한 이름 중 일부만 DB에 매칭되면") {
+                then("IllegalStateException을 던지고 아무것도 저장하지 않는다") {
+                    val matched = Preference(type = PreferenceType.PERSONALITY, name = "INTROVERTED")
+                    every {
+                        preferenceRepository.findAllByTypeAndNameIn(
+                            PreferenceType.PERSONALITY,
+                            listOf("INTROVERTED", "UNKNOWN")
+                        )
+                    } returns listOf(matched)
+
+                    shouldThrow<IllegalStateException> {
+                        sut.saveUserPreferences(user, listOf("INTROVERTED", "UNKNOWN"), PreferenceType.PERSONALITY)
+                    }
+                    verify(exactly = 0) { userPreferenceRepository.saveAll(any<List<UserPreference>>()) }
+                }
+            }
+
+            `when`("요청한 이름이 모두 DB에 매칭되면") {
+                then("전부 저장된다") {
+                    val matched = listOf(
+                        Preference(type = PreferenceType.PERSONALITY, name = "INTROVERTED"),
+                        Preference(type = PreferenceType.PERSONALITY, name = "BOLD"),
+                    )
+                    every {
+                        preferenceRepository.findAllByTypeAndNameIn(
+                            PreferenceType.PERSONALITY,
+                            listOf("INTROVERTED", "BOLD")
+                        )
+                    } returns matched
+
+                    sut.saveUserPreferences(user, listOf("INTROVERTED", "BOLD"), PreferenceType.PERSONALITY)
+
+                    verify(exactly = 1) { userPreferenceRepository.saveAll(match<List<UserPreference>> { it.size == 2 }) }
+                }
+            }
+        }
+
+        given("updateUserPreference 호출 시") {
+            val user = UserFixtures.user()
+
+            `when`("DB에 매칭되는 preference row가 없으면") {
+                then("IllegalStateException을 던지고 기존 값을 지우지 않는다") {
+                    every {
+                        preferenceRepository.findAllByTypeAndNameIn(PreferenceType.AGE, listOf("TWENTY"))
+                    } returns emptyList()
+
+                    shouldThrow<IllegalStateException> {
+                        sut.updateUserPreference(user, "TWENTY", PreferenceType.AGE)
+                    }
+                    verify(exactly = 0) { userPreferenceRepository.deleteByUserIdAndType(user.id, PreferenceType.AGE) }
                 }
             }
         }
