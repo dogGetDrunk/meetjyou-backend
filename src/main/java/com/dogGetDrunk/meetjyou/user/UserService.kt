@@ -6,6 +6,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNot
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.preference.Preference
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreference
@@ -39,7 +40,7 @@ class UserService(
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
     companion object {
-        private const val PREFERENCE_NOT_FOUND = "Preference not found in DB: name={}, type={}"
+        private const val PREFERENCE_NOT_FOUND = "Preference not found in DB"
         // Nicknames of withdrawn accounts stay reserved for this long, then become reusable.
         private val NICKNAME_GRACE_PERIOD: Duration = Duration.ofDays(30)
     }
@@ -160,20 +161,28 @@ class UserService(
         }
     }
 
+    // Names come from validated enum constants (e.g. Personality.name), so a missing DB row means
+    // the `preference` seed data has drifted out of sync with the enum - a server-side data bug,
+    // not bad input. Fail loudly here instead of silently dropping the selection: dropping it would
+    // surface later as a confusing 404 when this (or another) user's profile is read.
+    private fun requirePreferences(names: List<String>, type: PreferenceType): Map<String, Preference> {
+        val preferenceByName = preferenceRepository.findAllByTypeAndNameIn(type, names).associateBy { it.name }
+        val missingNames = names.filterNot { preferenceByName.containsKey(it) }
+        if (missingNames.isNotEmpty()) {
+            throw IllegalStateException("$PREFERENCE_NOT_FOUND names=$missingNames, type=$type")
+        }
+        return preferenceByName
+    }
+
     fun saveUserPreference(user: User, preferenceName: String, type: PreferenceType) {
-        preferenceRepository.findByNameAndType(preferenceName, type)?.let { preference ->
-            userPreferenceRepository.save(UserPreference(user, preference))
-        } ?: log.warn(PREFERENCE_NOT_FOUND, preferenceName, type)
+        val preference = requirePreferences(listOf(preferenceName), type).getValue(preferenceName)
+        userPreferenceRepository.save(UserPreference(user, preference))
     }
 
     fun saveUserPreferences(user: User, preferenceNames: List<String>, type: PreferenceType) {
         if (preferenceNames.isEmpty()) return
-        val preferenceByName = preferenceRepository.findAllByTypeAndNameIn(type, preferenceNames)
-            .associateBy { it.name }
-        val userPreferences = preferenceNames.mapNotNull { name ->
-            preferenceByName[name]?.let { UserPreference(user, it) }
-                ?: run { log.warn(PREFERENCE_NOT_FOUND, name, type); null }
-        }
+        val preferenceByName = requirePreferences(preferenceNames, type)
+        val userPreferences = preferenceNames.map { name -> UserPreference(user, preferenceByName.getValue(name)) }
         userPreferenceRepository.saveAll(userPreferences)
     }
 
@@ -184,10 +193,9 @@ class UserService(
 
     fun updateUserPreference(user: User, preferenceName: String?, type: PreferenceType) {
         preferenceName?.let {
-            preferenceRepository.findByNameAndType(it, type)?.let { preference ->
-                userPreferenceRepository.deleteByUserIdAndType(user.id, type)
-                userPreferenceRepository.save(UserPreference(user, preference))
-            } ?: log.warn(PREFERENCE_NOT_FOUND, it, type)
+            val preference = requirePreferences(listOf(it), type).getValue(it)
+            userPreferenceRepository.deleteByUserIdAndType(user.id, type)
+            userPreferenceRepository.save(UserPreference(user, preference))
         }
     }
 
