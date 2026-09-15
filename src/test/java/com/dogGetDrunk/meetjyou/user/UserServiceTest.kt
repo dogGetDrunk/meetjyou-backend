@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.preference.Age
 import com.dogGetDrunk.meetjyou.preference.Gender
@@ -152,6 +153,7 @@ class UserServiceTest : BehaviorSpec() {
             fun requiredPreferences(user: User): List<UserPreference> = listOf(
                 UserPreference(user, Preference(type = PreferenceType.GENDER, name = "SOME_VALUE")),
                 UserPreference(user, Preference(type = PreferenceType.AGE, name = "SOME_VALUE")),
+                UserPreference(user, Preference(type = PreferenceType.PERSONALITY, name = "INTROVERTED")),
             )
 
             `when`("유저에 hasProfileImage가 false인 경우") {
@@ -179,6 +181,23 @@ class UserServiceTest : BehaviorSpec() {
                     val result = sut.getUserProfile(user.uuid)
 
                     result.hasProfileImage shouldBe true
+                }
+            }
+
+            `when`("유저에게 personality가 하나도 없으면") {
+                then("PreferenceNotFoundException을 던진다") {
+                    val user = UserFixtures.user()
+                    val prefsWithoutPersonality = listOf(
+                        UserPreference(user, Preference(type = PreferenceType.GENDER, name = "SOME_VALUE")),
+                        UserPreference(user, Preference(type = PreferenceType.AGE, name = "SOME_VALUE")),
+                    )
+
+                    every { userRepository.findByUuid(user.uuid) } returns user
+                    every {
+                        userPreferenceRepository.findAllByUser_IdIn(listOf(user.id))
+                    } returns prefsWithoutPersonality
+
+                    shouldThrow<PreferenceNotFoundException> { sut.getUserProfile(user.uuid) }
                 }
             }
         }

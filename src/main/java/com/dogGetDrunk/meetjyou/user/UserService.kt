@@ -199,11 +199,13 @@ class UserService(
             ?: throw PreferenceNotFoundException(type.name)
         fun nameList(type: PreferenceType) = userPrefs
             .filter { it.preference.type == type }.map { it.preference.name }
+        fun requiredNameList(type: PreferenceType) = nameList(type)
+            .ifEmpty { throw PreferenceNotFoundException(type.name) }
 
         return UserPreferenceData(
             gender = name(PreferenceType.GENDER),
             age = name(PreferenceType.AGE),
-            personalities = nameList(PreferenceType.PERSONALITY),
+            personalities = requiredNameList(PreferenceType.PERSONALITY),
             travelStyles = nameList(PreferenceType.TRAVEL_STYLE),
             diet = nameList(PreferenceType.DIET),
             etc = nameList(PreferenceType.ETC),
