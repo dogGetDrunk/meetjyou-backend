@@ -153,6 +153,8 @@ dependencies {
 
     // Konsist - project convention tests
     testImplementation("com.lemonappdev:konsist:0.17.3")
+    // Testcontainers - checks that need a real MySQL (see dockerTest task)
+    testImplementation("org.testcontainers:mysql")
 
     testRuntimeOnly("com.h2database:h2")
 }
@@ -170,6 +172,24 @@ tasks.withType<Test> {
             }
         }
     })
+}
+
+// Tests under src/dockerTest need a Docker daemon (Testcontainers). They live in their own
+// source set so the regular `test` task never sees them — a Gradle name filter doesn't work
+// here because the Kotest engine fails on filtered-out specs.
+val dockerTestSourceSet = sourceSets.create("dockerTest") {
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
+}
+
+configurations["dockerTestImplementation"].extendsFrom(configurations.testImplementation.get())
+configurations["dockerTestRuntimeOnly"].extendsFrom(configurations.testRuntimeOnly.get())
+
+tasks.register<Test>("dockerTest") {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Runs tests that require a Docker daemon (Testcontainers)"
+    testClassesDirs = dockerTestSourceSet.output.classesDirs
+    classpath = dockerTestSourceSet.runtimeClasspath
 }
 
 tasks.withType<KotlinJvmCompile>().configureEach {
