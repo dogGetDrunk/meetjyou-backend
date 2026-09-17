@@ -1,0 +1,17 @@
+# Project overrides on top of detekt's default config (buildUponDefaultConfig = true).
+# Existing findings are frozen in baseline.xml; new code must pass.
+# Conventions that need type resolution (`!!`, requireNotNull) are enforced by
+# src/test/.../convention/ConventionTest.kt instead.
+
+complexity:
+  LongMethod:
+    active: true
+    # CLAUDE.md: 30-line hard cap on function bodies
+    threshold: 30
+
+style:
+  WildcardImport:
+    active: true
+    excludeImports: []
+  MagicNumber:
+    active: true

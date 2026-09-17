@@ -59,7 +59,8 @@ class UserParty(
     fun isActiveMember(): Boolean = memberStatus == MemberStatus.JOINED
 
     fun updateLastReadMessageId(lastReadMessageId: Long) {
-        if (this.lastReadMessageId == null || this.lastReadMessageId!! < lastReadMessageId) {
+        val current = this.lastReadMessageId
+        if (current == null || current < lastReadMessageId) {
             this.lastReadMessageId = lastReadMessageId
         }
     }

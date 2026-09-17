@@ -1,0 +1,338 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>FunctionNaming:ChatMessageRepository.kt$ChatMessageRepository$fun countByRoom_UuidAndIdGreaterThanAndSender_UuidNot( roomUuid: UUID, id: Long, senderUuid: UUID, ): Long</ID>
+    <ID>FunctionNaming:ChatMessageRepository.kt$ChatMessageRepository$fun countByRoom_UuidAndSender_UuidNot( roomUuid: UUID, senderUuid: UUID, ): Long</ID>
+    <ID>FunctionNaming:ChatMessageRepository.kt$ChatMessageRepository$fun findByRoom_UuidAndSender_UuidAndClientMessageId( roomUuid: UUID, senderUuid: UUID, clientMessageId: UUID, ): ChatMessage?</ID>
+    <ID>FunctionNaming:ChatParticipantRepository.kt$ChatParticipantRepository$fun deleteByUser_UuidAndRoom_Uuid( userUuid: UUID, roomUuid: UUID, )</ID>
+    <ID>FunctionNaming:ChatParticipantRepository.kt$ChatParticipantRepository$fun findAllByRoom_UuidAndUser_UuidIn( roomUuid: UUID, userUuids: Collection&lt;UUID&gt;, ): List&lt;ChatParticipant&gt;</ID>
+    <ID>FunctionNaming:ChatParticipantRepository.kt$ChatParticipantRepository$fun findByUser_UuidAndRoom_Uuid( userUuid: UUID, roomUuid: UUID, ): ChatParticipant?</ID>
+    <ID>FunctionNaming:ChatRoomRepository.kt$ChatRoomRepository$fun findByParty_Uuid(partyUuid: UUID): ChatRoom?</ID>
+    <ID>FunctionNaming:IdempotencyKeyRepository.kt$IdempotencyKeyRepository$fun findByScopeAndUser_IdAndIdempotencyKey( scope: IdempotencyScope, userId: Long, idempotencyKey: String, ): IdempotencyKey?</ID>
+    <ID>FunctionNaming:MarkerRepository.kt$MarkerRepository$fun findAllByPlan_UuidIn(planUuids: List&lt;UUID&gt;): List&lt;Marker&gt;</ID>
+    <ID>FunctionNaming:MarkerRepository.kt$MarkerRepository$fun findAllByPlan_UuidInOrderByDayNumAscIdxAsc(planUuids: List&lt;UUID&gt;): List&lt;Marker&gt;</ID>
+    <ID>FunctionNaming:MarkerRepository.kt$MarkerRepository$fun findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid: UUID): List&lt;Marker&gt;</ID>
+    <ID>FunctionNaming:PartyRepository.kt$PartyRepository$fun existsByPlan_Uuid(planUuid: UUID): Boolean</ID>
+    <ID>FunctionNaming:PartyRepository.kt$PartyRepository$fun findAllByPlan_Uuid(planUuid: UUID): List&lt;Party&gt;</ID>
+    <ID>FunctionNaming:PartyRepository.kt$PartyRepository$fun findAllByPlan_Uuid(planUuid: UUID, pageable: Pageable): Page&lt;Party&gt;</ID>
+    <ID>FunctionNaming:PlanRepository.kt$PlanRepository$fun findAllByOwner_Uuid(ownerUuid: UUID, pageable: Pageable): Page&lt;Plan&gt;</ID>
+    <ID>FunctionNaming:PostRepository.kt$PostRepository$fun existsByPlan_UuidAndIsPlanPublicTrue(planUuid: UUID): Boolean</ID>
+    <ID>FunctionNaming:PostRepository.kt$PostRepository$fun existsByUuidAndAuthor_Uuid(uuid: UUID, authorUuid: UUID): Boolean</ID>
+    <ID>FunctionNaming:PostRepository.kt$PostRepository$fun findAllByAuthor_Uuid(authorUuid: UUID, pageable: Pageable): Page&lt;Post&gt;</ID>
+    <ID>FunctionNaming:PostRepository.kt$PostRepository$fun findAllByParty_UuidIn(partyUuids: Collection&lt;UUID&gt;): List&lt;Post&gt;</ID>
+    <ID>FunctionNaming:PostRepository.kt$PostRepository$fun findAllByPlan_UuidIn(planUuids: Collection&lt;UUID&gt;): List&lt;Post&gt;</ID>
+    <ID>FunctionNaming:PostRepository.kt$PostRepository$fun findByParty_Uuid(partyUuid: UUID): Post?</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun deleteAllByParty_Uuid(partyUuid: UUID): Int</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun deleteByParty_UuidAndUser_Uuid(partyUuid: UUID, userUuid: UUID): Int</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun existsByParty_Plan_UuidAndUser_UuidAndMemberStatus( planUuid: UUID, userUuid: UUID, memberStatus: MemberStatus, ): Boolean</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun existsByParty_UuidAndUser_Uuid( partyUuid: UUID, userUuid: UUID ): Boolean</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun existsByParty_UuidAndUser_UuidAndMemberStatus( partyUuid: UUID, userUuid: UUID, memberStatus: MemberStatus ): Boolean</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun findAllByParty_Uuid(partyUuid: UUID): List&lt;UserParty&gt;</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun findAllByParty_UuidAndUser_UuidIn( partyUuid: UUID, userUuids: Collection&lt;UUID&gt;, ): List&lt;UserParty&gt;</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun findAllByParty_UuidInAndUser_Uuid( partyUuids: List&lt;UUID&gt;, userUuid: UUID, ): List&lt;UserParty&gt;</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun findAllByUser_Uuid( userUuid: UUID, pageable: Pageable ): Page&lt;UserParty&gt;</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun findByParty_UuidAndRole(partyUuid: UUID, role: PartyRole): UserParty?</ID>
+    <ID>FunctionNaming:UserPartyRepository.kt$UserPartyRepository$fun findByParty_UuidAndUser_Uuid( partyUuid: UUID, userUuid: UUID ): UserParty?</ID>
+    <ID>FunctionNaming:UserPreferenceRepository.kt$UserPreferenceRepository$fun findAllByUser_IdIn(userIds: List&lt;Long&gt;): List&lt;UserPreference&gt;</ID>
+    <ID>FunctionNaming:UserTermsRepository.kt$UserTermsRepository$fun findTopByUser_IdAndTerms_TypeOrderByIdDesc(userId: Long, type: TermsType): UserTerms?</ID>
+    <ID>InvalidPackageDeclaration:TermsNotFoundException.kt$package com.dogGetDrunk.meetjyou.common.exception.business.notFound</ID>
+    <ID>LongMethod:AppleJwtDecoder.kt$AppleJwtDecoder$override fun decode(token: String): Jwt</ID>
+    <ID>LongMethod:AppleVerifier.kt$AppleVerifier$private fun verifyIdToken(token: IdToken, nonce: String?): SocialPrincipal</ID>
+    <ID>LongMethod:ChatReadService.kt$ChatReadService$@Transactional fun getMessages( roomUuid: UUID, beforeMessageUuid: UUID?, size: Int, ): GetChatMessagesResponse</ID>
+    <ID>LongMethod:ChatReadService.kt$ChatReadService$@Transactional(readOnly = true) fun getChatRooms(): GetChatRoomsResponse</ID>
+    <ID>LongMethod:ChatReadService.kt$ChatReadService$@Transactional(readOnly = true) fun getUnreadCount( roomUuid: UUID, ): Long</ID>
+    <ID>LongMethod:ChatService.kt$ChatService$@Transactional fun handleChatMessage(request: ChatMessageRequest, senderUuid: UUID)</ID>
+    <ID>LongMethod:ChatTestDataHelper.kt$ChatTestDataHelper$@Transactional fun createTestData(): TestData</ID>
+    <ID>LongMethod:DevBypassAuthFilter.kt$DevBypassAuthFilter$override fun doFilterInternal( request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain, )</ID>
+    <ID>LongMethod:DiscordAlertService.kt$DiscordAlertService$fun sendAlert( request: HttpServletRequest, status: Int, exceptionClass: String, summary: String, detail: String? = null )</ID>
+    <ID>LongMethod:GoogleVerifier.kt$GoogleVerifier$fun verifyIdToken(token: IdToken, nonce: String?): SocialPrincipal</ID>
+    <ID>LongMethod:KakaoVerifier.kt$KakaoVerifier$private fun verifyAccessToken(token: AccessToken): SocialPrincipal</ID>
+    <ID>LongMethod:KakaoVerifier.kt$KakaoVerifier$private fun verifyIdToken(token: IdToken, nonce: String? = null): SocialPrincipal</ID>
+    <ID>LongMethod:NotificationCenterService.kt$NotificationCenterService$@Transactional(readOnly = true) fun getSentApplications(pageable: Pageable): SentApplicationsSectionResponse</ID>
+    <ID>LongMethod:NotificationDispatcher.kt$NotificationDispatcher$private fun processItem(item: NotificationOutbox, tokens: List&lt;String&gt;)</ID>
+    <ID>LongMethod:NotificationEventHandler.kt$NotificationEventHandler$@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) @Transactional(propagation = Propagation.REQUIRES_NEW) fun on(event: NotificationEvent)</ID>
+    <ID>LongMethod:PartyService.kt$PartyService$@Transactional fun approveJoinRequest(partyUuid: UUID, applicantUuid: UUID)</ID>
+    <ID>LongMethod:PartyService.kt$PartyService$@Transactional fun banMember( partyUuid: UUID, targetUserUuid: UUID, )</ID>
+    <ID>LongMethod:PartyService.kt$PartyService$@Transactional fun rejectJoinRequest(partyUuid: UUID, applicantUuid: UUID)</ID>
+    <ID>LongMethod:PlanService.kt$PlanService$@Transactional fun createPlan(request: CreatePlanRequest, idempotencyKey: String? = null): CreatePlanResponse</ID>
+    <ID>LongMethod:SecurityConfig.kt$SecurityConfig$@Bean fun securityFilterChain(http: HttpSecurity): SecurityFilterChain</ID>
+    <ID>LongMethod:TermsReconsentEventHandler.kt$TermsReconsentEventHandler$@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) @Transactional(propagation = Propagation.REQUIRES_NEW) fun on(event: TermsReconsentEvent)</ID>
+    <ID>LongParameterList:ChatMessage.kt$ChatMessage$( @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long = 0, @Column(nullable = false, unique = true) @JdbcTypeCode(Types.VARCHAR) val uuid: UUID = UUID.randomUUID(), @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "room_id", nullable = false) val room: ChatRoom, @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "sender_id", nullable = false) val sender: User, @Column(length = 1000, nullable = false) val body: String, // Client-generated id for a single send attempt; lets a WS reconnect-and-resend after a lost // ack be recognized as the same message instead of persisted twice. Null for older clients // that don't send it yet, so no dedup is possible for them. @Column(name = "client_message_id") @JdbcTypeCode(Types.VARCHAR) val clientMessageId: UUID? = null, @CreationTimestamp @Column(name = "created_at", nullable = false, updatable = false) val createdAt: Instant = Instant.now() )</ID>
+    <ID>LongParameterList:ChatService.kt$ChatService$( private val chatMessageRepository: ChatMessageRepository, private val chatRoomRepository: ChatRoomRepository, private val messagingTemplate: SimpMessagingTemplate, private val userRepository: UserRepository, private val partyRepository: PartyRepository, private val userPartyRepository: UserPartyRepository, private val chatSessionTracker: ChatSessionTracker, private val chatReadService: ChatReadService, private val publisher: ApplicationEventPublisher, )</ID>
+    <ID>LongParameterList:ChatTestDataHelper.kt$ChatTestDataHelper$( private val userRepository: UserRepository, private val planRepository: PlanRepository, private val partyRepository: PartyRepository, private val chatRoomRepository: ChatRoomRepository, private val userPartyRepository: UserPartyRepository, private val chatParticipantRepository: ChatParticipantRepository, private val chatMessageRepository: ChatMessageRepository, private val notificationOutboxRepository: NotificationOutboxRepository, )</ID>
+    <ID>LongParameterList:Marker.kt$Marker$( var lat: Double, var lng: Double, var date: Instant, var dayNum: Int, var idx: Int, @Column(length = 100) var place: String, @Column(length = 500) var memo: String? = null, @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "plan_id") var plan: Plan, )</ID>
+    <ID>LongParameterList:NotificationOutbox.kt$NotificationOutbox$( @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id") val user: User, @Enumerated(EnumType.STRING) val type: NotificationType, val title: String? = null, val body: String? = null, val dataJson: String, val dedupKey: String? = null, @Enumerated(EnumType.STRING) var status: DeliveryStatus = DeliveryStatus.PENDING, var attempts: Int = 0, var availableAt: Instant = Instant.now(), )</ID>
+    <ID>LongParameterList:NotificationTemplateFactory.kt$NotificationTemplateFactory$( private val noticeTemplate: NoticeTemplate, private val chatMessageTemplate: ChatMessageTemplate, private val partyCreatedTemplate: PartyCreatedTemplate, private val partyJoinRequestTemplate: PartyJoinRequestTemplate, private val partyJoinAcceptedTemplate: PartyJoinAcceptedTemplate, private val partyJoinRejectedTemplate: PartyJoinRejectedTemplate, private val partyMemberJoinedTemplate: PartyMemberJoinedTemplate, private val termsReconsentTemplate: TermsReconsentTemplate, )</ID>
+    <ID>LongParameterList:OracleObjectStorageController.kt$OracleObjectStorageController$( private val userImgService: UserImgService, private val postImgService: PostImgService, private val partyImgService: PartyImgService, private val postService: PostService, private val partyService: PartyService, private val userService: UserService, private val currentUserProvider: CurrentUserProvider, )</ID>
+    <ID>LongParameterList:PartyService.kt$PartyService$( private val partyRepository: PartyRepository, private val postRepository: PostRepository, private val planRepository: PlanRepository, private val markerRepository: MarkerRepository, private val chatRoomRepository: ChatRoomRepository, private val chatParticipantService: ChatParticipantService, private val chatRoomEventBroadcaster: ChatRoomEventBroadcaster, private val userPartyRepository: UserPartyRepository, private val userRepository: UserRepository, private val publisher: ApplicationEventPublisher, private val partyImgService: PartyImgService, private val postImgService: PostImgService, private val objectMapper: ObjectMapper, private val currentUserProvider: CurrentUserProvider, )</ID>
+    <ID>LongParameterList:Plan.kt$Plan$( @Column(length = 20) var title: String, var itinStart: Instant, var itinFinish: Instant, var destination: String, var centerLat: Double, var centerLng: Double, var favorite: Boolean = false, @Column(length = 500) var memo: String? = null, @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "owner_id") var owner: User )</ID>
+    <ID>LongParameterList:PlanService.kt$PlanService$( private val planRepository: PlanRepository, private val markerRepository: MarkerRepository, private val userRepository: UserRepository, private val postRepository: PostRepository, private val partyRepository: PartyRepository, private val planAccessGuard: PlanAccessGuard, private val currentUserProvider: CurrentUserProvider, private val idempotencyKeyService: IdempotencyKeyService, )</ID>
+    <ID>LongParameterList:Post.kt$Post$( party: Party, @Column(columnDefinition = "TINYINT(1) DEFAULT 1") var isInstant: Boolean, var title: String, var content: String, var itinStart: Instant, var itinFinish: Instant, var location: String, var capacity: Int, )</ID>
+    <ID>LongParameterList:PostService.kt$PostService$( private val postRepository: PostRepository, private val userRepository: UserRepository, private val compPreferenceRepository: CompPreferenceRepository, private val preferenceRepository: PreferenceRepository, private val partyService: PartyService, private val planRepository: PlanRepository, private val markerRepository: MarkerRepository, private val userPartyRepository: UserPartyRepository, private val postViewService: PostViewService, private val currentUserProvider: CurrentUserProvider, private val chatRoomRepository: ChatRoomRepository, private val idempotencyKeyService: IdempotencyKeyService, )</ID>
+    <ID>LongParameterList:RefreshTokenFixtures.kt$RefreshTokenFixtures$( user: User = UserFixtures.user(), jti: String = UUID.randomUUID().toString(), expiresAt: LocalDateTime = LocalDateTime.now().plusDays(30), revoked: Boolean = false, revokedAt: Instant? = null, replacedByJti: String? = null, )</ID>
+    <ID>LongParameterList:Terms.kt$Terms$( @Enumerated(EnumType.STRING) val type: TermsType, val version: String, @Column(name = "display_text") val displayText: String, val required: Boolean, @Column(name = "content_object_key") val contentObjectKey: String, @Column(name = "content_hash") val contentHash: String, @Enumerated(EnumType.STRING) var status: TermsStatus = TermsStatus.ACTIVE, @Column(name = "effective_at") var effectiveAt: Instant = Instant.now(), )</ID>
+    <ID>LongParameterList:UserAuthService.kt$UserAuthService$( private val socialVerifierRegistry: SocialVerifierRegistry, private val userRepository: UserRepository, private val userService: UserService, private val jwtProvider: JwtProvider, private val termsService: TermsService, private val refreshTokenRepository: RefreshTokenRepository, private val adminProperties: AdminProperties, private val currentUserProvider: CurrentUserProvider, @Value("\${jwt.rotation-overlap-seconds}") private val rotationOverlapSeconds: Long, )</ID>
+    <ID>MagicNumber:AppleJwksCache.kt$AppleJwksCache$32</ID>
+    <ID>MagicNumber:AppleJwtDecoder.kt$AppleJwtDecoder$1000</ID>
+    <ID>MagicNumber:AuthRateLimitFilter.kt$AuthRateLimitFilter$10</ID>
+    <ID>MagicNumber:AuthRateLimitFilter.kt$AuthRateLimitFilter$429</ID>
+    <ID>MagicNumber:AuthRateLimitFilter.kt$AuthRateLimitFilter$50_000</ID>
+    <ID>MagicNumber:ChatService.kt$ChatService$1000</ID>
+    <ID>MagicNumber:CreatePartyRequest.kt$CreatePartyRequest$10</ID>
+    <ID>MagicNumber:CreatePostRequest.kt$CreatePostRequest$10</ID>
+    <ID>MagicNumber:DiscordAlertService.kt$DiscordAlertService$1024</ID>
+    <ID>MagicNumber:DiscordAlertService.kt$DiscordAlertService$16711680</ID>
+    <ID>MagicNumber:DiscordAlertService.kt$DiscordAlertService$200</ID>
+    <ID>MagicNumber:DiscordAlertService.kt$DiscordAlertService$500</ID>
+    <ID>MagicNumber:FcmNotificationSender.kt$FcmNotificationSender$10</ID>
+    <ID>MagicNumber:GlobalExceptionHandler.kt$GlobalExceptionHandler$1024</ID>
+    <ID>MagicNumber:GlobalExceptionHandler.kt$GlobalExceptionHandler$5</ID>
+    <ID>MagicNumber:GlobalExceptionHandler.kt$GlobalExceptionHandler$990</ID>
+    <ID>MagicNumber:JwtAuthFilter.kt$JwtAuthFilter$401</ID>
+    <ID>MagicNumber:JwtProvider.kt$JwtProvider$7</ID>
+    <ID>MagicNumber:NotificationDispatcher.kt$NotificationDispatcher$15L</ID>
+    <ID>MagicNumber:NotificationDispatcher.kt$NotificationDispatcher$180L</ID>
+    <ID>MagicNumber:NotificationDispatcher.kt$NotificationDispatcher$5L</ID>
+    <ID>MagicNumber:NotificationDispatcher.kt$NotificationDispatcher$600L</ID>
+    <ID>MagicNumber:NotificationDispatcher.kt$NotificationDispatcher$60L</ID>
+    <ID>MagicNumber:OracleObjectStorageService.kt$OracleObjectStorageService$1024</ID>
+    <ID>MagicNumber:OracleObjectStorageService.kt$OracleObjectStorageService$4</ID>
+    <ID>MagicNumber:OracleObjectStorageService.kt$OracleObjectStorageService$404</ID>
+    <ID>MagicNumber:OracleObjectStorageService.kt$OracleObjectStorageService$5</ID>
+    <ID>MagicNumber:PartyService.kt$PartyService$24</ID>
+    <ID>MagicNumber:PostViewService.kt$PostViewService$10</ID>
+    <ID>MagicNumber:PostViewService.kt$PostViewService$1000</ID>
+    <ID>MagicNumber:SecurityConfig.kt$SecurityConfig$401</ID>
+    <ID>MagicNumber:UpdatePartyRequest.kt$UpdatePartyRequest$10</ID>
+    <ID>MagicNumber:UpdatePostRequest.kt$UpdatePostRequest$10</ID>
+    <ID>MagicNumber:UserAuthService.kt$UserAuthService$5</ID>
+    <ID>MatchingDeclarationName:GetChatMessageResponse.kt$GetChatMessagesResponse</ID>
+    <ID>MatchingDeclarationName:GetPartyMembersResponse.kt$PartyMemberResponse</ID>
+    <ID>MaxLineLength:AppVersionController.kt$AppVersionController$content = [Content(mediaType = "application/json", schema = Schema(example = "{ \"message\": \"Force update set: true -&gt; false\" }"))]</ID>
+    <ID>MaxLineLength:AppVersionController.kt$AppVersionController$content = [Content(mediaType = "application/json", schema = Schema(example = "{ \"message\": \"Store release set: false -&gt; true\" }"))]</ID>
+    <ID>MaxLineLength:AppVersionController.kt$AppVersionController$content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))]</ID>
+    <ID>MaxLineLength:AppVersionController.kt$AppVersionController$content = [Content(mediaType = "application/json", schema = Schema(implementation = VersionCheckResponse::class))]</ID>
+    <ID>MaxLineLength:AppVersionController.kt$AppVersionController$content = [Content(mediaType = "application/json", schema = Schema(type = "array", implementation = AppVersionDto::class))]</ID>
+    <ID>MaxLineLength:AppVersionServiceTest.kt$AppVersionServiceTest$)</ID>
+    <ID>MaxLineLength:AppVersionServiceTest.kt$AppVersionServiceTest$every { appVersionRepository.findAllByPlatform(Platform.IOS) } returns listOf(version("1.0.0", storeReleased = false))</ID>
+    <ID>MaxLineLength:AppVersionServiceTest.kt$AppVersionServiceTest$every { appVersionRepository.findAllByPlatform(Platform.IOS) } returns listOf(version("1.0.0", storeReleased = true))</ID>
+    <ID>MaxLineLength:AppVersionServiceTest.kt$AppVersionServiceTest$every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.IOS) } returns version("1.0.0")</ID>
+    <ID>MaxLineLength:AppVersionServiceTest.kt$AppVersionServiceTest$platformStoreUrlRepository.save(match&lt;PlatformStoreUrl&gt; { it.platform == Platform.IOS &amp;&amp; it.downloadUrl == "https://apps.apple.com/app/id123" })</ID>
+    <ID>MaxLineLength:AppVersionServiceTest.kt$AppVersionServiceTest$platformStoreUrlRepository.save(match&lt;PlatformStoreUrl&gt; { it.platform == Platform.IOS &amp;&amp; it.downloadUrl == "https://new-url.com" })</ID>
+    <ID>MaxLineLength:AppleJwtDecoder.kt$AppleJwtDecoder$log.warn("Apple JWT validation failed: invalid audience. expected={}, actual={}", props.clientId, claims.audience)</ID>
+    <ID>MaxLineLength:AppleVerifierTest.kt$AppleVerifierTest$val jwt = buildJwt(subject = "apple-sub-123", email = "user@example.com", nonceHash = sha256("correct-nonce"))</ID>
+    <ID>MaxLineLength:AppleVerifierTest.kt$AppleVerifierTest$val jwt = buildJwt(subject = "apple-sub-123", email = "user@example.com", nonceHash = sha256("some-nonce"))</ID>
+    <ID>MaxLineLength:AppleVerifierTest.kt$AppleVerifierTest$val jwt = buildJwt(subject = "apple-sub-123", email = "user@example.com", nonceHash = sha256(rawNonce))</ID>
+    <ID>MaxLineLength:ApproveJoinRequestTest.kt$ApproveJoinRequestTest$val alreadyJoinedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.approve() }</ID>
+    <ID>MaxLineLength:ApproveJoinRequestTest.kt$ApproveJoinRequestTest$val bannedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.ban() }</ID>
+    <ID>MaxLineLength:ApproveJoinRequestTest.kt$ApproveJoinRequestTest$verify(exactly = 2) { publisher.publishEvent(any&lt;Any&gt;()) }</ID>
+    <ID>MaxLineLength:AssertTrueValidatorJsonIgnoreTest.kt$AssertTrueValidatorJsonIgnoreTest$fun keysOf(json: String): Set&lt;String&gt;</ID>
+    <ID>MaxLineLength:AssertTrueValidatorJsonIgnoreTest.kt$AssertTrueValidatorJsonIgnoreTest$title = "title"</ID>
+    <ID>MaxLineLength:BanMemberAndLeavePartyTest.kt$BanMemberAndLeavePartyTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership</ID>
+    <ID>MaxLineLength:BanMemberAndLeavePartyTest.kt$BanMemberAndLeavePartyTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, member.uuid) } returns leftMembership</ID>
+    <ID>MaxLineLength:BanMemberAndLeavePartyTest.kt$BanMemberAndLeavePartyTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, member.uuid) } returns memberMembership</ID>
+    <ID>MaxLineLength:BanMemberAndLeavePartyTest.kt$BanMemberAndLeavePartyTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, otherHost.uuid) } returns otherHostMembership</ID>
+    <ID>MaxLineLength:BanMemberAndLeavePartyTest.kt$BanMemberAndLeavePartyTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, target.uuid) } returns bannedMembership</ID>
+    <ID>MaxLineLength:BanMemberAndLeavePartyTest.kt$BanMemberAndLeavePartyTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, target.uuid) } returns targetMembership</ID>
+    <ID>MaxLineLength:BanMemberAndLeavePartyTest.kt$BanMemberAndLeavePartyTest$val otherHost = UserFixtures.user(email = "host2@test.com", nickname = "host2", externalId = "ext-host2")</ID>
+    <ID>MaxLineLength:ChatIntegrationTest.kt$ChatIntegrationTest$token = jwtProvider.generateAccessToken(data.userUuid, data.userEmail, com.dogGetDrunk.meetjyou.user.Role.USER)</ID>
+    <ID>MaxLineLength:ChatReadServiceQueryOptimizationTest.kt$ChatReadServiceQueryOptimizationTest$userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(requester.uuid, MemberStatus.JOINED)</ID>
+    <ID>MaxLineLength:ChatReadServiceQueryOptimizationTest.kt$ChatReadServiceQueryOptimizationTest$verify(exactly = 1) { userPartyRepository.findAllByParty_UuidAndUser_UuidIn(party.uuid, targetUuids) }</ID>
+    <ID>MaxLineLength:ChatService.kt$ChatService$if</ID>
+    <ID>MaxLineLength:ChatServiceTest.kt$ChatServiceTest$chatMessageRepository.findByRoom_UuidAndSender_UuidAndClientMessageId(roomUuid, senderUuid, clientMessageId)</ID>
+    <ID>MaxLineLength:ChatSessionTracker.kt$ChatSessionTracker$log.debug("User session connected to chat room. roomUuid={}, userUuid={}, sessionId={}", roomUuid, userUuid, sessionId)</ID>
+    <ID>MaxLineLength:ChatSessionTracker.kt$ChatSessionTracker$log.debug("User session disconnected from chat room. roomUuid={}, userUuid={}, sessionId={}", roomUuid, userUuid, sessionId)</ID>
+    <ID>MaxLineLength:CreatePlanIdempotencyTest.kt$CreatePlanIdempotencyTest$every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(existingPlan.uuid) } returns emptyList()</ID>
+    <ID>MaxLineLength:DevUserAuthServiceTest.kt$DevUserAuthServiceTest$every { jwtProvider.generateAccessToken(existingUser.uuid, existingUser.email, any()) } returns "access-token"</ID>
+    <ID>MaxLineLength:DevUserAuthServiceTest.kt$DevUserAuthServiceTest$every { jwtProvider.generateRefreshToken(existingUser.uuid, existingUser.email) }</ID>
+    <ID>MaxLineLength:FcmNotificationSender.kt$FcmNotificationSender$log.warn("FCM send failed: token={}, code={}, permanent={}", "${token.take(10)}...", e.errorCode, permanent, e)</ID>
+    <ID>MaxLineLength:GetMyPartiesTest.kt$GetMyPartiesTest$userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(user.uuid, MemberStatus.JOINED, pageable)</ID>
+    <ID>MaxLineLength:GetPartyMembersTest.kt$GetPartyMembersTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, member.uuid) } returns memberMembership</ID>
+    <ID>MaxLineLength:GetPartyMembersTest.kt$GetPartyMembersTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, outsider.uuid) } returns bannedMembership</ID>
+    <ID>MaxLineLength:GetPendingJoinRequestsTest.kt$GetPendingJoinRequestsTest$every { postRepository.findAllByParty_UuidIn(listOf(party.uuid, party2.uuid)) } returns listOf(post, post2)</ID>
+    <ID>MaxLineLength:GetPendingJoinRequestsTest.kt$GetPendingJoinRequestsTest$every { userPartyRepository.findAllSentApplicationsByUserUuid(user.uuid, pageable) } returns PageImpl(listOf(pending, accepted))</ID>
+    <ID>MaxLineLength:GetPendingJoinRequestsTest.kt$GetPendingJoinRequestsTest$every { userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(party.uuid, MemberStatus.PENDING) } returns listOf(pending)</ID>
+    <ID>MaxLineLength:GetPendingJoinRequestsTest.kt$GetPendingJoinRequestsTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership</ID>
+    <ID>MaxLineLength:GlobalExceptionHandler.kt$GlobalExceptionHandler$alert(request, HttpStatus.BAD_REQUEST.value(), e.javaClass.simpleName, "Validation failed", values.joinToString("\n"))</ID>
+    <ID>MaxLineLength:GlobalExceptionHandler.kt$GlobalExceptionHandler$public override</ID>
+    <ID>MaxLineLength:GlobalExceptionHandlerTest.kt$GlobalExceptionHandlerTest$val exception = AuthorizationDeniedException("Access Denied", mockk&lt;AuthorizationResult&gt;(relaxed = true))</ID>
+    <ID>MaxLineLength:GlobalExceptionHandlerTest.kt$GlobalExceptionHandlerTest$val response = sut.handleExceptionInternal(exception, null, HttpHeaders(), HttpStatus.BAD_REQUEST, webRequest)</ID>
+    <ID>MaxLineLength:GlobalExceptionHandlerTest.kt$GlobalExceptionHandlerTest$val response = sut.handleNoResourceFoundException(exception, HttpHeaders(), HttpStatus.NOT_FOUND, webRequest)</ID>
+    <ID>MaxLineLength:GoogleVerifierTest.kt$GoogleVerifierTest$val token = buildGoogleIdToken(subject = "google-sub-123", email = "user@example.com", nonce = "correct-nonce")</ID>
+    <ID>MaxLineLength:GoogleVerifierTest.kt$GoogleVerifierTest$val token = buildGoogleIdToken(subject = "google-sub-123", email = "user@example.com", nonce = "some-nonce")</ID>
+    <ID>MaxLineLength:GoogleVerifierTest.kt$GoogleVerifierTest$val token = buildGoogleIdToken(subject = "google-sub-123", email = "user@example.com", nonce = "test-nonce")</ID>
+    <ID>MaxLineLength:HostLeaveNotAllowedException.kt$HostLeaveNotAllowedException$)</ID>
+    <ID>MaxLineLength:JwtAuthFilter.kt$JwtAuthFilter$throw UserWithdrawnException(userUuid.toString(), message = "Withdrawn or unknown user attempted to use an access token")</ID>
+    <ID>MaxLineLength:JwtAuthFilter.kt$JwtAuthFilter$val authentication = buildAuthentication(user.uuid, jwtProvider.getUsername(token), jwtProvider.getRole(token), request)</ID>
+    <ID>MaxLineLength:LoadTestTokenKillSwitch.kt$LoadTestTokenKillSwitch$log.warn("[LOAD-TEST-TOKEN] enabled=true. Synthetic token issuance is reachable at /internal/load-test-token.")</ID>
+    <ID>MaxLineLength:LoadTestTokenServiceTest.kt$LoadTestTokenServiceTest$jwtProvider.generateAccessToken(syntheticUser.uuid, syntheticUser.email, syntheticUser.role, props.ttlMillis)</ID>
+    <ID>MaxLineLength:NotificationCenterService.kt$NotificationCenterService$return ReceivedApplicationsSectionResponse(unreadCount = unreadCount.toInt(), totalCount = page.totalElements, applications = items)</ID>
+    <ID>MaxLineLength:NotificationCenterServiceTest.kt$NotificationCenterServiceTest$every { userPartyRepository.findAllPendingRequestsForHost(hostUuid, pageable) } returns PageImpl(emptyList())</ID>
+    <ID>MaxLineLength:NotificationCenterServiceTest.kt$NotificationCenterServiceTest$every { userPartyRepository.findAllPendingRequestsForHost(hostUuid, pageable) } returns PageImpl(listOf(pending))</ID>
+    <ID>MaxLineLength:NotificationCenterServiceTest.kt$NotificationCenterServiceTest$every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable) } returns PageImpl(listOf(accepted))</ID>
+    <ID>MaxLineLength:NotificationCenterServiceTest.kt$NotificationCenterServiceTest$every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable) } returns PageImpl(listOf(pending))</ID>
+    <ID>MaxLineLength:NotificationCenterServiceTest.kt$NotificationCenterServiceTest$every { userPartyRepository.findAllSentApplicationsByUserUuid(userUuid, pageable) } returns PageImpl(listOf(rejected))</ID>
+    <ID>MaxLineLength:NotificationCenterServiceTest.kt$NotificationCenterServiceTest$private val sut = NotificationCenterService(noticeRepository, userPartyRepository, postRepository, currentUserProvider)</ID>
+    <ID>MaxLineLength:NotificationDispatcher.kt$NotificationDispatcher$mark(item, DeliveryStatus.SENT, item.attempts + 1, item.availableAt)</ID>
+    <ID>MaxLineLength:NotificationDispatcherTest.kt$NotificationDispatcherTest$every { sender.send(any(), any(), any(), any()) } throws RuntimeException("FCM error") andThen SendResult(ok = true)</ID>
+    <ID>MaxLineLength:NotificationDispatcherTest.kt$NotificationDispatcherTest$every { targetResolver.resolveUserTargets(any()) } returns mapOf(item.user.id to listOf("token-abc"))</ID>
+    <ID>MaxLineLength:NotificationDispatcherTest.kt$NotificationDispatcherTest$every { targetResolver.resolveUserTargets(any()) } returns mapOf(item1.user.id to listOf("token-abc"))</ID>
+    <ID>MaxLineLength:NotificationDispatcherTest.kt$NotificationDispatcherTest$private val sut = NotificationDispatcher(outboxRepository, targetResolver, sender, objectMapper, transactionTemplate)</ID>
+    <ID>MaxLineLength:NotificationEventHandlerTest.kt$NotificationEventHandlerTest$payload = NotificationPayload(type = NotificationType.CHAT_MESSAGE, dedupKey = "chat:room:receiver")</ID>
+    <ID>MaxLineLength:NotificationEventHandlerTest.kt$NotificationEventHandlerTest$private val sut = NotificationEventHandler(templateFactory, outboxRepository, userRepository, preferenceService, objectMapper)</ID>
+    <ID>MaxLineLength:NotificationOutboxRepository.kt$NotificationOutboxRepository$"update NotificationOutbox o set o.status = :status, o.attempts = :attempts, o.availableAt = :availableAt where o.id = :id"</ID>
+    <ID>MaxLineLength:OracleObjectStorageServiceTest.kt$OracleObjectStorageServiceTest$every { accessUri } returns "/p/token/n/test-namespace/b/test-bucket/o/image/user/profile/x-original.jpg"</ID>
+    <ID>MaxLineLength:OracleObjectStorageServiceTest.kt$OracleObjectStorageServiceTest$every { objectStorageClient.createPreauthenticatedRequest(any&lt;CreatePreauthenticatedRequestRequest&gt;()) }</ID>
+    <ID>MaxLineLength:OracleObjectStorageServiceTest.kt$OracleObjectStorageServiceTest$result.url shouldBe "https://objectstorage.ap-seoul-1.oraclecloud.com/p/token/n/test-namespace/b/test-bucket/o/image/user/profile/x-original.jpg"</ID>
+    <ID>MaxLineLength:OracleObjectStorageServiceTest.kt$OracleObjectStorageServiceTest$verify(exactly = 1) { objectStorageClient.createPreauthenticatedRequest(any&lt;CreatePreauthenticatedRequestRequest&gt;()) }</ID>
+    <ID>MaxLineLength:PartyController.kt$PartyController$description = "파티 UUID로 특정 파티를 수정합니다. PUT 특성상 전체 상태를 대체하므로, planUuid를 보내면 해당 계획서로 연결/교체되고 null로 보내면 연결이 해제됩니다. 변경 사항은 연결된 모집글에도 함께 반영됩니다."</ID>
+    <ID>MaxLineLength:PartyImageAndPlanTest.kt$PartyImageAndPlanTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)</ID>
+    <ID>MaxLineLength:PartyImageAndPlanTest.kt$PartyImageAndPlanTest$val stranger = UserFixtures.user(email = "stranger@test.com", nickname = "stranger", externalId = "ext-stranger")</ID>
+    <ID>MaxLineLength:PartyImgServiceTest.kt$PartyImgServiceTest$ParResponse(url = "https://example.com/${keySlot.captured}", httpMethod = "GET", expiresAt = Instant.now())</ID>
+    <ID>MaxLineLength:PartyImgServiceTest.kt$PartyImgServiceTest$ParResponse(url = "https://example.com/${keySlot.captured}", httpMethod = "PUT", expiresAt = Instant.now())</ID>
+    <ID>MaxLineLength:PartyJoinAlreadyMemberException.kt$PartyJoinAlreadyMemberException$)</ID>
+    <ID>MaxLineLength:PartyJoinBannedException.kt$PartyJoinBannedException$)</ID>
+    <ID>MaxLineLength:PartyJoinCancelNotAllowedException.kt$PartyJoinCancelNotAllowedException$)</ID>
+    <ID>MaxLineLength:PartyJoinNotAllowedException.kt$PartyJoinNotAllowedException$)</ID>
+    <ID>MaxLineLength:PartyJoinRejectedCooldownException.kt$PartyJoinRejectedCooldownException$)</ID>
+    <ID>MaxLineLength:PartyJoinRequestNotFoundException.kt$PartyJoinRequestNotFoundException$)</ID>
+    <ID>MaxLineLength:PartyQueryOptimizationTest.kt$PartyQueryOptimizationTest$every { partyRepository.findAllByPlanUuidWithPlan(planUuid, pageable) } returns PageImpl(listOf(party))</ID>
+    <ID>MaxLineLength:PartyQueryOptimizationTest.kt$PartyQueryOptimizationTest$every { userPartyRepository.findAllWithPartyByUserUuid(user.uuid, pageable) } returns PageImpl(listOf(userParty))</ID>
+    <ID>MaxLineLength:PartyQueryOptimizationTest.kt$PartyQueryOptimizationTest$val method = PartyService::class.functions.single { it.name == "resolvePartyThumbnailImageDownloads" }</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$PartyImageState.CUSTOM -&gt; partyImgService.createPartyThumbnailImgDownloadPars(listOf(party.uuid)).firstOrNull()</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$PartyImageState.INHERITED -&gt; post?.let { postImgService.createPostThumbnailImgDownloadPars(listOf(it.uuid)).firstOrNull() }</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$log.info("Join request already approved; treating retry as success. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$log.info("Join request already rejected; treating retry as success. partyUuid={}, applicantUuid={}", partyUuid, applicantUuid)</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$log.info("Join request approval requested. partyUuid={}, hostUuid={}, applicantUuid={}", partyUuid, hostUuid, applicantUuid)</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$log.info("Join request rejection requested. partyUuid={}, hostUuid={}, applicantUuid={}", partyUuid, hostUuid, applicantUuid)</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$log.info("Member already banned; treating retry as success. partyUuid={}, targetUserUuid={}", partyUuid, targetUserUuid)</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$private</ID>
+    <ID>MaxLineLength:PartyService.kt$PartyService$val membershipPage = userPartyRepository.findAllWithPartyByUserUuidAndMemberStatus(userUuid, MemberStatus.JOINED, pageable)</ID>
+    <ID>MaxLineLength:PlanController.kt$PlanController$@Operation(summary = "작성자 기준 조회 (관리자 전용)", description = "작성자 UUID로 여행 계획을 조회합니다. 접근 제어 없이 비공개 계획서까지 노출되므로 관리자만 호출할 수 있습니다.")</ID>
+    <ID>MaxLineLength:PostController.kt$PostController$@Operation(summary = "모집글 모집 상태 변경", description = "모집글의 모집 상태(RECRUITING / RECRUITMENT_COMPLETED)를 변경합니다. 작성자만 변경할 수 있습니다.")</ID>
+    <ID>MaxLineLength:PostIdempotencyIntegrationTest.kt$PostIdempotencyIntegrationTest$User(email = email, nickname = email.substringBefore("@"), authProvider = AuthProvider.KAKAO, externalId = email)</ID>
+    <ID>MaxLineLength:PostIdempotencyIntegrationTest.kt$PostIdempotencyIntegrationTest$postRepository.findAllByAuthorUuidWithAuthor(user.uuid, org.springframework.data.domain.Pageable.unpaged())</ID>
+    <ID>MaxLineLength:PostIdempotencyIntegrationTest.kt$PostIdempotencyIntegrationTest$val body = if (status == HttpStatus.OK) objectMapper.readValue(response.body, CreatePostResponse::class.java) else null</ID>
+    <ID>MaxLineLength:PostImgServiceTest.kt$PostImgServiceTest$ParResponse(url = "https://example.com/${keySlot.captured}", httpMethod = "GET", expiresAt = Instant.now())</ID>
+    <ID>MaxLineLength:PostImgServiceTest.kt$PostImgServiceTest$ParResponse(url = "https://example.com/${keySlot.captured}", httpMethod = "PUT", expiresAt = Instant.now())</ID>
+    <ID>MaxLineLength:PostRepository.kt$PostRepository$value = "SELECT p FROM Post p LEFT JOIN FETCH p.author LEFT JOIN FETCH p.party LEFT JOIN FETCH p.plan WHERE p.author.uuid = :authorUuid"</ID>
+    <ID>MaxLineLength:PostService.kt$PostService$?:</ID>
+    <ID>MaxLineLength:PostViewCountRepository.kt$PostViewCountRepository$value = "INSERT INTO post_view_counts (post_id, views) VALUES (:postId, 1) ON DUPLICATE KEY UPDATE views = views + 1"</ID>
+    <ID>MaxLineLength:PostViewLogRepository.kt$PostViewLogRepository$value = "INSERT INTO post_view_logs (user_id, post_id, viewed_at) VALUES (:userId, :postId, :viewedAt) ON DUPLICATE KEY UPDATE viewed_at = :viewedAt"</ID>
+    <ID>MaxLineLength:PostViewServiceTest.kt$PostViewServiceTest$every { postViewLogRepository.findById(PostViewLogId(userId, postId)) } returns Optional.of(recentLog)</ID>
+    <ID>MaxLineLength:PushTokenService.kt$PushTokenService$log.info("Deactivated push token: userUuid=${entity.user.uuid}, platform=${entity.platform}, tokenUuid=${entity.uuid}")</ID>
+    <ID>MaxLineLength:PushTokenServiceTest.kt$PushTokenServiceTest$every { appVersionRepository.findByVersionAndPlatform("1.0.0", Platform.ANDROID) } returns appVersion</ID>
+    <ID>MaxLineLength:PushTokenServiceTest.kt$PushTokenServiceTest$val newOwner = UserFixtures.user(email = "new@test.com", nickname = "newbie", externalId = "ext-new")</ID>
+    <ID>MaxLineLength:RejectJoinRequestTest.kt$RejectJoinRequestTest$val bannedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.ban() }</ID>
+    <ID>MaxLineLength:RejectJoinRequestTest.kt$RejectJoinRequestTest$val rejectedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.reject() }</ID>
+    <ID>MaxLineLength:RequestJoinPartyTest.kt$RequestJoinPartyTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid) } returns joinedMembership</ID>
+    <ID>MaxLineLength:RequestJoinPartyTest.kt$RequestJoinPartyTest$every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid) } returns pendingMembership</ID>
+    <ID>MaxLineLength:RequestJoinPartyTest.kt$RequestJoinPartyTest$val joinedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.approve() }</ID>
+    <ID>MaxLineLength:TermsServiceTest.kt$TermsServiceTest$userTermsRepository.findTopByUser_IdAndTerms_TypeOrderByIdDesc(user.id, TermsType.MARKETING_EMAIL_EVENTS)</ID>
+    <ID>MaxLineLength:TermsServiceTest.kt$TermsServiceTest$userTermsRepository.findTopByUser_IdAndTerms_TypeOrderByIdDesc(user.id, TermsType.MARKETING_SNS_EVENTS)</ID>
+    <ID>MaxLineLength:UpdatePostStatusServiceTest.kt$UpdatePostStatusServiceTest$val stranger = UserFixtures.user(email = "stranger@test.com", nickname = "stranger", externalId = "ext-stranger")</ID>
+    <ID>MaxLineLength:UserAuthController.kt$UserAuthController$content = arrayOf(Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class)))</ID>
+    <ID>MaxLineLength:UserAuthController.kt$UserAuthController$content = arrayOf(Content(mediaType = "application/json", schema = Schema(implementation = TokenResponse::class)))</ID>
+    <ID>MaxLineLength:UserAuthController.kt$UserAuthController$fun</ID>
+    <ID>MaxLineLength:UserAuthService.kt$UserAuthService$AccessToken(request.accessToken ?: throw InvalidJwtException(message = "No idToken or accessToken provided"))</ID>
+    <ID>MaxLineLength:UserAuthService.kt$UserAuthService$log.info("Login via social request received. token: {}, provider: {}", token.value.take(5), request.authProvider)</ID>
+    <ID>MaxLineLength:UserAuthService.kt$UserAuthService$private</ID>
+    <ID>MaxLineLength:UserAuthServiceTest.kt$UserAuthServiceTest$val existingUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)</ID>
+    <ID>MaxLineLength:UserAuthServiceTest.kt$UserAuthServiceTest$val newUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)</ID>
+    <ID>MaxLineLength:UserAuthServiceTest.kt$UserAuthServiceTest$val oldUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)</ID>
+    <ID>MaxLineLength:UserAuthServiceWithdrawalTest.kt$UserAuthServiceWithdrawalTest$userRepository.findByAuthProviderAndExternalId(withdrawnUser.authProvider, withdrawnUser.externalId)</ID>
+    <ID>MaxLineLength:UserAuthServiceWithdrawalTest.kt$UserAuthServiceWithdrawalTest$val principal = SocialPrincipal(withdrawnUser.authProvider, withdrawnUser.externalId, withdrawnUser.email)</ID>
+    <ID>MaxLineLength:UserAuthServiceWithdrawalTest.kt$UserAuthServiceWithdrawalTest$val record = RefreshToken(jti = "jti-1", user = withdrawnUser, expiresAt = LocalDateTime.now().plusDays(1))</ID>
+    <ID>MaxLineLength:UserController.kt$UserController$content = arrayOf(Content(mediaType = "application/json", schema = Schema(implementation = BasicUserResponse::class)))</ID>
+    <ID>MaxLineLength:UserController.kt$UserController$fun</ID>
+    <ID>MaxLineLength:UserImgServiceTest.kt$UserImgServiceTest$ParResponse(url = "https://example.com/${keySlot.captured}", httpMethod = "GET", expiresAt = Instant.now())</ID>
+    <ID>MaxLineLength:UserImgServiceTest.kt$UserImgServiceTest$ParResponse(url = "https://example.com/${keySlot.captured}", httpMethod = "PUT", expiresAt = Instant.now())</ID>
+    <ID>MaxLineLength:UserImgServiceTest.kt$UserImgServiceTest$ParResponse(url = "https://example.com/image/user/profile/${uuid}-original.jpg", httpMethod = "PUT", expiresAt = result[0].expiresAt)</ID>
+    <ID>MaxLineLength:UserImgServiceTest.kt$UserImgServiceTest$ParResponse(url = "https://example.com/image/user/profile/${uuid}-thumbnail.jpg", httpMethod = "PUT", expiresAt = result[1].expiresAt)</ID>
+    <ID>MaxLineLength:UserImgServiceTest.kt$UserImgServiceTest$result.map { it.url } shouldBe uuids.map { "https://example.com/image/user/profile/${it}-thumbnail.jpg" }</ID>
+    <ID>MaxLineLength:UserImgServiceTest.kt$UserImgServiceTest$verify(exactly = 1) { oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-original.jpg") }</ID>
+    <ID>MaxLineLength:UserImgServiceTest.kt$UserImgServiceTest$verify(exactly = 1) { oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-thumbnail.jpg") }</ID>
+    <ID>MaxLineLength:UserPreferenceRepository.kt$UserPreferenceRepository$fun</ID>
+    <ID>MaxLineLength:UserRepository.kt$UserRepository$fun</ID>
+    <ID>MaxLineLength:UserServiceTest.kt$UserServiceTest$every { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) } returns requiredPreferences(user)</ID>
+    <ID>MaxLineLength:UserServiceTest.kt$UserServiceTest$verify(exactly = 1) { userPreferenceRepository.saveAll(match&lt;List&lt;UserPreference&gt;&gt; { it.size == 2 }) }</ID>
+    <ID>MaxLineLength:WebSocketEventListener.kt$WebSocketEventListener$log.info("WebSocket connection established. roomUuid={}, userUuid={}, sessionId={}", roomUuid, userUuid, sessionId)</ID>
+    <ID>NewLineAtEndOfFile:PlanReadAccessDeniedException.kt$com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDeniedException.kt</ID>
+    <ID>ReturnCount:ChatOutboundInterceptor.kt$ChatOutboundInterceptor$override fun preSend(message: Message&lt;*&gt;, channel: MessageChannel): Message&lt;*&gt;?</ID>
+    <ID>ReturnCount:DiscordAlertService.kt$DiscordAlertService$fun sendAlert( request: HttpServletRequest, status: Int, exceptionClass: String, summary: String, detail: String? = null )</ID>
+    <ID>ReturnCount:NotificationEventHandler.kt$NotificationEventHandler$@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) @Transactional(propagation = Propagation.REQUIRES_NEW) fun on(event: NotificationEvent)</ID>
+    <ID>ReturnCount:PartyService.kt$PartyService$@Transactional(readOnly = true) fun verifyPartyHost(partyUuid: UUID, userUuid: UUID): Boolean</ID>
+    <ID>ReturnCount:PostService.kt$PostService$private fun resolvePlanResponse(planUuid: UUID?): GetPlanResponse?</ID>
+    <ID>ReturnCount:PostService.kt$PostService$private fun resolvePlanResponse(post: Post, markersMap: Map&lt;UUID, List&lt;Marker&gt;&gt;): GetPlanResponse?</ID>
+    <ID>ReturnCount:UserAuthService.kt$UserAuthService$private fun resolveGraceRetryRecord(record: RefreshToken): RefreshToken?</ID>
+    <ID>SerialVersionUIDInSerializableClass:PostViewLog.kt$PostViewLogId : Serializable</ID>
+    <ID>SpreadOperator:MeetjyouApplication.kt$(*args)</ID>
+    <ID>SpreadOperator:WebSocketConfig.kt$WebSocketConfig$(*webSocketProperties.allowedOriginPatterns.toTypedArray())</ID>
+    <ID>SwallowedException:JwtProvider.kt$JwtProvider$e: Exception</ID>
+    <ID>SwallowedException:JwtProvider.kt$JwtProvider$e: ExpiredJwtException</ID>
+    <ID>SwallowedException:TermsService.kt$TermsService$exception: IllegalArgumentException</ID>
+    <ID>ThrowsCount:AppleVerifier.kt$AppleVerifier$private fun verifyIdToken(token: IdToken, nonce: String?): SocialPrincipal</ID>
+    <ID>ThrowsCount:ChatReadService.kt$ChatReadService$@Transactional fun getMessages( roomUuid: UUID, beforeMessageUuid: UUID?, size: Int, ): GetChatMessagesResponse</ID>
+    <ID>ThrowsCount:ChatReadService.kt$ChatReadService$@Transactional fun markAsRead( roomUuid: UUID, messageUuid: UUID?, )</ID>
+    <ID>ThrowsCount:ChatReadService.kt$ChatReadService$private fun updateLastReadPosition( roomUuid: UUID, requesterUuid: UUID, messageId: Long, )</ID>
+    <ID>ThrowsCount:ChatService.kt$ChatService$@Transactional fun handleChatMessage(request: ChatMessageRequest, senderUuid: UUID)</ID>
+    <ID>ThrowsCount:ChatStompInterceptor.kt$ChatStompInterceptor$private fun handleSubscribe( accessor: StompHeaderAccessor, message: Message&lt;*&gt;, ): Message&lt;*&gt;</ID>
+    <ID>ThrowsCount:GoogleVerifier.kt$GoogleVerifier$fun verifyIdToken(token: IdToken, nonce: String?): SocialPrincipal</ID>
+    <ID>ThrowsCount:KakaoVerifier.kt$KakaoVerifier$private fun verifyAccessToken(token: AccessToken): SocialPrincipal</ID>
+    <ID>ThrowsCount:KakaoVerifier.kt$KakaoVerifier$private fun verifyIdToken(token: IdToken, nonce: String? = null): SocialPrincipal</ID>
+    <ID>ThrowsCount:PartyService.kt$PartyService$@Transactional fun approveJoinRequest(partyUuid: UUID, applicantUuid: UUID)</ID>
+    <ID>ThrowsCount:PartyService.kt$PartyService$@Transactional fun banMember( partyUuid: UUID, targetUserUuid: UUID, )</ID>
+    <ID>ThrowsCount:PartyService.kt$PartyService$@Transactional fun leaveParty( partyUuid: UUID, )</ID>
+    <ID>ThrowsCount:PartyService.kt$PartyService$private fun applyJoinRequestState(party: Party, userUuid: UUID, applicationNote: String?, existing: UserParty?): UserParty</ID>
+    <ID>ThrowsCount:PostService.kt$PostService$private fun resolvePlanReference(planUuid: UUID?, isPlanPublic: Boolean?): Pair&lt;Plan, Boolean&gt;?</ID>
+    <ID>ThrowsCount:TermsService.kt$TermsService$@Transactional(readOnly = true) fun validateRequiredTermsAgreement(agreedTermsUuids: List&lt;UUID&gt;): List&lt;Terms&gt;</ID>
+    <ID>ThrowsCount:UserAuthService.kt$UserAuthService$@Transactional fun loginViaSocial(request: LoginRequest, nonce: String? = null): TokenResponse</ID>
+    <ID>ThrowsCount:UserAuthService.kt$UserAuthService$@Transactional fun refreshToken(rawRefreshToken: String): TokenResponse</ID>
+    <ID>TooGenericExceptionCaught:AppleJwtDecoder.kt$AppleJwtDecoder$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AppleVerifier.kt$AppleVerifier$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DiscordAlertService.kt$DiscordAlertService$ex: Exception</ID>
+    <ID>TooGenericExceptionCaught:FcmNotificationSender.kt$FcmNotificationSender$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:GoogleVerifier.kt$GoogleVerifier$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:JwtProvider.kt$JwtProvider$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:KakaoVerifier.kt$KakaoVerifier$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:NotificationDispatcher.kt$NotificationDispatcher$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:OracleObjectStorageService.kt$OracleObjectStorageService$exception: Exception</ID>
+    <ID>TooGenericExceptionCaught:WebSocketEventListener.kt$WebSocketEventListener$e: Exception</ID>
+    <ID>TooManyFunctions:AppVersionService.kt$AppVersionService</ID>
+    <ID>TooManyFunctions:ChatMessageRepository.kt$ChatMessageRepository : JpaRepository</ID>
+    <ID>TooManyFunctions:ChatReadService.kt$ChatReadService</ID>
+    <ID>TooManyFunctions:GlobalExceptionHandler.kt$GlobalExceptionHandler : ResponseEntityExceptionHandler</ID>
+    <ID>TooManyFunctions:JwtProvider.kt$JwtProvider</ID>
+    <ID>TooManyFunctions:OracleObjectStorageController.kt$OracleObjectStorageController</ID>
+    <ID>TooManyFunctions:PartyController.kt$PartyController</ID>
+    <ID>TooManyFunctions:PartyService.kt$PartyService</ID>
+    <ID>TooManyFunctions:PlanService.kt$PlanService</ID>
+    <ID>TooManyFunctions:PostService.kt$PostService</ID>
+    <ID>TooManyFunctions:UserController.kt$UserController</ID>
+    <ID>TooManyFunctions:UserPartyRepository.kt$UserPartyRepository : JpaRepository</ID>
+    <ID>TooManyFunctions:UserService.kt$UserService</ID>
+    <ID>UnusedPrivateMember:LoginRequest.kt$LoginRequest$@AssertTrue(message = "credential 또는 accessToken 중 하나는 반드시 존재해야 합니다.") private fun isValidAuthentication(): Boolean</ID>
+    <ID>UnusedPrivateMember:RegistrationRequest.kt$RegistrationRequest$@AssertTrue(message = "credential 또는 accessToken 중 하나는 반드시 존재해야 합니다.") private fun isValidAuthentication(): Boolean</ID>
+    <ID>UnusedPrivateProperty:ChatIntegrationTest.kt$ChatIntegrationTest$@MockBean private lateinit var firebaseApp: FirebaseApp</ID>
+    <ID>UnusedPrivateProperty:ChatIntegrationTest.kt$ChatIntegrationTest$@MockBean private lateinit var objectStorageClient: ObjectStorageClient</ID>
+    <ID>UnusedPrivateProperty:ChatIntegrationTest.kt$ChatIntegrationTest$@MockBean private lateinit var ociAuthProvider: AuthenticationDetailsProvider</ID>
+    <ID>UnusedPrivateProperty:ChatIntegrationTest.kt$ChatIntegrationTest$@MockBean private lateinit var workRequestClient: WorkRequestClient</ID>
+    <ID>UnusedPrivateProperty:NotificationPreferenceService.kt$NotificationPreferenceService$private val userRepository: UserRepository</ID>
+    <ID>UnusedPrivateProperty:PostIdempotencyIntegrationTest.kt$PostIdempotencyIntegrationTest$@MockBean private lateinit var firebaseApp: FirebaseApp</ID>
+    <ID>UnusedPrivateProperty:PostIdempotencyIntegrationTest.kt$PostIdempotencyIntegrationTest$@MockBean private lateinit var objectStorageClient: ObjectStorageClient</ID>
+    <ID>UnusedPrivateProperty:PostIdempotencyIntegrationTest.kt$PostIdempotencyIntegrationTest$@MockBean private lateinit var ociAuthProvider: AuthenticationDetailsProvider</ID>
+    <ID>UnusedPrivateProperty:PostIdempotencyIntegrationTest.kt$PostIdempotencyIntegrationTest$@MockBean private lateinit var workRequestClient: WorkRequestClient</ID>
+    <ID>UnusedPrivateProperty:PostUpdateAccessDeniedException.kt$PostUpdateAccessDeniedException$authorUuid: UUID? = null</ID>
+    <ID>UnusedPrivateProperty:PostUpdateAccessDeniedException.kt$PostUpdateAccessDeniedException$userUuid: UUID</ID>
+    <ID>UnusedPrivateProperty:TermsControllerTest.kt$TermsControllerTest$private val objectMapper = ObjectMapper().registerKotlinModule()</ID>
+    <ID>UnusedPrivateProperty:UserAlreadyExistsException.kt$UserAlreadyExistsException$authProvider: AuthProvider? = null</ID>
+    <ID>UnusedPrivateProperty:XffTrustBoundaryTest.kt$XffTrustBoundaryTest$@MockBean private lateinit var firebaseApp: FirebaseApp</ID>
+    <ID>UnusedPrivateProperty:XffTrustBoundaryTest.kt$XffTrustBoundaryTest$@MockBean private lateinit var objectStorageClient: ObjectStorageClient</ID>
+    <ID>UnusedPrivateProperty:XffTrustBoundaryTest.kt$XffTrustBoundaryTest$@MockBean private lateinit var ociAuthProvider: AuthenticationDetailsProvider</ID>
+    <ID>UnusedPrivateProperty:XffTrustBoundaryTest.kt$XffTrustBoundaryTest$@MockBean private lateinit var workRequestClient: WorkRequestClient</ID>
+    <ID>UseCheckOrError:AppleJwksCache.kt$AppleJwksCache$throw IllegalStateException("Failed to fetch Apple JWKs")</ID>
+    <ID>UseCheckOrError:ChatController.kt$ChatController$throw IllegalStateException("Authenticated chat principal is required.")</ID>
+    <ID>UseCheckOrError:UserService.kt$UserService$throw IllegalStateException("$PREFERENCE_NOT_FOUND names=$missingNames, type=$type")</ID>
+  </CurrentIssues>
+</SmellBaseline>
