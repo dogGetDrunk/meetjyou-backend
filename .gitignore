@@ -216,3 +216,6 @@ src/main/resources/firebase/meetjyou-firebase-adminsdk.json
 ### Miscellaneous ###
 /playground.sql
 /src/main/resources/data.sql
+
+### Claude Code local work state ###
+.claude/work/
