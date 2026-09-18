@@ -1,0 +1,71 @@
+{
+  "permissions": {
+    "ask": [
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)"
+    ],
+    "deny": [
+      "Bash(git credential*)",
+      "Bash(gh auth token *)",
+      "Bash(security find-generic-password *)",
+      "Bash(security find-internet-password *)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/gap-detector.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/record-full-test.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "SubagentHandback",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/record-verifier-gaps.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/record-verifier-gaps.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/completion-gate.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
