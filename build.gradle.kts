@@ -12,6 +12,7 @@ plugins {
     id("org.springframework.boot")
     id("io.spring.dependency-management")
     id("io.gatling.gradle") version "3.15.1.1"
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
 }
 
 group = "com.example"
@@ -44,6 +45,22 @@ configurations.matching { it.name.startsWith("gatling") }.configureEach {
             useVersion("4.2.14.Final")
         }
     }
+}
+
+// detekt 1.23.x embeds the Kotlin 2.0 compiler; io.spring.dependency-management would otherwise
+// upgrade it to the project's Kotlin version and detekt refuses to run on a mismatched compiler.
+configurations.matching { it.name == "detekt" }.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin") {
+            useVersion(io.gitlab.arturbosch.detekt.getSupportedKotlinVersion())
+        }
+    }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(files("config/detekt/detekt.yml"))
+    baseline = file("config/detekt/baseline.xml")
 }
 
 java {
@@ -134,11 +151,25 @@ dependencies {
     // MockK
     testImplementation("io.mockk:mockk:1.14.5")
 
+    // Konsist - project convention tests
+    testImplementation("com.lemonappdev:konsist:0.17.3")
+
     testRuntimeOnly("com.h2database:h2")
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // A skipped test verifies nothing but still looks green (e.g. a Kotest name starting with "!").
+    addTestListener(object : TestListener {
+        override fun beforeSuite(suite: TestDescriptor) = Unit
+        override fun beforeTest(testDescriptor: TestDescriptor) = Unit
+        override fun afterTest(testDescriptor: TestDescriptor, result: TestResult) = Unit
+        override fun afterSuite(suite: TestDescriptor, result: TestResult) {
+            if (suite.parent == null && result.skippedTestCount > 0) {
+                throw GradleException("${result.skippedTestCount} test(s) were skipped; skipped tests are not allowed")
+            }
+        }
+    })
 }
 
 tasks.withType<KotlinJvmCompile>().configureEach {
