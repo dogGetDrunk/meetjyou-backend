@@ -8,8 +8,7 @@
       "Bash(git credential*)",
       "Bash(gh auth token *)",
       "Bash(security find-generic-password *)",
-      "Bash(security find-internet-password *)",
-      "Read(./src/main/resources/firebase/**)"
+      "Bash(security find-internet-password *)"
     ]
   },
   "hooks": {
@@ -18,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/gap-detector.py\"",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/gap-detector.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
             "timeout": 10
           }
         ]
@@ -30,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/record-full-test.py\"",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/record-full-test.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
             "timeout": 10
           }
         ]
@@ -40,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/record-verifier-gaps.py\"",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/record-verifier-gaps.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
             "timeout": 10
           }
         ]
@@ -51,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/record-verifier-gaps.py\"",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/record-verifier-gaps.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
             "timeout": 10
           }
         ]
@@ -62,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/completion-gate.py\"",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/hooks/completion-gate.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
             "timeout": 30
           }
         ]

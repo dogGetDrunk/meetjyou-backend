@@ -69,6 +69,24 @@ def ledger(repo, rows):
     write(repo, ".claude/work/ledger-feat-x.md", f"| ID | 상태 |\n|---|---|\n{rows}", append=False)
 
 
+def hook_commands():
+    """The command strings Claude Code actually runs, read from .claude/settings.json."""
+    settings = os.path.join(os.path.dirname(HOOKS), "settings.json")
+    with open(settings, encoding="utf-8") as f:
+        events = json.load(f)["hooks"]
+    return {
+        hook["command"]
+        for entries in events.values() for entry in entries for hook in entry["hooks"]
+    }
+
+
+def run_command(command, cwd, project_dir, payload):
+    """Run a hook command the way the harness does: through a shell, with CLAUDE_PROJECT_DIR set."""
+    environment = dict(os.environ, CLAUDE_PROJECT_DIR=project_dir)
+    return subprocess.run(command, shell=True, cwd=cwd, env=environment,
+                          input=json.dumps(payload), capture_output=True, text=True)
+
+
 def new_repo():
     repo = tempfile.mkdtemp()
     sh(repo, "init", "-q", "-b", "main")
@@ -190,6 +208,25 @@ def scenarios_branch_isolation(repo):
           blocked(stop(repo, "result: 완료"), "전체 테스트"))
 
 
+def scenarios_hook_commands():
+    """A worktree session's CLAUDE_PROJECT_DIR points at the main checkout, not the worktree."""
+    repo = new_repo()
+    shutil.copytree(HOOKS, os.path.join(repo, ".claude", "hooks"), dirs_exist_ok=True)
+    elsewhere = tempfile.mkdtemp()
+    payload = {"cwd": repo, "tool_input": {"command": "./gradlew test"},
+               "tool_response": {"stdout": "BUILD SUCCESSFUL", "stderr": "", "interrupted": False, "isImage": False}}
+    failures = [c for c in hook_commands() if run_command(c, repo, elsewhere, payload).returncode != 0]
+    check("hook commands run from a worktree with a foreign CLAUDE_PROJECT_DIR", not failures,
+          f"{len(failures)} command(s) failed")
+    marker = os.path.join(repo, ".claude", "work", "last-full-test-feat-x.json")
+    check("hook command resolves scripts in the current repo", os.path.exists(marker))
+    bare = new_repo()
+    failures = [c for c in hook_commands() if run_command(c, bare, elsewhere, payload).returncode != 0]
+    check("hook commands exit quietly where the scripts are absent", not failures)
+    shutil.rmtree(repo)
+    shutil.rmtree(bare)
+
+
 def main():
     repo = new_repo()
     scenarios_claim_detection(repo)
@@ -198,6 +235,7 @@ def main():
     scenarios_gap_detection(repo)
     scenarios_gap_protocol(repo)
     scenarios_branch_isolation(repo)
+    scenarios_hook_commands()
     check("non-git cwd -> silent", stop(tempfile.mkdtemp(), "result: 완료") == {})
     shutil.rmtree(repo)
     failed = [name for name, ok in results if not ok]

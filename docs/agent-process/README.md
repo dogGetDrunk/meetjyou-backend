@@ -66,6 +66,7 @@
 
 - 커밋 대상: `.claude/settings.json`, `.claude/hooks/`, `.claude/templates/`, `.claude/agents/`, `docs/agent-process/`
 - hook 회귀 테스트: `python3 .claude/hooks/test_hooks.py` (CI에서도 실행). hook 수정 시 시나리오 추가
+  - 스크립트뿐 아니라 `settings.json`의 **명령 문자열 자체**도 실행해 검증 (worktree에서 `$CLAUDE_PROJECT_DIR`가 원본 체크아웃을 가리키는 문제 — G13)
 - 로컬 전용(gitignore): `.claude/work/` — worktree마다 따로
   - `ledger-<branch>.md` 원장 / `.last-full-test` 테스트 마커
   - `gap-pending-<branch>.jsonl` 감지된 추궁 / `gap-triage-<branch>.md` 판정
