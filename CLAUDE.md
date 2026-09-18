@@ -26,6 +26,7 @@ SPRING_PROFILES_ACTIVE=dev,db,secrets \
   ./gradlew bootRun                                      # run (dev profile, local)
 ./gradlew test                                           # all tests
 ./gradlew test --tests "FullyQualifiedClass.methodName"  # single test
+./gradlew dockerTest                                     # src/dockerTest (Testcontainers MySQL); needs a running Docker daemon
 ```
 
 ## Code Style
