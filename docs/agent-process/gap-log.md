@@ -108,3 +108,10 @@
 - 놓친 층: L3
 - 왜 놓쳤나: hook 명령을 `$CLAUDE_PROJECT_DIR` 기준으로 작성했는데, worktree 세션에서는 설정이 worktree에서 읽히면서도 이 변수는 원본 체크아웃을 가리킴. 원장에 [추정]으로 적어두고 실행으로 확인하지 않았고, 테스트가 스크립트만 직접 호출해 명령 문자열은 한 번도 실행하지 않았음
 - 추가한 장치: `.claude/settings.json`(현재 저장소의 git 루트로 스크립트 경로 해석, 없으면 조용히 종료), `.claude/hooks/test_hooks.py`(설정 파일의 실제 명령 문자열을 낯선 CLAUDE_PROJECT_DIR로 실행하는 시나리오 3개)
+
+### G14. 원장 수용 기준이 로컬 환경과 CI 환경의 차이를 반영하지 못해 멀티아치 빌드 실패 위험을 놓침
+- 날짜 / 출처: 2026-09-20, AWS EC2(t4g.small, arm64) 이관 작업 중 requirement-verifier 검증 (R3/I3 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 원장 I1의 수용 기준을 "워크플로우 파일에 `linux/arm64` 플랫폼 명시"로만 좁게 정의해, `docker buildx build --platform ...`가 실제로 CI에서 성공하는지가 아니라 플래그 존재 여부만 확인 대상이 됨. 로컬 검증(I3)도 로컬 Docker Desktop 빌더가 QEMU를 이미 내장하고 있어 GitHub Actions `ubuntu-latest`(QEMU 미등록)와의 환경 차이를 드러내지 못함
+- 추가한 장치: `.github/workflows/deploy.yml`에 `docker/setup-qemu-action@v3`·`docker/setup-buildx-action@v3` 스텝을 buildx 빌드 스텝 앞에 추가 — 크로스 아키텍처 빌드의 필수 전제조건을 CI 파이프라인 자체에 고정
