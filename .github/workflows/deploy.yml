@@ -99,6 +99,27 @@ jobs:
             IMAGE_TAG=${{ github.sha }}
             EOF
 
+      # firebase-adminsdk.json / oci/config / oci/private-key.pem are not managed by git or
+      # GitHub Secrets — they're placed manually on the server filesystem, so they're easy to
+      # miss when moving to a new host (this exact gap broke the first AWS migration deploy).
+      - name: 호스트 파일 시크릿 존재 확인 (수동 배치 대상, CI 미관리)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            MISSING=0
+            for f in ~/meetjyou/data/spring_boot/firebase-adminsdk.json ~/meetjyou/data/spring_boot/oci/config ~/meetjyou/data/spring_boot/oci/private-key.pem ~/meetjyou/data/nginx/app.conf; do
+              if [ ! -f "$f" ]; then
+                echo "Missing required file secret: $f (not managed by git/GitHub Secrets — must be placed manually on the host)"
+                MISSING=1
+              fi
+            done
+            if [ "$MISSING" = "1" ]; then
+              exit 1
+            fi
+
       - name: 배포 + 헬스체크 + 실패 시 자동 롤백
         uses: appleboy/ssh-action@master
         with:
@@ -111,7 +132,7 @@ jobs:
             docker compose pull
             docker compose up -d
 
-            echo "헬스체크 대기 중... (OCI 프리티어 기동 시간을 고려해 최대 300초 대기)"
+            echo "헬스체크 대기 중... (최대 300초 대기)"
             HEALTHY=false
             for i in $(seq 1 60); do
               if curl -sf http://127.0.0.1:8081/actuator/health | grep -q '"status":"UP"'; then
@@ -124,6 +145,9 @@ jobs:
             if [ "$HEALTHY" = "true" ]; then
               echo "${{ github.sha }}" > CURRENT_TAG
               echo "배포 성공: ${{ github.sha }}"
+              # Only prune on a confirmed-healthy deploy — old tags stick around after a
+              # rollback so the failed image is still there to inspect while debugging.
+              docker image prune -a -f
             else
               echo "헬스체크 실패, 이전 버전으로 롤백합니다."
               PREV_TAG=$(cat CURRENT_TAG 2>/dev/null || echo "latest")
