@@ -108,3 +108,24 @@
 - 놓친 층: L3
 - 왜 놓쳤나: hook 명령을 `$CLAUDE_PROJECT_DIR` 기준으로 작성했는데, worktree 세션에서는 설정이 worktree에서 읽히면서도 이 변수는 원본 체크아웃을 가리킴. 원장에 [추정]으로 적어두고 실행으로 확인하지 않았고, 테스트가 스크립트만 직접 호출해 명령 문자열은 한 번도 실행하지 않았음
 - 추가한 장치: `.claude/settings.json`(현재 저장소의 git 루트로 스크립트 경로 해석, 없으면 조용히 종료), `.claude/hooks/test_hooks.py`(설정 파일의 실제 명령 문자열을 낯선 CLAUDE_PROJECT_DIR로 실행하는 시나리오 3개)
+
+### G14. 원장 수용 기준이 로컬 환경과 CI 환경의 차이를 반영하지 못해 멀티아치 빌드 실패 위험을 놓침
+- 날짜 / 출처: 2026-09-20, AWS EC2(t4g.small, arm64) 이관 작업 중 requirement-verifier 검증 (R3/I3 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 원장 I1의 수용 기준을 "워크플로우 파일에 `linux/arm64` 플랫폼 명시"로만 좁게 정의해, `docker buildx build --platform ...`가 실제로 CI에서 성공하는지가 아니라 플래그 존재 여부만 확인 대상이 됨. 로컬 검증(I3)도 로컬 Docker Desktop 빌더가 QEMU를 이미 내장하고 있어 GitHub Actions `ubuntu-latest`(QEMU 미등록)와의 환경 차이를 드러내지 못함
+- 추가한 장치: `.github/workflows/deploy.yml`에 `docker/setup-qemu-action@v3`·`docker/setup-buildx-action@v3` 스텝을 buildx 빌드 스텝 앞에 추가 — 크로스 아키텍처 빌드의 필수 전제조건을 CI 파이프라인 자체에 고정
+
+### G15. 호스트 바인드 마운트 파일 시크릿이 원장 범위에서 완전히 누락됨
+- 날짜 / 출처: 2026-09-20, AWS EC2 이관 workflow_dispatch 재시도(run 35496288525) 실패 진단 중
+- 발견 경로: 자체 발견 (`docker logs spring_boot`로 배포 실패 원인 조사 중)
+- 놓친 층: L1
+- 왜 놓쳤나: 영향 분석 체크리스트(§2)가 "진실 원천"을 GitHub Secrets(`SPRING_DATASOURCE_URL` 등 env var) 기준으로만 점검했고, `docker-compose.yml`이 `./data/spring_boot/firebase-adminsdk.json`·`./data/spring_boot/oci/{config,private-key.pem}`를 호스트 파일 바인드 마운트로 참조한다는 사실을 확인하지 않음. 이 파일들은 git에도 GitHub Secrets에도 없고 OCI 서버에만 수동으로 존재해, "시크릿 = GitHub Secrets"라는 암묵적 가정이 깨짐. 새 인스턴스에 파일이 없자 Docker가 빈 디렉터리를 자동 생성했고, 이후 재전송한 파일이 이미 시작된 컨테이너의 바인드 마운트(디렉터리→파일 전환)에 반영되지 않아 두 번째 함정(컨테이너 재생성 필요)까지 발생
+- 추가한 장치: `.github/workflows/deploy.yml`에 "호스트 파일 시크릿 존재 확인" 스텝 추가 — `.env` 업로드 직후·배포 실행 직전에 `firebase-adminsdk.json`·`oci/config`·`oci/private-key.pem` 3개 파일의 존재를 SSH로 확인하고, 하나라도 없으면 명확한 에러 메시지와 함께 즉시 실패(exit 1). 앞으로 어떤 새 호스트로 옮기든 이 사일런트 실패(빈 디렉터리 자동 생성 → 알아보기 어려운 빈 생성 예외)가 CI 단계에서 바로 드러나도록 고정
+
+### G16. nginx 설정도 호스트 전용 파일이었고, deploy.yml 헬스체크가 nginx 계층을 전혀 검증하지 않음
+- 날짜 / 출처: 2026-09-21, DNS 컷오버 준비 중 자체 발견
+- 발견 경로: 자체 발견 (컷오버 전 점검 중 `docker logs nginx`로 확인)
+- 놓친 층: L1
+- 왜 놓쳤나: G15에서 "호스트 바인드 마운트 파일"을 firebase/oci 시크릿으로만 한정해서 봤고, `docker-compose.yml`이 `./data/nginx`(리버스 프록시 설정)·`./data/certbot`(TLS 인증서)도 동일하게 호스트 전용으로 마운트한다는 걸 놓침. 게다가 `deploy.yml`의 헬스체크가 `curl 127.0.0.1:8081/actuator/health`로 **spring_boot 컨테이너에 직접** 접속해 확인하기 때문에, nginx가 설정 없이 기본 페이지만 서빙하거나 죽어 있어도(exited) CI 헬스체크는 계속 성공으로 판정 — 실제 공개 도메인(HTTPS)은 완전히 깨진 채로 "배포 성공"이 보고될 수 있었음
+- 추가한 장치: `.github/workflows/deploy.yml`의 "호스트 파일 시크릿 존재 확인" 스텝에 `~/meetjyou/data/nginx/app.conf` 존재 확인 추가(파일:37번째 줄 for 루프). Let's Encrypt 인증서(`data/certbot/conf/live/.../fullchain.pem`)는 DNS가 그 호스트를 가리켜야만 발급 가능한 구조라 이 사전 확인에는 포함하지 않음(정상적인 최초 컷오버 흐름에서는 원래 없는 게 맞는 상태이므로) — 대신 원장 §4에 "deploy.yml 헬스체크는 nginx/TLS 계층을 검증하지 않는다"는 한계를 기록해 재발 시 빠르게 원인을 좁힐 수 있게 함
