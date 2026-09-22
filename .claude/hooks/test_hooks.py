@@ -208,6 +208,26 @@ def scenarios_branch_isolation(repo):
           blocked(stop(repo, "result: 완료"), "전체 테스트"))
 
 
+def scenarios_post_merge_base():
+    """A completion claim made after this branch's own PR already merged into BASE_REF
+    must not degenerate merge-base(HEAD, BASE_REF) to HEAD itself (see gap-log G17)."""
+    repo = new_repo()
+    triage(repo, "- 갭: 영향 분석 누락 → L1\n")
+    write(repo, "deploy.yml", "check: true\n")
+    write(repo, "docs/agent-process/gap-log.md", gap_entry(2, "`deploy.yml` 체크 추가"))
+    sh(repo, "add", "-A")
+    sh(repo, "commit", "-qm", "work")
+    check("gap entry citing a changed file -> silent, before merge", stop(repo, "result: 완료") == {})
+    sh(repo, "checkout", "-q", "main")
+    sh(repo, "merge", "-q", "--no-ff", "-m", "merge feat/x", "feat/x")
+    sh(repo, "update-ref", "refs/remotes/origin/main", "main")
+    sh(repo, "checkout", "-q", "feat/x")
+    out = stop(repo, "result: 완료")
+    check("gap entry still valid after BASE_REF absorbs this branch's merge commit",
+          out == {}, str(out))
+    shutil.rmtree(repo)
+
+
 def scenarios_hook_commands():
     """A worktree session's CLAUDE_PROJECT_DIR points at the main checkout, not the worktree."""
     repo = new_repo()
@@ -235,6 +255,7 @@ def main():
     scenarios_gap_detection(repo)
     scenarios_gap_protocol(repo)
     scenarios_branch_isolation(repo)
+    scenarios_post_merge_base()
     scenarios_hook_commands()
     check("non-git cwd -> silent", stop(tempfile.mkdtemp(), "result: 완료") == {})
     shutil.rmtree(repo)

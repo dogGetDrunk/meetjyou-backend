@@ -28,7 +28,23 @@ def work_file(root, stem, extension):
 
 
 def resolve_base(root):
-    return git(root, "merge-base", "HEAD", BASE_REF) or "HEAD"
+    head = git(root, "rev-parse", "HEAD")
+    base = git(root, "merge-base", "HEAD", BASE_REF) or "HEAD"
+    if base != head:
+        return base
+    # HEAD is already an ancestor of BASE_REF (this branch was merged and BASE_REF
+    # moved to include it), so the merge-base degenerates to HEAD itself and every
+    # "changed since base" diff would come back empty. Recover the pre-merge base:
+    # first try BASE_REF's reflog (the fork point survives BASE_REF moving forward),
+    # then fall back to BASE_REF's first parent when its tip is the merge commit that
+    # introduced HEAD.
+    fork_point = git(root, "merge-base", "--fork-point", BASE_REF, "HEAD")
+    if fork_point and fork_point != head:
+        return fork_point
+    parents = git(root, "log", "-1", "--format=%P", BASE_REF).split()
+    if len(parents) > 1:
+        return parents[0]
+    return base
 
 
 def changed_paths(root, pathspec):
