@@ -12,9 +12,28 @@ import tempfile
 import time
 
 HOOKS = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
-MTIME_STEP_SECONDS = 1.1
 CHALLENGES_BEFORE_TRIAGE = 8
 results = []
+
+# Virtual clock for file mtimes. Scenarios depend on ordering ("source edited after the test
+# marker"), which sleeping past the filesystem's mtime granularity used to guarantee at ~1s per
+# write. Instead, test-written files and markers get explicit, strictly increasing mtimes in the
+# past; anything git itself touches (checkout, index) carries the real current time and so still
+# counts as newer than every virtual timestamp.
+VIRTUAL_CLOCK_START = time.time() - 86400
+VIRTUAL_TICK_SECONDS = 2
+virtual_now = VIRTUAL_CLOCK_START
+
+
+def tick():
+    global virtual_now
+    virtual_now += VIRTUAL_TICK_SECONDS
+    return virtual_now
+
+
+def stamp(path):
+    moment = tick()
+    os.utime(path, (moment, moment))
 
 
 def run(script, payload):
@@ -33,11 +52,11 @@ def sh(repo, *args):
 
 
 def write(repo, path, text, append=True):
-    time.sleep(MTIME_STEP_SECONDS)
     full = os.path.join(repo, path)
     os.makedirs(os.path.dirname(full), exist_ok=True)
     with open(full, "a" if append else "w", encoding="utf-8") as f:
         f.write(text)
+    stamp(full)
 
 
 def stop(repo, message, active=False):
@@ -59,6 +78,12 @@ def handback(repo, report):
 def gradle(repo, command, stdout="BUILD SUCCESSFUL in 1m"):
     response = {"stdout": stdout, "stderr": "", "interrupted": False, "isImage": False}
     run("record-full-test.py", {"cwd": repo, "tool_input": {"command": command}, "tool_response": response})
+    # A marker the hook just wrote carries the real time; move it onto the virtual clock.
+    work = os.path.join(repo, ".claude", "work")
+    for name in os.listdir(work) if os.path.isdir(work) else []:
+        marker = os.path.join(work, name)
+        if name.startswith("last-full-test-") and os.path.getmtime(marker) > VIRTUAL_CLOCK_START:
+            stamp(marker)
 
 
 def triage(repo, verdicts):
