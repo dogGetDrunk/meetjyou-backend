@@ -12,9 +12,28 @@ import tempfile
 import time
 
 HOOKS = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
-MTIME_STEP_SECONDS = 1.1
 CHALLENGES_BEFORE_TRIAGE = 8
 results = []
+
+# Virtual clock for file mtimes. Scenarios depend on ordering ("source edited after the test
+# marker"), which sleeping past the filesystem's mtime granularity used to guarantee at ~1s per
+# write. Instead, test-written files and markers get explicit, strictly increasing mtimes in the
+# past; anything git itself touches (checkout, index) carries the real current time and so still
+# counts as newer than every virtual timestamp.
+VIRTUAL_CLOCK_START = time.time() - 86400
+VIRTUAL_TICK_SECONDS = 2
+virtual_now = VIRTUAL_CLOCK_START
+
+
+def tick():
+    global virtual_now
+    virtual_now += VIRTUAL_TICK_SECONDS
+    return virtual_now
+
+
+def stamp(path):
+    moment = tick()
+    os.utime(path, (moment, moment))
 
 
 def run(script, payload):
@@ -33,11 +52,11 @@ def sh(repo, *args):
 
 
 def write(repo, path, text, append=True):
-    time.sleep(MTIME_STEP_SECONDS)
     full = os.path.join(repo, path)
     os.makedirs(os.path.dirname(full), exist_ok=True)
     with open(full, "a" if append else "w", encoding="utf-8") as f:
         f.write(text)
+    stamp(full)
 
 
 def stop(repo, message, active=False):
@@ -59,6 +78,14 @@ def handback(repo, report):
 def gradle(repo, command, stdout="BUILD SUCCESSFUL in 1m"):
     response = {"stdout": stdout, "stderr": "", "interrupted": False, "isImage": False}
     run("record-full-test.py", {"cwd": repo, "tool_input": {"command": command}, "tool_response": response})
+    # A marker the hook just wrote carries the real time; move it onto the virtual clock. Only
+    # markers newer than virtual_now qualify — older ones are already virtual, and restamping them
+    # would let a run the hook ignored (failed, partial, piped) look like a fresh full test.
+    work = os.path.join(repo, ".claude", "work")
+    for name in os.listdir(work) if os.path.isdir(work) else []:
+        marker = os.path.join(work, name)
+        if name.startswith("last-full-test-") and os.path.getmtime(marker) > virtual_now:
+            stamp(marker)
 
 
 def triage(repo, verdicts):
@@ -130,6 +157,8 @@ def scenarios_test_evidence(repo):
     check("one production file + fresh full test -> silent (no ledger needed)", stop(repo, "result: 완료") == {})
     write(repo, "src/main/A.kt", "y\n")
     check("source edited after test -> block", blocked(stop(repo, "result: 완료"), "전체 테스트"))
+    gradle(repo, "./gradlew test", stdout="BUILD FAILED")
+    check("failed run does not refresh a stale marker", blocked(stop(repo, "result: 완료"), "전체 테스트"))
     out = stop(repo, "result: 완료", active=True)
     check("already continuing -> systemMessage only", "systemMessage" in out and "decision" not in out)
     gradle(repo, "./gradlew build")
@@ -197,6 +226,9 @@ def scenarios_gap_protocol(repo):
 
 
 def scenarios_branch_isolation(repo):
+    # feat/x's own marker goes stale here; only feat/y's later full test could "rescue" it.
+    write(repo, "src/main/A.kt", "edited after feat/x's last full test\n")
+    edited_at = virtual_now
     sh(repo, "add", "-A")
     sh(repo, "commit", "-qm", "work")
     sh(repo, "checkout", "-qb", "feat/y", "main")
@@ -204,6 +236,10 @@ def scenarios_branch_isolation(repo):
     write(repo, "src/main/Untracked.kt", "u\n")
     gradle(repo, "./gradlew test")
     sh(repo, "checkout", "-q", "feat/x")
+    # checkout rewrote feat/x's files with the real current time, which alone would block; put
+    # them back before feat/y's test so that only the marker's branch decides the outcome.
+    for path in ("src/main/A.kt", "src/main/B.kt"):
+        os.utime(os.path.join(repo, path), (edited_at, edited_at))
     check("test marker from another branch does not count",
           blocked(stop(repo, "result: 완료"), "전체 테스트"))
 

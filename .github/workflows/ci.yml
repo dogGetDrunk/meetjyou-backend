@@ -4,6 +4,12 @@ on:
   pull_request:
     branches:
       - main
+  # Runs after each merge so the Gradle dependency cache is saved in main's scope: a cache saved
+  # by a pull_request run is visible only to that PR, while every PR can restore main's.
+  # Also checks the merged main itself.
+  push:
+    branches:
+      - main
 
 jobs:
   build-and-test:
@@ -18,16 +24,16 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '21'
+          # Caches the Gradle wrapper and dependencies, keyed on the build files' hash.
+          cache: 'gradle'
 
       - name: Agent process hook tests
         run: python3 .claude/hooks/test_hooks.py
 
-      - name: Build & Test
-        run: ./gradlew build --no-daemon
-
-      # Needs a Docker daemon (Testcontainers MySQL); GitHub-hosted runners provide one.
-      - name: Preference seed consistency test
-        run: ./gradlew dockerTest --no-daemon
+      # One Gradle invocation for both, instead of paying JVM startup + configuration twice.
+      # dockerTest needs a Docker daemon (Testcontainers MySQL); GitHub-hosted runners provide one.
+      - name: Build & Test + preference seed consistency test
+        run: ./gradlew build dockerTest --no-daemon
 
       - name: Upload test report
         if: always()

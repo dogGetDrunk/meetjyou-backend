@@ -150,3 +150,17 @@
 - 놓친 층: L1
 - 왜 놓쳤나: 기존 스크립트는 `down`이 먼저 앱을 내렸기 때문에, pull/up이 실패하면 헬스체크가 반드시 실패해 롤백·exit 1·Discord 알림으로 이어졌음. 이 "실패를 드러내는 부수효과"가 암묵적이었고, 영향 분석은 정상 경로·IP 변경·롤백만 시뮬레이션함. `set -e`가 없는 스크립트에서 `down`을 없애자 pull 실패 시 옛 컨테이너가 헬스체크를 통과해 exit 0, `CURRENT_TAG`에 배포되지 않은 SHA가 기록됨 (로컬 모의 스택에서 재현: `배포 성공: 9.99-missing`, 실행 이미지는 1.36)
 - 추가한 장치: `.github/workflows/deploy.yml` — pull 실패 시 즉시 exit 1, 헬스 루프가 실행 중 컨테이너의 이미지 태그가 새 SHA일 때만 UP을 인정(수정 후 재현: pull 실패·up 실패 모두 exit 1, 무중단). `.claude/templates/ledger.md` 영향 분석 체크리스트에 "실패 경로 불변식" 항목 추가
+
+### G20. hook 테스트 가상 시계 헬퍼가 hook이 무시한 실행에서도 옛 마커를 갱신
+- 날짜 / 출처: 2026-09-22, CI 시간 단축(sleep → 가상 시계) 후 requirement-verifier 검증 (R1 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: `gradle()` 헬퍼의 재스탬프 조건을 `getmtime > VIRTUAL_CLOCK_START`로 잡아, 이미 가상 시각인 기존 마커에도 참이 됨 → 실패·부분 실행 뒤에도 마커가 최신으로 보임. 원장 R1의 수용 기준이 "45/45 유지 + 게이트 뮤턴트 검출"뿐이라, 테스트 **헬퍼 자체**가 "hook이 무시한 실행"을 거짓으로 green 만드는 경로를 점검하지 않음. 기존 45개 시나리오 중 그 경로를 타는 것이 없어 통과
+- 추가한 장치: `.claude/hooks/test_hooks.py` — 조건을 `> virtual_now`(hook이 방금 실제 시각으로 쓴 마커만)로 수정 + 시나리오 "failed run does not refresh a stale marker" 추가 (수정 전 FAIL 확인 후 green)
+
+### G21. "다른 브랜치 마커 무효" 시나리오가 브랜치 격리를 검증하지 않았음 (공허한 테스트)
+- 날짜 / 출처: 2026-09-22, 같은 검증에서 브랜치 무관 마커 뮤턴트로 발견. origin/main 버전 테스트도 같은 뮤턴트에서 45/45 (기존 결함)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 시나리오가 차단되는 진짜 이유가 마커의 브랜치가 아니라 `git checkout`이 feat/x 파일을 실제 현재 시각으로 다시 쓰는 것이었음. 시나리오 도입 시 해당 동작을 망가뜨린 뮤턴트로 red를 확인하지 않음
+- 추가한 장치: `.claude/hooks/test_hooks.py` `scenarios_branch_isolation` 재작성 — feat/x 마커를 소스 수정으로 stale하게 만들고, checkout이 바꾼 mtime을 되돌려 마커의 브랜치만 판정을 가르게 함. 브랜치 무관 마커 뮤턴트(`record-full-test.py`가 항상 feat-x 마커에 기록)에서 FAIL 확인
