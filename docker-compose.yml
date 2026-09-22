@@ -17,8 +17,12 @@ services:
       - ./data/spring_boot/oci:/run/secrets/oci:ro
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+    # Fixed so nginx's cached upstream IP (resolved once at config load) stays valid when the app
+    # alone is recreated — including manual "docker compose up -d spring_boot" on the host.
+    # deploy.yml still reloads nginx as a backstop.
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.28.0.20
 
   nginx:
     image: nginx:1.26.3

@@ -3,7 +3,10 @@
 # patch 버전까지 고정해 재현성을 확보하되, 다이제스트까지는 안 박아서(과함, 보안 패치 자동 반영 포기) 절충함.
 # 갱신 시점: Corretto 21의 다음 patch 릴리즈로 의도적으로 올릴 때만 이 태그를 수동으로 변경할 것.
 # 1️⃣ 빌드 단계 (Gradle 빌드 수행)
-FROM amazoncorretto:21.0.12 AS builder
+# BUILDPLATFORM pins this stage to the runner's native arch: the JAR is platform-independent
+# bytecode, so building it once natively and copying it into each target image avoids running
+# Gradle under QEMU emulation for arm64 (that made the multi-arch build ~10x slower: 152s → 1522s).
+FROM --platform=$BUILDPLATFORM amazoncorretto:21.0.12 AS builder
 
 # 작업 디렉토리 설정
 WORKDIR /app
