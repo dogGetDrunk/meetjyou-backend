@@ -5,6 +5,21 @@ on:
   push:
     branches:
       - main
+    # Deploy only when the shipped image or host config can change. The image is built from
+    # src/main + Gradle build files (bootJar skips tests/detekt, so src/test, src/dockerTest and
+    # config/ are excluded); docker-compose.yml is uploaded to the host. Anything else
+    # (.claude/, docs/, ci.yml) would just redeploy an identical image.
+    # workflow_dispatch above remains for manual redeploys.
+    paths:
+      - 'src/main/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
 
 jobs:
   build-and-deploy:
@@ -34,7 +49,10 @@ jobs:
       - name: Buildx 빌더 설정 (멀티플랫폼 빌드 드라이버)
         uses: docker/setup-buildx-action@v3
 
+      # Native builds take ~3 min. A regression past this limit (e.g. Gradle running under QEMU
+      # again, which went unnoticed at 25 min) fails the deploy and triggers the Discord alert.
       - name: Docker 이미지 빌드 & 푸시 (latest + git SHA 태그, amd64+arm64 멀티아치)
+        timeout-minutes: 12
         run: |
           docker buildx build --platform linux/amd64,linux/arm64 \
             -t ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest \
@@ -128,14 +146,39 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/meetjyou
-            docker compose down || true
-            docker compose pull
-            docker compose up -d
+
+            # nginx resolves "spring_boot" to its Docker network IP only at config load, and a
+            # recreated container can get a new internal IP (the host's EIP is unaffected) —
+            # without a reload nginx keeps proxying to the stale IP (502).
+            # Retries cover the race right after nginx (re)starts, before its pid file exists.
+            reload_nginx() {
+              for i in $(seq 1 5); do
+                docker compose exec -T nginx nginx -s reload && return 0
+                sleep 2
+              done
+              echo "nginx reload 실패 — 공개 도메인이 이전 컨테이너 IP로 프록시 중일 수 있음"
+              return 1
+            }
+
+            # Pull while the old app is still serving, so image download time isn't downtime.
+            # Nothing has changed yet on failure, so bail out and let the old app keep serving.
+            # (This script has no set -e; without the check the old app would pass the health
+            # check below and the deploy would be reported as a success.)
+            if ! docker compose pull; then
+              echo "이미지 pull 실패 — 기존 컨테이너 유지, 배포 중단"
+              exit 1
+            fi
+            # Replace only the app. The old "compose down" also stopped nginx (10s on its own,
+            # its sh-loop command ignores SIGTERM) and certbot, adding to every deploy's downtime.
+            docker compose up -d --no-deps spring_boot
 
             echo "헬스체크 대기 중... (최대 300초 대기)"
             HEALTHY=false
             for i in $(seq 1 60); do
-              if curl -sf http://127.0.0.1:8081/actuator/health | grep -q '"status":"UP"'; then
+              # The old container keeps answering if "up" failed before replacing it — only a
+              # health UP from the new image counts.
+              RUNNING_IMAGE=$(docker inspect -f '{{.Config.Image}}' spring_boot 2>/dev/null)
+              if [ "${RUNNING_IMAGE##*:}" = "${{ github.sha }}" ] && curl -sf http://127.0.0.1:8081/actuator/health | grep -q '"status":"UP"'; then
                 HEALTHY=true
                 break
               fi
@@ -145,6 +188,11 @@ jobs:
             if [ "$HEALTHY" = "true" ]; then
               echo "${{ github.sha }}" > CURRENT_TAG
               echo "배포 성공: ${{ github.sha }}"
+              # Applies docker-compose.yml changes to nginx/certbot (or starts them on a fresh
+              # host). No-op unless their config or pulled image digest changed — note that an
+              # upstream rebuild of a pinned tag (e.g. nginx:1.26.3) also recreates nginx.
+              docker compose up -d --no-deps nginx certbot
+              reload_nginx || exit 1
               # Only prune on a confirmed-healthy deploy — old tags stick around after a
               # rollback so the failed image is still there to inspect while debugging.
               docker image prune -a -f
@@ -152,9 +200,9 @@ jobs:
               echo "헬스체크 실패, 이전 버전으로 롤백합니다."
               PREV_TAG=$(cat CURRENT_TAG 2>/dev/null || echo "latest")
               sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$PREV_TAG/" .env
-              docker compose down
-              docker compose pull
-              docker compose up -d
+              docker compose pull spring_boot
+              docker compose up -d --no-deps spring_boot
+              reload_nginx
               echo "롤백 완료: $PREV_TAG"
               exit 1
             fi

@@ -137,6 +137,20 @@
 - 왜 놓쳤나: `resolve_base()`가 `git merge-base HEAD origin/main`으로 비교 기준점을 구하는데, 이 브랜치가 머지되고 로컬 `main`이 그 머지 커밋까지 갱신되면 `merge-base(HEAD, origin/main)`이 `HEAD` 자기 자신으로 퇴화함. 그 결과 "base 시점 gap-log.md"와 "현재 gap-log.md"가 동일해져 `validate_gap_log`가 이미 커밋·머지까지 끝난 갭 항목을 "새 항목 0건"으로 오판. 게이트가 "머지 전 완료 보고"만 상정하고 설계돼 이 경로를 검증하지 않았음
 - 추가한 장치: `.claude/hooks/agent_work.py`의 `resolve_base()`에 퇴화 판정(`base == HEAD`) 시 폴백 추가 — 1순위 `git merge-base --fork-point origin/main HEAD`(리플로그 기반, origin/main이 옮겨가도 분기점 보존), 2순위 origin/main 팁이 이 브랜치를 병합한 머지 커밋일 때 그 첫 부모. `.claude/hooks/test_hooks.py`에 `scenarios_post_merge_base` 시나리오 추가(머지 커밋 생성 후 `origin/main`을 그 커밋으로 갱신하고 게이트가 여전히 조용히 통과하는지 검증) — 수정 전 코드로 되돌려 실제로 실패하는 것 확인 후(red) 수정 적용해 45/45 통과(green)
 
+### G18. 멀티아치 전환이 배포 빌드 시간을 10배로 늘렸는데 원장 영향 분석이 빌드 시간을 보지 않음
+- 날짜 / 출처: 2026-09-22, 사용자 "github actions 플로우가 너무 오래 걸리는데, 원인 파악해봐"
+- 발견 경로: 사용자
+- 놓친 층: L1
+- 왜 놓쳤나: PR #135가 buildx 플랫폼에 `linux/arm64`를 추가할 때 수용 기준이 "빌드가 성공하는가"(G14)에만 맞춰져 있었고, Dockerfile builder stage가 대상 플랫폼마다 실행된다는 점(= Gradle 빌드가 QEMU 에뮬레이션 위에서 한 번 더 돎)을 영향 분석에서 다루지 않음. 빌드 step 152s(run 35345531993) → 1522s(run 35601775388, arm64 `dnf` 231.8s + `gradlew bootJar` 1269.5s)로 회귀했지만 실패가 아니라 느려진 것이라 어떤 층도 신호를 내지 않음
+- 추가한 장치: `Dockerfile` builder stage를 `FROM --platform=$BUILDPLATFORM`으로 고정(JAR은 네이티브 1회 빌드 후 각 런타임 이미지에 COPY). `.github/workflows/deploy.yml` 빌드 step에 `timeout-minutes: 12` — 빌드 시간이 다시 회귀하면 조용히 느려지는 대신 실패하고 기존 Discord 실패 알림이 발송됨
+
+### G19. 배포 스크립트에서 `compose down`을 없애면서 pull 실패가 거짓 성공이 되는 후퇴를 놓침
+- 날짜 / 출처: 2026-09-22, 배포 다운타임 축소(f3ba43c) 후 PR 전 requirement-verifier 전체 브랜치 검증 (R3 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 기존 스크립트는 `down`이 먼저 앱을 내렸기 때문에, pull/up이 실패하면 헬스체크가 반드시 실패해 롤백·exit 1·Discord 알림으로 이어졌음. 이 "실패를 드러내는 부수효과"가 암묵적이었고, 영향 분석은 정상 경로·IP 변경·롤백만 시뮬레이션함. `set -e`가 없는 스크립트에서 `down`을 없애자 pull 실패 시 옛 컨테이너가 헬스체크를 통과해 exit 0, `CURRENT_TAG`에 배포되지 않은 SHA가 기록됨 (로컬 모의 스택에서 재현: `배포 성공: 9.99-missing`, 실행 이미지는 1.36)
+- 추가한 장치: `.github/workflows/deploy.yml` — pull 실패 시 즉시 exit 1, 헬스 루프가 실행 중 컨테이너의 이미지 태그가 새 SHA일 때만 UP을 인정(수정 후 재현: pull 실패·up 실패 모두 exit 1, 무중단). `.claude/templates/ledger.md` 영향 분석 체크리스트에 "실패 경로 불변식" 항목 추가
+
 ### G20. hook 테스트 가상 시계 헬퍼가 hook이 무시한 실행에서도 옛 마커를 갱신
 - 날짜 / 출처: 2026-09-22, CI 시간 단축(sleep → 가상 시계) 후 requirement-verifier 검증 (R1 "부분" 판정)
 - 발견 경로: 검증자
