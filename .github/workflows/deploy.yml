@@ -161,7 +161,13 @@ jobs:
             }
 
             # Pull while the old app is still serving, so image download time isn't downtime.
-            docker compose pull
+            # Nothing has changed yet on failure, so bail out and let the old app keep serving.
+            # (This script has no set -e; without the check the old app would pass the health
+            # check below and the deploy would be reported as a success.)
+            if ! docker compose pull; then
+              echo "이미지 pull 실패 — 기존 컨테이너 유지, 배포 중단"
+              exit 1
+            fi
             # Replace only the app. The old "compose down" also stopped nginx (10s on its own,
             # its sh-loop command ignores SIGTERM) and certbot, adding to every deploy's downtime.
             docker compose up -d --no-deps spring_boot
@@ -169,7 +175,10 @@ jobs:
             echo "헬스체크 대기 중... (최대 300초 대기)"
             HEALTHY=false
             for i in $(seq 1 60); do
-              if curl -sf http://127.0.0.1:8081/actuator/health | grep -q '"status":"UP"'; then
+              # The old container keeps answering if "up" failed before replacing it — only a
+              # health UP from the new image counts.
+              RUNNING_IMAGE=$(docker inspect -f '{{.Config.Image}}' spring_boot 2>/dev/null)
+              if [ "${RUNNING_IMAGE##*:}" = "${{ github.sha }}" ] && curl -sf http://127.0.0.1:8081/actuator/health | grep -q '"status":"UP"'; then
                 HEALTHY=true
                 break
               fi
@@ -180,7 +189,8 @@ jobs:
               echo "${{ github.sha }}" > CURRENT_TAG
               echo "배포 성공: ${{ github.sha }}"
               # Applies docker-compose.yml changes to nginx/certbot (or starts them on a fresh
-              # host); a no-op when their config is unchanged.
+              # host). No-op unless their config or pulled image digest changed — note that an
+              # upstream rebuild of a pinned tag (e.g. nginx:1.26.3) also recreates nginx.
               docker compose up -d --no-deps nginx certbot
               reload_nginx || exit 1
               # Only prune on a confirmed-healthy deploy — old tags stick around after a

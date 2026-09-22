@@ -143,3 +143,10 @@
 - 놓친 층: L1
 - 왜 놓쳤나: PR #135가 buildx 플랫폼에 `linux/arm64`를 추가할 때 수용 기준이 "빌드가 성공하는가"(G14)에만 맞춰져 있었고, Dockerfile builder stage가 대상 플랫폼마다 실행된다는 점(= Gradle 빌드가 QEMU 에뮬레이션 위에서 한 번 더 돎)을 영향 분석에서 다루지 않음. 빌드 step 152s(run 35345531993) → 1522s(run 35601775388, arm64 `dnf` 231.8s + `gradlew bootJar` 1269.5s)로 회귀했지만 실패가 아니라 느려진 것이라 어떤 층도 신호를 내지 않음
 - 추가한 장치: `Dockerfile` builder stage를 `FROM --platform=$BUILDPLATFORM`으로 고정(JAR은 네이티브 1회 빌드 후 각 런타임 이미지에 COPY). `.github/workflows/deploy.yml` 빌드 step에 `timeout-minutes: 12` — 빌드 시간이 다시 회귀하면 조용히 느려지는 대신 실패하고 기존 Discord 실패 알림이 발송됨
+
+### G19. 배포 스크립트에서 `compose down`을 없애면서 pull 실패가 거짓 성공이 되는 후퇴를 놓침
+- 날짜 / 출처: 2026-09-22, 배포 다운타임 축소(f3ba43c) 후 PR 전 requirement-verifier 전체 브랜치 검증 (R3 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 기존 스크립트는 `down`이 먼저 앱을 내렸기 때문에, pull/up이 실패하면 헬스체크가 반드시 실패해 롤백·exit 1·Discord 알림으로 이어졌음. 이 "실패를 드러내는 부수효과"가 암묵적이었고, 영향 분석은 정상 경로·IP 변경·롤백만 시뮬레이션함. `set -e`가 없는 스크립트에서 `down`을 없애자 pull 실패 시 옛 컨테이너가 헬스체크를 통과해 exit 0, `CURRENT_TAG`에 배포되지 않은 SHA가 기록됨 (로컬 모의 스택에서 재현: `배포 성공: 9.99-missing`, 실행 이미지는 1.36)
+- 추가한 장치: `.github/workflows/deploy.yml` — pull 실패 시 즉시 exit 1, 헬스 루프가 실행 중 컨테이너의 이미지 태그가 새 SHA일 때만 UP을 인정(수정 후 재현: pull 실패·up 실패 모두 exit 1, 무중단). `.claude/templates/ledger.md` 영향 분석 체크리스트에 "실패 경로 불변식" 항목 추가
