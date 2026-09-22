@@ -129,3 +129,10 @@
 - 놓친 층: L1
 - 왜 놓쳤나: G15에서 "호스트 바인드 마운트 파일"을 firebase/oci 시크릿으로만 한정해서 봤고, `docker-compose.yml`이 `./data/nginx`(리버스 프록시 설정)·`./data/certbot`(TLS 인증서)도 동일하게 호스트 전용으로 마운트한다는 걸 놓침. 게다가 `deploy.yml`의 헬스체크가 `curl 127.0.0.1:8081/actuator/health`로 **spring_boot 컨테이너에 직접** 접속해 확인하기 때문에, nginx가 설정 없이 기본 페이지만 서빙하거나 죽어 있어도(exited) CI 헬스체크는 계속 성공으로 판정 — 실제 공개 도메인(HTTPS)은 완전히 깨진 채로 "배포 성공"이 보고될 수 있었음
 - 추가한 장치: `.github/workflows/deploy.yml`의 "호스트 파일 시크릿 존재 확인" 스텝에 `~/meetjyou/data/nginx/app.conf` 존재 확인 추가(파일:37번째 줄 for 루프). Let's Encrypt 인증서(`data/certbot/conf/live/.../fullchain.pem`)는 DNS가 그 호스트를 가리켜야만 발급 가능한 구조라 이 사전 확인에는 포함하지 않음(정상적인 최초 컷오버 흐름에서는 원래 없는 게 맞는 상태이므로) — 대신 원장 §4에 "deploy.yml 헬스체크는 nginx/TLS 계층을 검증하지 않는다"는 한계를 기록해 재발 시 빠르게 원인을 좁힐 수 있게 함
+
+### G17. 완료 게이트가 "브랜치 머지 후 완료 보고"를 처리하지 못해 오탐 차단
+- 날짜 / 출처: 2026-09-21, AWS EC2 이관 PR #135 머지 직후 완료 보고 (사용자가 로컬 main을 머지 커밋까지 pull한 뒤)
+- 발견 경로: 자체 발견 (완료 게이트가 실제로 오탐 차단하는 것을 직접 겪음)
+- 놓친 층: L3
+- 왜 놓쳤나: `resolve_base()`가 `git merge-base HEAD origin/main`으로 비교 기준점을 구하는데, 이 브랜치가 머지되고 로컬 `main`이 그 머지 커밋까지 갱신되면 `merge-base(HEAD, origin/main)`이 `HEAD` 자기 자신으로 퇴화함. 그 결과 "base 시점 gap-log.md"와 "현재 gap-log.md"가 동일해져 `validate_gap_log`가 이미 커밋·머지까지 끝난 갭 항목을 "새 항목 0건"으로 오판. 게이트가 "머지 전 완료 보고"만 상정하고 설계돼 이 경로를 검증하지 않았음
+- 추가한 장치: `.claude/hooks/agent_work.py`의 `resolve_base()`에 퇴화 판정(`base == HEAD`) 시 폴백 추가 — 1순위 `git merge-base --fork-point origin/main HEAD`(리플로그 기반, origin/main이 옮겨가도 분기점 보존), 2순위 origin/main 팁이 이 브랜치를 병합한 머지 커밋일 때 그 첫 부모. `.claude/hooks/test_hooks.py`에 `scenarios_post_merge_base` 시나리오 추가(머지 커밋 생성 후 `origin/main`을 그 커밋으로 갱신하고 게이트가 여전히 조용히 통과하는지 검증) — 수정 전 코드로 되돌려 실제로 실패하는 것 확인 후(red) 수정 적용해 45/45 통과(green)
