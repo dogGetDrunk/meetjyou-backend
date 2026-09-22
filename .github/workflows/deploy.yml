@@ -5,6 +5,21 @@ on:
   push:
     branches:
       - main
+    # Deploy only when the shipped image or host config can change. The image is built from
+    # src/main + Gradle build files (bootJar skips tests/detekt, so src/test, src/dockerTest and
+    # config/ are excluded); docker-compose.yml is uploaded to the host. Anything else
+    # (.claude/, docs/, ci.yml) would just redeploy an identical image.
+    # workflow_dispatch above remains for manual redeploys.
+    paths:
+      - 'src/main/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
 
 jobs:
   build-and-deploy:
@@ -34,7 +49,10 @@ jobs:
       - name: Buildx 빌더 설정 (멀티플랫폼 빌드 드라이버)
         uses: docker/setup-buildx-action@v3
 
+      # Native builds take ~3 min. A regression past this limit (e.g. Gradle running under QEMU
+      # again, which went unnoticed at 25 min) fails the deploy and triggers the Discord alert.
       - name: Docker 이미지 빌드 & 푸시 (latest + git SHA 태그, amd64+arm64 멀티아치)
+        timeout-minutes: 12
         run: |
           docker buildx build --platform linux/amd64,linux/arm64 \
             -t ${{ secrets.DOCKER_USERNAME }}/meetjyou:latest \
