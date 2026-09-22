@@ -146,9 +146,25 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/meetjyou
-            docker compose down || true
+
+            # nginx resolves "spring_boot" to its Docker network IP only at config load, and a
+            # recreated container can get a new internal IP (the host's EIP is unaffected) —
+            # without a reload nginx keeps proxying to the stale IP (502).
+            # Retries cover the race right after nginx (re)starts, before its pid file exists.
+            reload_nginx() {
+              for i in $(seq 1 5); do
+                docker compose exec -T nginx nginx -s reload && return 0
+                sleep 2
+              done
+              echo "nginx reload 실패 — 공개 도메인이 이전 컨테이너 IP로 프록시 중일 수 있음"
+              return 1
+            }
+
+            # Pull while the old app is still serving, so image download time isn't downtime.
             docker compose pull
-            docker compose up -d
+            # Replace only the app. The old "compose down" also stopped nginx (10s on its own,
+            # its sh-loop command ignores SIGTERM) and certbot, adding to every deploy's downtime.
+            docker compose up -d --no-deps spring_boot
 
             echo "헬스체크 대기 중... (최대 300초 대기)"
             HEALTHY=false
@@ -163,6 +179,10 @@ jobs:
             if [ "$HEALTHY" = "true" ]; then
               echo "${{ github.sha }}" > CURRENT_TAG
               echo "배포 성공: ${{ github.sha }}"
+              # Applies docker-compose.yml changes to nginx/certbot (or starts them on a fresh
+              # host); a no-op when their config is unchanged.
+              docker compose up -d --no-deps nginx certbot
+              reload_nginx || exit 1
               # Only prune on a confirmed-healthy deploy — old tags stick around after a
               # rollback so the failed image is still there to inspect while debugging.
               docker image prune -a -f
@@ -170,9 +190,9 @@ jobs:
               echo "헬스체크 실패, 이전 버전으로 롤백합니다."
               PREV_TAG=$(cat CURRENT_TAG 2>/dev/null || echo "latest")
               sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$PREV_TAG/" .env
-              docker compose down
-              docker compose pull
-              docker compose up -d
+              docker compose pull spring_boot
+              docker compose up -d --no-deps spring_boot
+              reload_nginx
               echo "롤백 완료: $PREV_TAG"
               exit 1
             fi
