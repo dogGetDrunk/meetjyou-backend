@@ -136,3 +136,17 @@
 - 놓친 층: L3
 - 왜 놓쳤나: `resolve_base()`가 `git merge-base HEAD origin/main`으로 비교 기준점을 구하는데, 이 브랜치가 머지되고 로컬 `main`이 그 머지 커밋까지 갱신되면 `merge-base(HEAD, origin/main)`이 `HEAD` 자기 자신으로 퇴화함. 그 결과 "base 시점 gap-log.md"와 "현재 gap-log.md"가 동일해져 `validate_gap_log`가 이미 커밋·머지까지 끝난 갭 항목을 "새 항목 0건"으로 오판. 게이트가 "머지 전 완료 보고"만 상정하고 설계돼 이 경로를 검증하지 않았음
 - 추가한 장치: `.claude/hooks/agent_work.py`의 `resolve_base()`에 퇴화 판정(`base == HEAD`) 시 폴백 추가 — 1순위 `git merge-base --fork-point origin/main HEAD`(리플로그 기반, origin/main이 옮겨가도 분기점 보존), 2순위 origin/main 팁이 이 브랜치를 병합한 머지 커밋일 때 그 첫 부모. `.claude/hooks/test_hooks.py`에 `scenarios_post_merge_base` 시나리오 추가(머지 커밋 생성 후 `origin/main`을 그 커밋으로 갱신하고 게이트가 여전히 조용히 통과하는지 검증) — 수정 전 코드로 되돌려 실제로 실패하는 것 확인 후(red) 수정 적용해 45/45 통과(green)
+
+### G20. hook 테스트 가상 시계 헬퍼가 hook이 무시한 실행에서도 옛 마커를 갱신
+- 날짜 / 출처: 2026-09-22, CI 시간 단축(sleep → 가상 시계) 후 requirement-verifier 검증 (R1 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: `gradle()` 헬퍼의 재스탬프 조건을 `getmtime > VIRTUAL_CLOCK_START`로 잡아, 이미 가상 시각인 기존 마커에도 참이 됨 → 실패·부분 실행 뒤에도 마커가 최신으로 보임. 원장 R1의 수용 기준이 "45/45 유지 + 게이트 뮤턴트 검출"뿐이라, 테스트 **헬퍼 자체**가 "hook이 무시한 실행"을 거짓으로 green 만드는 경로를 점검하지 않음. 기존 45개 시나리오 중 그 경로를 타는 것이 없어 통과
+- 추가한 장치: `.claude/hooks/test_hooks.py` — 조건을 `> virtual_now`(hook이 방금 실제 시각으로 쓴 마커만)로 수정 + 시나리오 "failed run does not refresh a stale marker" 추가 (수정 전 FAIL 확인 후 green)
+
+### G21. "다른 브랜치 마커 무효" 시나리오가 브랜치 격리를 검증하지 않았음 (공허한 테스트)
+- 날짜 / 출처: 2026-09-22, 같은 검증에서 브랜치 무관 마커 뮤턴트로 발견. origin/main 버전 테스트도 같은 뮤턴트에서 45/45 (기존 결함)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 시나리오가 차단되는 진짜 이유가 마커의 브랜치가 아니라 `git checkout`이 feat/x 파일을 실제 현재 시각으로 다시 쓰는 것이었음. 시나리오 도입 시 해당 동작을 망가뜨린 뮤턴트로 red를 확인하지 않음
+- 추가한 장치: `.claude/hooks/test_hooks.py` `scenarios_branch_isolation` 재작성 — feat/x 마커를 소스 수정으로 stale하게 만들고, checkout이 바꾼 mtime을 되돌려 마커의 브랜치만 판정을 가르게 함. 브랜치 무관 마커 뮤턴트(`record-full-test.py`가 항상 feat-x 마커에 기록)에서 FAIL 확인
