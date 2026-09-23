@@ -2,6 +2,7 @@
 import json
 import os
 import subprocess
+import tempfile
 import time
 
 WORK_DIR = os.path.join(".claude", "work")
@@ -70,19 +71,44 @@ def newest_change_time(root, paths):
     return max(times) if times else time.time()
 
 
+def worktree_tree_hash(root):
+    """Git tree id of the working tree as `git add -A` would stage it (.gitignore respected).
+
+    Built in a throwaway index so the real one is untouched. A file hashes the same whether it
+    is untracked, staged or committed, so verify -> add -> commit keeps the id, while any content
+    edit, deletion or rename changes it. Paths are never parsed, so non-ASCII names are safe.
+    """
+    with tempfile.TemporaryDirectory() as scratch:
+        env = dict(os.environ, GIT_INDEX_FILE=os.path.join(scratch, "index"))
+        for args in (["read-tree", "HEAD"], ["add", "-A"], ["write-tree"]):
+            result = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, env=env, check=True)
+    return result.stdout.strip()
+
+
 def base_file_text(root, path):
     return git(root, "show", f"{resolve_base(root)}:{path}")
 
 
-def record_challenge(root, source, text, excerpt_length=300):
-    """Append one challenge to this branch's pending list; ignore an exact repeat."""
+def record_challenge(root, source, text, excerpt_length=300, agent_id=None):
+    """Append one challenge to this branch's pending list; ignore an exact repeat.
+
+    With an agent_id, one subagent run counts once: its hand-back and its final summary are
+    different texts describing the same report. Text is not compared then — re-verification
+    reports share a long table prefix, so truncated excerpts of different runs can be equal.
+    """
     pending = work_file(root, PENDING_STEM, "jsonl")
     os.makedirs(os.path.dirname(pending), exist_ok=True)
     entry = {"at": time.time(), "source": source, "text": text[:excerpt_length]}
+    if agent_id:
+        entry["agent_id"] = agent_id
     if os.path.exists(pending):
         with open(pending, encoding="utf-8") as f:
-            recorded = [json.loads(line)["text"] for line in f if line.strip()]
-        if entry["text"] in recorded:
+            recorded = [json.loads(line) for line in f if line.strip()]
+        if agent_id:
+            duplicate = any(r.get("agent_id") == agent_id for r in recorded)
+        else:
+            duplicate = any(r["text"] == entry["text"] for r in recorded)
+        if duplicate:
             return False
     with open(pending, "a", encoding="utf-8") as f:
         f.write(f"{json.dumps(entry, ensure_ascii=False)}\n")

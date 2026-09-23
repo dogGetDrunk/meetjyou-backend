@@ -28,6 +28,10 @@ Then check the project conventions that static analysis cannot catch, only in ch
 Report ONLY gaps that affect correctness or the stated requirements. No style suggestions, no
 "nice to have" hardening — over-reporting leads to over-engineering.
 
+A row whose only possible evidence is a CI run on the PR (e.g. a workflow step that cannot run
+locally) and that is still 🟡 is judged `CI 대기`, not a gap — the PR does not exist yet. Use it
+only when the evidence genuinely requires CI; anything checkable now gets a normal verdict.
+
 Output (Korean), exactly this table plus a short list of refutation attempts:
 
-| ID | 판정(충족/부분/미충족/근거 부족) | 근거(file:line, 테스트명) | 반례 또는 누락 |
+| ID | 판정(충족/부분/미충족/근거 부족/CI 대기) | 근거(file:line, 테스트명) | 반례 또는 누락 |
