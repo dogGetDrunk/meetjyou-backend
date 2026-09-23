@@ -88,6 +88,32 @@ def gradle(repo, command, stdout="BUILD SUCCESSFUL in 1m"):
             stamp(marker)
 
 
+VERIFIER_TABLE = "| ID | 판정 | 근거 | 반례 |\n|---|---|---|---|\n| R1 | 충족 | A.kt:1 | — |"
+
+
+def verifier_done(repo, agent_type="requirement-verifier", message=VERIFIER_TABLE):
+    # The gate compares diff fingerprints, not mtimes, so no virtual-clock restamping is needed.
+    run("record-verifier-run.py", {"cwd": repo, "agent_id": f"id-{tick()}", "agent_type": agent_type,
+                                   "last_assistant_message": message})
+
+
+def verifier_table_header():
+    """The verdict-table header line exactly as .claude/agents/requirement-verifier.md prescribes."""
+    agent = os.path.join(os.path.dirname(HOOKS), "agents", "requirement-verifier.md")
+    with open(agent, encoding="utf-8") as f:
+        return next(line.strip() for line in f if line.startswith("| ID |"))
+
+
+def pr(repo, command="gh pr create --fill"):
+    return run("pr-gate.py", {"cwd": repo, "tool_name": "Bash", "tool_input": {"command": command}})
+
+
+def denied(out, *fragments):
+    decision = out.get("hookSpecificOutput", {})
+    return decision.get("permissionDecision") == "deny" and all(
+        f in decision.get("permissionDecisionReason", "") for f in fragments)
+
+
 def triage(repo, verdicts):
     write(repo, ".claude/work/gap-triage-feat-x.md", verdicts, append=False)
 
@@ -194,6 +220,96 @@ def scenarios_gap_detection(repo):
                                  {"cwd": repo, "last_assistant_message": "R7 미충족: 층 분류 미검사"}))
 
 
+def pending_lines(repo):
+    path = os.path.join(repo, ".claude", "work", "gap-pending-feat-x.jsonl")
+    if not os.path.exists(path):
+        return 0
+    with open(path, encoding="utf-8") as f:
+        return len([line for line in f if line.strip()])
+
+
+def scenarios_subagent_report_dedupe():
+    """One verifier run reaches the hooks up to three times (hand-back turn, SubagentHandback,
+    SubagentStop); it must still count as a single challenge (issue #140)."""
+    repo = new_repo()
+    handback_turn = ('<agent-message from="requirement-verifier">\n[Subagent hand-back]\n'
+                     "| R2 | 미충족 | — | 테스트 누락 |")
+    check("subagent hand-back turn -> not recorded as a user challenge",
+          prompt(repo, handback_turn) == {} and pending_lines(repo) == 0)
+    run("record-verifier-gaps.py", {"cwd": repo, "agent_id": "a1", "tool_input": {"message": "| R2 | 부분 | x | y |"}})
+    run("record-verifier-gaps.py", {"cwd": repo, "agent_id": "a1", "last_assistant_message": "요약: R2 미충족"})
+    check("same agent's hand-back + final summary -> one record", pending_lines(repo) == 1, str(pending_lines(repo)))
+    run("record-verifier-gaps.py", {"cwd": repo, "agent_id": "a2", "last_assistant_message": "요약: R2 미충족"})
+    check("re-verification by another agent run -> recorded separately", pending_lines(repo) == 2,
+          str(pending_lines(repo)))
+    check("real user challenge still detected after a hand-back",
+          "gap-protocol" in json.dumps(prompt(repo, "진짜 끝이야?")))
+    # Real verdict tables share a long identical prefix (header + early rows) across runs; the
+    # stored excerpt is truncated, so a new gap found on re-verification must not be merged by text.
+    shared = VERIFIER_TABLE + "\n| R2 | 충족 | B.kt:1 | — |" * 20
+    run("record-verifier-gaps.py", {"cwd": repo, "agent_id": "b1", "last_assistant_message": f"{shared}\n| R9 | 미충족 | — | x |"})
+    run("record-verifier-gaps.py", {"cwd": repo, "agent_id": "b2", "last_assistant_message": f"{shared}\n| R10 | 미충족 | — | y |"})
+    # 2 verifier runs + 1 user challenge so far, then b1 and b2.
+    check("re-verification sharing a long table prefix -> still recorded separately", pending_lines(repo) == 5,
+          str(pending_lines(repo)))
+    shutil.rmtree(repo)
+
+
+def scenarios_pr_gate():
+    """A PR from a ledger branch needs a requirement-verifier run newer than every change (issue #141)."""
+    repo = new_repo()
+    check("no ledger -> PR not gated", pr(repo) == {})
+    ledger(repo, "| R1 | 🟡 |\n")
+    check("ledger, never verified -> PR denied", denied(pr(repo), "검증 기록 없음"))
+    check("other gh pr commands -> not gated", pr(repo, "gh pr view 12") == {} and pr(repo, "gh pr list") == {})
+    verifier_done(repo, agent_type="Explore")
+    check("another subagent type is not a verification", denied(pr(repo), "검증 기록 없음"))
+    verifier_done(repo, message="검증 중단: 컨텍스트 부족")
+    check("verifier run without a verdict table is not a verification", denied(pr(repo), "검증 기록 없음"))
+    # Real runs often hand the table back via SubagentHandback and end with a one-line message.
+    run("record-verifier-run.py", {"cwd": repo, "agent_id": "hb-1", "agent_type": "requirement-verifier",
+                                   "tool_input": {"message": VERIFIER_TABLE}})
+    run("record-verifier-run.py", {"cwd": repo, "agent_id": "hb-1", "agent_type": "requirement-verifier",
+                                   "last_assistant_message": "Final report delivered to the calling agent."})
+    check("table delivered only via hand-back -> counts as a verification", pr(repo) == {}, str(pr(repo)))
+    write(repo, "src/main/A.kt", "change\n")
+    verifier_done(repo)
+    check("verified after the last change -> PR allowed", pr(repo) == {})
+    sh(repo, "add", "-A")
+    sh(repo, "commit", "-qm", "work")
+    check("commit after verification -> still allowed", pr(repo) == {})
+    write(repo, "docs/agent-process/gap-log.md", gap_entry(9, "이슈 #141"))
+    check("docs-only edit after verification -> PR denied", denied(pr(repo), "검증 이후"))
+    check("compound command -> PR denied",
+          denied(pr(repo, "git push -u origin HEAD && gh pr create --title x --body y"), "검증 이후"))
+    verifier_done(repo)
+    check("re-verified -> PR allowed", pr(repo) == {})
+    check("'CI 대기' verdict is not recorded as a gap",
+          handback(repo, "| R3 | CI 대기 | ci.yml:36 | PR 후 CI 로그 필요 |") == {})
+    # The header the verifier is told to print lists every verdict name, "미충족" included. Read it
+    # from the agent definition so a reworded header is tested as the verifier will print it.
+    full_report = (f"{verifier_table_header()}\n"
+                   "|---|---|---|---|\n| R1 | 충족 | A.kt:1 | — |\n| R2 | CI 대기 | ci.yml:36 | PR 후 |")
+    check("clean report in the verifier's real format -> not recorded as a gap", handback(repo, full_report) == {})
+    sh(repo, "rm", "-q", "src/main/B.kt")
+    verifier_done(repo)
+    sh(repo, "add", "-A")
+    sh(repo, "commit", "-qm", "delete B")
+    check("branch with a deletion: verify -> commit -> PR allowed", pr(repo) == {}, str(pr(repo)))
+    write(repo, "src/main/New.kt", "n\n")
+    verifier_done(repo)
+    os.rename(os.path.join(repo, "src/main/New.kt"), os.path.join(repo, "src/main/Renamed.kt"))
+    check("renaming a new (untracked) file after verification -> PR denied", denied(pr(repo), "검증 이후"))
+    verifier_done(repo)
+    sh(repo, "add", "-A")
+    sh(repo, "commit", "-qm", "add new file")
+    check("new file: verify -> add + commit -> PR allowed", pr(repo) == {}, str(pr(repo)))
+    write(repo, "docs/메모.md", "비ASCII 경로\n")
+    verifier_done(repo)
+    check("non-ASCII untracked path -> verification recorded and PR allowed", pr(repo) == {}, str(pr(repo)))
+    shutil.rmtree(repo)
+
+
 def scenarios_gap_protocol(repo):
     check("challenges without verdicts -> block",
           blocked(stop(repo, "result: 완료"), f"{CHALLENGES_BEFORE_TRIAGE}건 중 판정은 0건"))
@@ -292,6 +408,8 @@ def main():
     scenarios_gap_protocol(repo)
     scenarios_branch_isolation(repo)
     scenarios_post_merge_base()
+    scenarios_subagent_report_dedupe()
+    scenarios_pr_gate()
     scenarios_hook_commands()
     check("non-git cwd -> silent", stop(tempfile.mkdtemp(), "result: 완료") == {})
     shutil.rmtree(repo)

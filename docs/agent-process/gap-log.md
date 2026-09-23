@@ -164,3 +164,34 @@
 - 놓친 층: L1
 - 왜 놓쳤나: 시나리오가 차단되는 진짜 이유가 마커의 브랜치가 아니라 `git checkout`이 feat/x 파일을 실제 현재 시각으로 다시 쓰는 것이었음. 시나리오 도입 시 해당 동작을 망가뜨린 뮤턴트로 red를 확인하지 않음
 - 추가한 장치: `.claude/hooks/test_hooks.py` `scenarios_branch_isolation` 재작성 — feat/x 마커를 소스 수정으로 stale하게 만들고, checkout이 바꾼 mtime을 되돌려 마커의 브랜치만 판정을 가르게 함. 브랜치 무관 마커 뮤턴트(`record-full-test.py`가 항상 feat-x 마커에 기록)에서 FAIL 확인
+
+### G22. requirement-verifier가 PR 생성 후에 실행돼 결함 2건이 PR에 올라감
+- 날짜 / 출처: 2026-09-22, #139 작업 중 PR 생성 후 검증에서 G20·G21 발견 (이슈 #141)
+- 발견 경로: 검증자
+- 놓친 층: L4
+- 왜 놓쳤나: 검증 시점 규칙이 "완료 보고 전"뿐이라 PR 생성과 연결돼 있지 않았고, `gh pr create`는 `ask` 권한만 걸려 검증 여부를 보지 않음. CI 로그가 증거인 원장 행 때문에 PR을 먼저 만들 유인도 있었음. #138은 PR 전에 검증해 G19를 잡았지만 순서가 에이전트 판단에만 의존
+- 추가한 장치: `.claude/hooks/pr-gate.py`(PreToolUse) — 원장 있는 브랜치에서 마지막 파일 변경 이후 검증 기록이 없으면 `gh pr create` 차단, `.claude/hooks/record-verifier-run.py`(SubagentHandback·SubagentStop)가 검증 기록. CI 증거 행은 `.claude/agents/requirement-verifier.md`의 `CI 대기` 판정으로 PR 후 확인. `.claude/hooks/test_hooks.py` `scenarios_pr_gate`(게이트 판정 뮤턴트 전부 검출 확인)
+
+### G23. 새 hook 테스트가 실제 출력 형태를 쓰지 않아 결함 3건이 green으로 통과
+- 날짜 / 출처: 2026-09-23, #140·#141 구현 후 PR 전 requirement-verifier 검증 (R3·R9·R11 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 수용 기준·시나리오 입력을 짧은 합성 문자열로 잡아 실제 형태가 만드는 경로를 타지 않음
+  - R3: 재검증 보고는 헤더·앞쪽 행이 매번 같아 300자로 자른 본문이 일치 → `agent_id`가 달라도 본문 비교로 합쳐져 새 갭이 묻힘. 테스트는 짧은 서로 다른 본문만 사용
+  - R9: 삭제 파일의 변경 시각을 git index mtime으로 대신 → 커밋이 index를 다시 써서 삭제 포함 브랜치는 "검증 → 커밋 → PR"이 항상 차단. 테스트 브랜치에 삭제가 없었음
+  - R11: 검증자 표 헤더 `판정(충족/부분/미충족/…)` 자체가 갭 패턴에 걸려 **갭 없는 보고도 전부 갭으로 기록**(기존 결함 포함). 테스트는 헤더 없는 행 1줄만 사용
+- 추가한 장치: `.claude/hooks/test_hooks.py` — 검증자 표 헤더를 하드코딩하지 않고 `.claude/agents/requirement-verifier.md`에서 읽어 입력으로 사용(헤더 문구가 바뀌면 테스트가 따라감), 긴 공통 prefix 재검증·삭제 포함 브랜치·미추적 파일 이름 변경 시나리오 추가(수정 전 FAIL 확인). `.claude/hooks/pr-gate.py` — mtime 대신 diff 지문 비교, `.claude/hooks/record-verifier-gaps.py` — 헤더 줄 제외 후 판정, `.claude/hooks/agent_work.py` — `agent_id`가 있으면 `agent_id`로만 dedupe
+
+### G24. G23 수정(diff 지문)이 새 파일 커밋 흐름을 막는 회귀를 만듦
+- 날짜 / 출처: 2026-09-24, G23 수정 후 requirement-verifier 재검증 (R9 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: mtime을 "base 대비 diff + 미추적 파일 이름·내용" 해시로 바꾸면서, 같은 파일이 상태(미추적 → staged → 커밋)에 따라 **다른 해시 입력 경로**를 탄다는 점을 영향 분석에서 다루지 않음. 새 시나리오는 추적 파일 수정·삭제만 커밋해 봄. 이 브랜치의 `pr-gate.py` 자체가 새 파일이라 실제 흐름에서 바로 걸리는 경우였음. 비ASCII 미추적 경로는 해시 계산이 예외로 죽으면서 빈 마커를 남겨 PR 게이트가 fail-open됨(재현 확인)
+- 추가한 장치: `.claude/hooks/agent_work.py` `worktree_tree_hash` — 임시 index에 `add -A` 후 `write-tree`로 트리 해시(파일 상태와 무관, 경로 파싱 없음). `.claude/hooks/record-verifier-run.py` — 해시를 먼저 계산한 뒤 마커 기록(실패 시 빈 마커 방지). `.claude/hooks/test_hooks.py` — "새 파일 add + 커밋", "비ASCII 미추적 경로" 시나리오(수정 전 FAIL 확인), 트리 해시 뮤턴트 2종 검출
+
+### G25. 검증 기록기가 SubagentStop의 마지막 메시지만 봐서 실제 검증 대부분을 놓침
+- 날짜 / 출처: 2026-09-24, requirement-verifier 3차 검증 (R6·R7 "부분" 판정, 실제 transcript 근거)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: `record-verifier-gaps.py`가 같은 이유로 두 이벤트(SubagentHandback·SubagentStop)를 보고 있었는데(G11), 새 기록기에는 원장 영향 분석의 "진실 원천 2개" 근거를 적용하지 않음. 테스트는 표를 `last_assistant_message`에 넣은 합성 입력만 사용. 실제로는 표를 낸 검증 3회 모두 SubagentStop이 발생했지만 그중 2회는 마지막 메시지가 한 줄이라 표가 없었음 → 게이트가 정상 검증 뒤에도 "검증 기록 없음"으로 영구 차단(사실상 fail-closed)
+- 추가한 장치: `.claude/hooks/record-verifier-run.py` — hand-back 메시지(`tool_input.message`) 우선, `.claude/settings.json` PostToolUse(SubagentHandback)에 등록. `.claude/hooks/test_hooks.py` "table delivered only via hand-back" 시나리오(수정 전 FAIL 확인). `.claude/hooks/pr-gate.py` — 검증 후에도 반복 차단되면 우회 말고 사용자 보고하도록 deny 메시지에 명시

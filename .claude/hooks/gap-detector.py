@@ -22,6 +22,9 @@ CHALLENGE = re.compile(
     r"|다시\s*(확인|봐|살펴)|제대로\s*(된|했|확인)|너무\s*적은데"
     r"|동작\s*안|안\s*(됐|되)잖|검증\s*안|안\s*지켜"
 )
+# A subagent's report is delivered to the main session as a user turn in this shape. Its
+# "미충족 / 누락" wording is not the user speaking; record-verifier-gaps.py records it instead.
+SUBAGENT_HANDBACK = re.compile(r"^\s*(<agent-message\b|\[Subagent hand-back\])")
 SOURCE = "user"
 PROTOCOL = (
     "[gap-protocol] The user may be challenging finished work. Before claiming completion: "
@@ -38,7 +41,7 @@ def main():
     data = json.load(sys.stdin)
     prompt = data.get("prompt", "")
     root = repo_root(data.get("cwd", "."))
-    if not root or not CHALLENGE.search(prompt):
+    if not root or SUBAGENT_HANDBACK.match(prompt) or not CHALLENGE.search(prompt):
         return
     record_challenge(root, SOURCE, prompt)
     print(json.dumps({
