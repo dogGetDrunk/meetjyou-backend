@@ -20,7 +20,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from agent_work import (  # noqa: E402
-    SOURCE_ROOT, base_file_text, branch_key, changed_paths, repo_root, source_tree_hash, work_file,
+    SOURCE_ROOT, base_file_text, branch_key, changed_paths, gap_base, repo_root, source_tree_hash,
+    work_file,
 )
 
 CLAIM = re.compile(
@@ -69,11 +70,12 @@ def is_valid_entry(entry, changed):
 
 
 def validate_gap_log(root, real_gaps):
+    base = gap_base(root)
     new_entries = {
         key: body for key, body in split_entries(read(os.path.join(root, GAP_LOG))).items()
-        if key not in split_entries(base_file_text(root, GAP_LOG))
+        if key not in split_entries(base_file_text(root, GAP_LOG, base))
     }
-    changed = set(changed_paths(root, ".")) - {GAP_LOG}
+    changed = set(changed_paths(root, ".", base)) - {GAP_LOG}
     valid = [key for key, body in new_entries.items() if is_valid_entry(body, changed)]
     if len(valid) >= real_gaps:
         return []

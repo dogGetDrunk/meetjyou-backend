@@ -14,6 +14,7 @@ import time
 
 HOOKS = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
 CHALLENGES_BEFORE_TRIAGE = 8
+CHALLENGE_DELAY_SECONDS = 100
 results = []
 
 # No hook compares file mtimes any more (both gates use git tree hashes, #146), so scenarios
@@ -388,6 +389,71 @@ def scenarios_base_branch_itself():
     shutil.rmtree(repo)
 
 
+def sh_at(repo, when, *args):
+    """git with a fixed author/committer date, so "commits before the challenge" is deterministic."""
+    stamp = f"{int(when)} +0000"
+    environment = dict(os.environ, GIT_AUTHOR_DATE=stamp, GIT_COMMITTER_DATE=stamp)
+    subprocess.run(["git", "-C", repo, *args], check=True, capture_output=True, env=environment)
+
+
+def scenarios_base_branch_gap_state():
+    """A gap judged on main must be satisfiable by a gap-log entry merged after the challenge.
+
+    Since #146 main's base is HEAD itself, so without a challenge-time base no entry is ever new.
+    """
+    repo = new_repo()
+    challenged_at = time.time() + CHALLENGE_DELAY_SECONDS
+    sh(repo, "checkout", "-q", "main")
+    challenge = {"at": challenged_at, "source": "user", "text": "deploy.yml has no path filter"}
+    write(repo, ".claude/work/gap-pending-main.jsonl", f"{json.dumps(challenge)}\n", append=False)
+    write(repo, ".claude/work/gap-triage-main.md", "- 갭: deploy.yml 경로 필터 없음 → L1\n", append=False)
+    check("main: entry older than the challenge does not count",
+          blocked(stop(repo, "result: 완료"), "유효한 새 항목은 0건"))
+    merged_at = challenged_at + CHALLENGE_DELAY_SECONDS
+    sh(repo, "checkout", "-qb", "fix/deploy", "main")
+    write(repo, "deploy.yml", "paths: [src/main/**]\n")
+    write(repo, "docs/agent-process/gap-log.md", gap_entry(30, "`deploy.yml` 경로 필터"))
+    sh(repo, "add", "-A")
+    sh_at(repo, merged_at, "commit", "-qm", "fix")
+    sh(repo, "checkout", "-qb", "remote-main", "main")
+    sh_at(repo, merged_at, "merge", "-q", "--no-ff", "-m", "merge fix/deploy", "fix/deploy")
+    sh(repo, "update-ref", "refs/remotes/origin/main", "remote-main")
+    sh(repo, "checkout", "-q", "main")
+    sh(repo, "merge", "-q", "--ff-only", "origin/main")
+    out = stop(repo, "result: 완료")
+    check("main: gap logged by a later merged PR (citing its changed file) -> silent", out == {}, str(out))
+    shutil.rmtree(repo)
+    scenario_base_branch_gap_state_side_branch()
+
+
+def scenario_base_branch_gap_state_side_branch():
+    """The challenge-time base must follow main's first-parent line, not a merged side branch.
+
+    A side-branch commit dated before the challenge but merged after it lacks entries main already
+    had, so taking it as the base would count those old entries as new.
+    """
+    repo = new_repo()
+    started_at = time.time()
+    sh(repo, "checkout", "-q", "main")
+    sh(repo, "checkout", "-qb", "feat/other", "main")
+    sh(repo, "checkout", "-q", "main")
+    write(repo, "docs/agent-process/gap-log.md", gap_entry(5, "이슈 #5"))
+    sh(repo, "add", "-A")
+    sh_at(repo, started_at + CHALLENGE_DELAY_SECONDS, "commit", "-qm", "log G5 on main")
+    sh(repo, "checkout", "-q", "feat/other")
+    write(repo, "other.txt", "x\n")
+    sh(repo, "add", "-A")
+    sh_at(repo, started_at + 2 * CHALLENGE_DELAY_SECONDS, "commit", "-qm", "side work")
+    sh(repo, "checkout", "-q", "main")
+    challenge = {"at": started_at + 3 * CHALLENGE_DELAY_SECONDS, "source": "user", "text": "x"}
+    write(repo, ".claude/work/gap-pending-main.jsonl", f"{json.dumps(challenge)}\n", append=False)
+    write(repo, ".claude/work/gap-triage-main.md", "- 갭: x → L1\n", append=False)
+    sh_at(repo, started_at + 4 * CHALLENGE_DELAY_SECONDS, "merge", "-q", "--no-ff", "-m", "merge", "feat/other")
+    check("main: side-branch commit before the challenge is not the base (old G5 not new)",
+          blocked(stop(repo, "result: 완료"), "유효한 새 항목은 0건"))
+    shutil.rmtree(repo)
+
+
 def scenarios_hook_commands():
     """A worktree session's CLAUDE_PROJECT_DIR points at the main checkout, not the worktree."""
     repo = new_repo()
@@ -418,6 +484,7 @@ def main():
     scenarios_post_merge_base()
     scenarios_commit_after_test_with_deletion()
     scenarios_base_branch_itself()
+    scenarios_base_branch_gap_state()
     scenarios_subagent_report_dedupe()
     scenarios_pr_gate()
     scenarios_hook_commands()
