@@ -209,3 +209,17 @@
 - 놓친 층: L1
 - 왜 놓쳤나: G26 장치로 넣은 grep(`party\.[a-zA-Z]+ *=`)은 필드 대입만 잡음. `PartyService`의 `completeParty`(`requireParty` → `party.complete()`), `confirmPartyImage`·`clearPartyImageState`(`requireParty(...).imageState =`)처럼 변경 메서드 호출이나 잠금 없는 로더 헬퍼를 거치는 쓰기는 구조적으로 빠짐. 그 grep 결과만 보고 원장에 "PartyService 내부 경로는 잠금 사용"이라 적음
 - 추가한 장치: `.claude/templates/ledger.md` "쓰는 곳" 항목 — 필드 대입 grep 예시를 빼고, 엔티티 로더 호출 지점부터 필드 대입·변경 메서드 호출까지 추적하도록 기준을 바꿈. 한계: 문서 규칙이라 기계 강제 없음
+
+### G28. G23·G24의 mtime 기각이 완료 게이트 테스트 증거 판정엔 적용되지 않음
+- 날짜 / 출처: 2026-09-24, PR #145 작업 중 완료 게이트 오탐 → 이슈 #146 본문
+- 발견 경로: 자체 발견
+- 놓친 층: L1
+- 왜 놓쳤나: G23·G24에서 "삭제 파일 mtime을 index mtime으로 대신하면 커밋만 해도 무효"라는 원인을 PR 게이트에서만 고침. 같은 헬퍼(`newest_change_time`)를 쓰는 완료 게이트의 테스트 증거 판정은 영향 분석의 "같은 원인을 공유하는 다른 소비자" 범위에 넣지 않음
+- 추가한 장치: `.claude/hooks/record-full-test.py` — 마커에 `src` 트리 해시 기록, `.claude/hooks/completion-gate.py` — mtime 대신 해시 일치로 판정(해시 없는 옛 마커 불인정), `.claude/hooks/agent_work.py` — `newest_change_time` 삭제(mtime 판정 경로 제거). `.claude/hooks/test_hooks.py` — "삭제 포함 브랜치: 테스트 → 커밋 → 완료" 시나리오(수정 전 FAIL 확인), 모든 hook이 mtime을 안 쓰게 되어 가상 시계 제거
+
+### G29. 머지 후 base 복원(G17)이 base 브랜치 자체에도 적용돼 fast-forward한 main을 차단
+- 날짜 / 출처: 2026-09-24, PR #145 머지 후 로컬 main fast-forward → 이슈 #146 댓글
+- 발견 경로: 자체 발견
+- 놓친 층: L1
+- 왜 놓쳤나: G17에서 "HEAD가 `origin/main`에 흡수됨 = 이 브랜치가 머지됨"으로 보고 머지 직전 base를 복원했지만, 현재 브랜치가 `main` 자체일 때는 같은 조건이 "최신 상태"를 뜻한다는 경우를 영향 분석에서 다루지 않음. 시나리오도 작업 브랜치에서만 실행
+- 추가한 장치: `.claude/hooks/agent_work.py` `resolve_base` — 현재 브랜치가 `BASE_BRANCH`면 복원 생략. `.claude/hooks/test_hooks.py` — "main fast-forward 후 완료 주장"(수정 전 FAIL 확인), "main이 origin/main보다 앞서면 여전히 검사" 시나리오

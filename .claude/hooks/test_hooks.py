@@ -3,6 +3,7 @@
 Usage: python3 .claude/hooks/test_hooks.py [hooks_dir]  — defaults to this file's directory.
 Each scenario runs the real hook scripts against a throwaway git repository.
 """
+import itertools
 import json
 import os
 import shutil
@@ -15,25 +16,9 @@ HOOKS = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__
 CHALLENGES_BEFORE_TRIAGE = 8
 results = []
 
-# Virtual clock for file mtimes. Scenarios depend on ordering ("source edited after the test
-# marker"), which sleeping past the filesystem's mtime granularity used to guarantee at ~1s per
-# write. Instead, test-written files and markers get explicit, strictly increasing mtimes in the
-# past; anything git itself touches (checkout, index) carries the real current time and so still
-# counts as newer than every virtual timestamp.
-VIRTUAL_CLOCK_START = time.time() - 86400
-VIRTUAL_TICK_SECONDS = 2
-virtual_now = VIRTUAL_CLOCK_START
-
-
-def tick():
-    global virtual_now
-    virtual_now += VIRTUAL_TICK_SECONDS
-    return virtual_now
-
-
-def stamp(path):
-    moment = tick()
-    os.utime(path, (moment, moment))
+# No hook compares file mtimes any more (both gates use git tree hashes, #146), so scenarios
+# need no clock; this only hands out distinct subagent ids.
+agent_ids = itertools.count(1)
 
 
 def run(script, payload):
@@ -56,7 +41,6 @@ def write(repo, path, text, append=True):
     os.makedirs(os.path.dirname(full), exist_ok=True)
     with open(full, "a" if append else "w", encoding="utf-8") as f:
         f.write(text)
-    stamp(full)
 
 
 def stop(repo, message, active=False):
@@ -78,22 +62,13 @@ def handback(repo, report):
 def gradle(repo, command, stdout="BUILD SUCCESSFUL in 1m"):
     response = {"stdout": stdout, "stderr": "", "interrupted": False, "isImage": False}
     run("record-full-test.py", {"cwd": repo, "tool_input": {"command": command}, "tool_response": response})
-    # A marker the hook just wrote carries the real time; move it onto the virtual clock. Only
-    # markers newer than virtual_now qualify — older ones are already virtual, and restamping them
-    # would let a run the hook ignored (failed, partial, piped) look like a fresh full test.
-    work = os.path.join(repo, ".claude", "work")
-    for name in os.listdir(work) if os.path.isdir(work) else []:
-        marker = os.path.join(work, name)
-        if name.startswith("last-full-test-") and os.path.getmtime(marker) > virtual_now:
-            stamp(marker)
 
 
 VERIFIER_TABLE = "| ID | 판정 | 근거 | 반례 |\n|---|---|---|---|\n| R1 | 충족 | A.kt:1 | — |"
 
 
 def verifier_done(repo, agent_type="requirement-verifier", message=VERIFIER_TABLE):
-    # The gate compares diff fingerprints, not mtimes, so no virtual-clock restamping is needed.
-    run("record-verifier-run.py", {"cwd": repo, "agent_id": f"id-{tick()}", "agent_type": agent_type,
+    run("record-verifier-run.py", {"cwd": repo, "agent_id": f"id-{next(agent_ids)}", "agent_type": agent_type,
                                    "last_assistant_message": message})
 
 
@@ -343,8 +318,9 @@ def scenarios_gap_protocol(repo):
 
 def scenarios_branch_isolation(repo):
     # feat/x's own marker goes stale here; only feat/y's later full test could "rescue" it.
+    # Since #146 the src/ tree hash alone already rejects feat/y's run (different contents), so
+    # this no longer isolates the per-branch marker filename; it stays as an end-to-end guard.
     write(repo, "src/main/A.kt", "edited after feat/x's last full test\n")
-    edited_at = virtual_now
     sh(repo, "add", "-A")
     sh(repo, "commit", "-qm", "work")
     sh(repo, "checkout", "-qb", "feat/y", "main")
@@ -352,10 +328,6 @@ def scenarios_branch_isolation(repo):
     write(repo, "src/main/Untracked.kt", "u\n")
     gradle(repo, "./gradlew test")
     sh(repo, "checkout", "-q", "feat/x")
-    # checkout rewrote feat/x's files with the real current time, which alone would block; put
-    # them back before feat/y's test so that only the marker's branch decides the outcome.
-    for path in ("src/main/A.kt", "src/main/B.kt"):
-        os.utime(os.path.join(repo, path), (edited_at, edited_at))
     check("test marker from another branch does not count",
           blocked(stop(repo, "result: 완료"), "전체 테스트"))
 
@@ -377,6 +349,42 @@ def scenarios_post_merge_base():
     out = stop(repo, "result: 완료")
     check("gap entry still valid after BASE_REF absorbs this branch's merge commit",
           out == {}, str(out))
+    shutil.rmtree(repo)
+
+
+def scenarios_commit_after_test_with_deletion():
+    """Committing on a branch that deletes a source file must not void the test evidence (#146)."""
+    repo = new_repo()
+    sh(repo, "rm", "-q", "src/main/B.kt")
+    gradle(repo, "./gradlew test")
+    write(repo, "docs/notes.md", "n\n")
+    sh(repo, "add", "-A")
+    sh(repo, "commit", "-qm", "work")
+    out = stop(repo, "result: 완료")
+    check("deletion branch: test -> commit -> claim stays silent", out == {}, str(out))
+    legacy = {"command": "./gradlew test", "finished_at": time.time()}
+    write(repo, ".claude/work/last-full-test-feat-x.json", json.dumps(legacy), append=False)
+    check("legacy marker without a source hash -> block", blocked(stop(repo, "result: 완료"), "전체 테스트"))
+    shutil.rmtree(repo)
+
+
+def scenarios_base_branch_itself():
+    """Fast-forwarding main onto a merged PR must not re-gate that PR's changes on main (#146)."""
+    repo = new_repo()
+    write(repo, "src/main/A.kt", "x\n")
+    write(repo, "src/main/B.kt", "x\n")
+    sh(repo, "add", "-A")
+    sh(repo, "commit", "-qm", "work")
+    sh(repo, "checkout", "-qb", "remote-main", "main")
+    sh(repo, "merge", "-q", "--no-ff", "-m", "merge feat/x", "feat/x")
+    sh(repo, "update-ref", "refs/remotes/origin/main", "remote-main")
+    sh(repo, "checkout", "-q", "main")
+    sh(repo, "merge", "-q", "--ff-only", "origin/main")
+    out = stop(repo, "result: 완료")
+    check("main fast-forwarded to origin/main after a merge -> silent", out == {}, str(out))
+    write(repo, "src/main/A.kt", "local\n")
+    sh(repo, "commit", "-qam", "local")
+    check("main ahead of origin/main is still gated", blocked(stop(repo, "result: 완료"), "전체 테스트"))
     shutil.rmtree(repo)
 
 
@@ -408,6 +416,8 @@ def main():
     scenarios_gap_protocol(repo)
     scenarios_branch_isolation(repo)
     scenarios_post_merge_base()
+    scenarios_commit_after_test_with_deletion()
+    scenarios_base_branch_itself()
     scenarios_subagent_report_dedupe()
     scenarios_pr_gate()
     scenarios_hook_commands()

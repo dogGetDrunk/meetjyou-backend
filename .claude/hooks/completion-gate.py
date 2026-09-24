@@ -8,7 +8,7 @@ Always checks the gap protocol (per branch):
   - new gap-log entries (vs base) with a layer and a valid mechanism >= real-gap verdicts
     (valid = a backticked file changed on this branch other than gap-log, or "이슈 #<n>")
 When src/ changed vs origin/main, also checks:
-  - a successful full test run happened after the newest source change
+  - the last successful full test run saw exactly the current src/ tree (hash match)
   - if 2+ production files changed: a ledger for the branch with requirement rows and no ⬜/🟡
 Blocks once; if Claude is already continuing because of a Stop hook, it lets the turn
 end but shows the unmet items to the user instead of looping.
@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from agent_work import (  # noqa: E402
-    base_file_text, branch_key, changed_paths, newest_change_time, repo_root, work_file,
+    SOURCE_ROOT, base_file_text, branch_key, changed_paths, repo_root, source_tree_hash, work_file,
 )
 
 CLAIM = re.compile(
@@ -105,18 +105,23 @@ def validate_ledger(root):
     return [f"원장에 미검증 행 {len(pending)}개(⬜/🟡) 남음"] if pending else []
 
 
-def validate_test_evidence(root, sources):
-    marker = work_file(root, "last-full-test", "json")
-    if not os.path.exists(marker) or os.path.getmtime(marker) < newest_change_time(root, sources):
+def validate_test_evidence(root):
+    """The last full test must have run on exactly the current src/ contents.
+
+    A tree hash, not mtimes: git add/commit rewrite the index, which used to stand in for the
+    mtime of deleted files and so voided the evidence on every commit (#146). A marker without
+    a hash (written before this check existed) never counts.
+    """
+    tested = json.loads(read(work_file(root, "last-full-test", "json")) or "{}").get("src_tree")
+    if not tested or tested != source_tree_hash(root):
         return ["마지막 소스 변경 이후 성공한 전체 테스트 기록 없음 (./gradlew test를 포그라운드로, 파이프·--tests 없이)"]
     return []
 
 
 def resolve_problems(root):
     problems = validate_gap_protocol(root)
-    sources = changed_paths(root, "src")
-    if sources:
-        problems += validate_test_evidence(root, sources)
+    if changed_paths(root, SOURCE_ROOT):
+        problems += validate_test_evidence(root)
     if len(changed_paths(root, PRODUCTION_SRC)) >= LEDGER_THRESHOLD:
         problems += validate_ledger(root)
     return problems
