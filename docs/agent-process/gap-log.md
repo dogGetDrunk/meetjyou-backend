@@ -202,4 +202,10 @@
 - 놓친 층: L1
 - 왜 놓쳤나: "쓰는 곳"을 `party` 패키지 안에서만 찾음. `PostService.kt:300` `post.party.plan = ...`, `PlanService.kt:195` `party.plan = null`처럼 다른 모듈이 연관을 거쳐 잠금 없이 쓰는 경로는 grep 범위에 없었음. `Party`에 `@DynamicUpdate`가 없어 이런 경로의 flush는 모든 컬럼을 다시 씀 → 동시 이름 변경을 옛 값으로 덮어쓸 수 있음(기존 PUT에도 있던 선행 문제, 후속 과제)
 - 추가한 장치: `.claude/templates/ledger.md` "쓰는 곳" 항목 — 필드 대입 grep에 그치지 않고 엔티티 로더(`findByUuid`·`require<Entity>`·연관 getter, 타 모듈 포함) 호출 지점마다 필드 대입과 변경 메서드 호출까지 추적, 실행한 grep 명령·경로별 잠금 여부 기재를 요구
-- 재검증 보완: 첫 장치는 필드 대입 grep 예시만 들어 `party.complete()`·`requireParty(...).imageState =`(`PartyService` `completeParty`·`confirmPartyImage`·`clearPartyImageState`) 형태를 구조적으로 놓침(L4 재검증 지적) → 로더 기준 추적으로 수정. 한계: 문서 규칙이라 기계 강제 없음
+
+### G27. G26 장치(필드 대입 grep)가 같은 누락을 재현함 — 원장에 "PartyService 내부는 잠금 사용" 오기재
+- 날짜 / 출처: 2026-09-24, G26 수정 후 requirement-verifier 재검증 ("쓰는 곳" 부분 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: G26 장치로 넣은 grep(`party\.[a-zA-Z]+ *=`)은 필드 대입만 잡음. `PartyService`의 `completeParty`(`requireParty` → `party.complete()`), `confirmPartyImage`·`clearPartyImageState`(`requireParty(...).imageState =`)처럼 변경 메서드 호출이나 잠금 없는 로더 헬퍼를 거치는 쓰기는 구조적으로 빠짐. 그 grep 결과만 보고 원장에 "PartyService 내부 경로는 잠금 사용"이라 적음
+- 추가한 장치: `.claude/templates/ledger.md` "쓰는 곳" 항목 — 필드 대입 grep 예시를 빼고, 엔티티 로더 호출 지점부터 필드 대입·변경 메서드 호출까지 추적하도록 기준을 바꿈. 한계: 문서 규칙이라 기계 강제 없음
