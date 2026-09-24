@@ -223,3 +223,24 @@
 - 놓친 층: L1
 - 왜 놓쳤나: G17에서 "HEAD가 `origin/main`에 흡수됨 = 이 브랜치가 머지됨"으로 보고 머지 직전 base를 복원했지만, 현재 브랜치가 `main` 자체일 때는 같은 조건이 "최신 상태"를 뜻한다는 경우를 영향 분석에서 다루지 않음. 시나리오도 작업 브랜치에서만 실행
 - 추가한 장치: `.claude/hooks/agent_work.py` `resolve_base` — 현재 브랜치가 `BASE_BRANCH`면 복원 생략. `.claude/hooks/test_hooks.py` — "main fast-forward 후 완료 주장"(수정 전 FAIL 확인), "main이 origin/main보다 앞서면 여전히 검사" 시나리오
+
+### G30. deploy.yml push 트리거에 경로 필터가 없어 hook·문서 전용 머지에도 프로덕션 재배포
+- 날짜 / 출처: 2026-09-22, hook 전용 PR 머지 후 배포 run 35727407928 (이전 세션 보고) → 이슈 #137, `330fa50`
+- 발견 경로: 자체 발견
+- 놓친 층: L1
+- 왜 놓쳤나: 배포 워크플로 변경 시 영향 분석이 "무엇이 배포를 트리거하는가"를 보지 않음. 수정(#137)은 머지됐지만 갭 기록은 `main`의 로컬 triage에만 남고 gap-log로 옮겨지지 않음 — #146 전까지는 main에서 머지 직전 base가 복원돼 다른 PR의 항목으로 게이트가 우연히 충족되어 드러나지 않음
+- 추가한 장치: 이슈 #137 (`.github/workflows/deploy.yml` `on.push.paths` 필터)
+
+### G31. #146 수정 후 base 브랜치(main)에 남은 갭 판정을 영원히 충족할 수 없게 됨
+- 날짜 / 출처: 2026-09-24, PR #147 머지 후 로컬 main에서 완료 게이트 차단
+- 발견 경로: 자체 발견
+- 놓친 층: L1
+- 왜 놓쳤나: #146에서 main의 base를 HEAD로 두면서, 같은 base를 쓰는 갭 로그 판정(`base_file_text`·`changed_paths`)까지 "새 항목 = 항상 0건"이 된다는 소비자별 영향을 보지 않음. main엔 직접 커밋이 금지라 항목은 머지로만 들어오는데, 머지 후엔 base에 이미 포함돼 셀 수 없음. 새 시나리오도 main의 src 판정만 봄
+- 추가한 장치: `.claude/hooks/agent_work.py` `gap_base` — base 브랜치에선 가장 이른 추궁 시각 직전 커밋 기준으로 새 항목·변경 파일을 셈. `.claude/hooks/test_hooks.py` — "main: 이후 머지된 PR의 항목으로 충족"(수정 전 FAIL 확인), "추궁 이전 항목은 불인정" 시나리오
+
+### G32. G31의 기준점 계산이 머지된 곁가지 커밋을 잡아 추궁 이전 항목을 새 항목으로 셈
+- 날짜 / 출처: 2026-09-24, G31 수정 후 requirement-verifier 검증 (R2 "부분" 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: "추궁 직전 커밋"을 `git rev-list --before`로 구하면서 날짜순 전체 조상 탐색이라는 점을 보지 않음. 추궁 전에 커밋돼 추궁 후 `--no-ff` 머지된 PR 브랜치 커밋이 기준점이 되면, 그 트리엔 main이 이미 가진 항목이 없어 옛 항목이 새 항목으로 셈 → 아무것도 기록 안 해도 통과(fail-open). 시나리오 히스토리가 선형이라 드러나지 않음
+- 추가한 장치: `.claude/hooks/agent_work.py` `gap_base` — `--first-parent`로 main 본선만 탐색. `.claude/hooks/test_hooks.py` — 곁가지 머지 시나리오(수정 전 FAIL 확인)

@@ -52,9 +52,32 @@ def resolve_base(root):
     return base
 
 
-def changed_paths(root, pathspec):
-    """Every path changed vs the base, deletions included (they still need verification)."""
+def gap_base(root):
+    """Base for gap-log checks: entries added after it count as new.
+
+    On a work branch that is resolve_base. On the base branch itself resolve_base is HEAD, so no
+    entry could ever be new and a gap judged there could never be logged (entries arrive through
+    a merged PR). There, use main's last first-parent commit before the earliest recorded
+    challenge instead.
+    """
     base = resolve_base(root)
+    if git(root, "branch", "--show-current") != BASE_BRANCH:
+        return base
+    pending = work_file(root, PENDING_STEM, "jsonl")
+    if not os.path.exists(pending):
+        return base
+    with open(pending, encoding="utf-8") as f:
+        times = [json.loads(line)["at"] for line in f if line.strip()]
+    if not times:
+        return base
+    # First parent only: a merged side branch's commit can predate the challenge while lacking
+    # entries main already had, which would make those old entries look new.
+    return git(root, "rev-list", "-1", "--first-parent", f"--before={int(min(times))}", "HEAD") or base
+
+
+def changed_paths(root, pathspec, base=None):
+    """Every path changed vs the base, deletions included (they still need verification)."""
+    base = base or resolve_base(root)
     tracked = git(root, "diff", "--name-only", base, "--", pathspec).splitlines()
     untracked = git(root, "ls-files", "--others", "--exclude-standard", "--", pathspec).splitlines()
     return sorted(set(tracked) | set(untracked))
@@ -82,8 +105,8 @@ def source_tree_hash(root):
     return git(root, "rev-parse", f"{worktree_tree_hash(root)}:{SOURCE_ROOT}")
 
 
-def base_file_text(root, path):
-    return git(root, "show", f"{resolve_base(root)}:{path}")
+def base_file_text(root, path, base=None):
+    return git(root, "show", f"{base or resolve_base(root)}:{path}")
 
 
 def record_challenge(root, source, text, excerpt_length=300, agent_id=None):
