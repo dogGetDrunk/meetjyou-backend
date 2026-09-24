@@ -5,7 +5,7 @@ import com.dogGetDrunk.meetjyou.party.dto.GetPendingJoinRequestsResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyRequest
 import com.dogGetDrunk.meetjyou.party.dto.PartyMemberResponse
 import com.dogGetDrunk.meetjyou.party.dto.JoinPartyResponse
-import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
+import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyNameRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -21,6 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -97,15 +98,15 @@ class PartyController(
     }
 
     @Operation(
-        summary = "파티 수정",
-        description = "파티 UUID로 특정 파티를 수정합니다. PUT 특성상 전체 상태를 대체하므로, planUuid를 보내면 해당 계획서로 연결/교체되고 null로 보내면 연결이 해제됩니다. 변경 사항은 연결된 모집글에도 함께 반영됩니다.",
+        summary = "파티 이름 변경",
+        description = "HOST가 파티 이름을 변경합니다. 파티에서 수정 가능한 속성은 이름뿐이며(이미지는 별도 API), 여행이 이미 시작된 파티도 변경할 수 있습니다.",
     )
-    @PutMapping("/{partyUuid}")
-    fun updateParty(
+    @PatchMapping("/{partyUuid}")
+    fun updatePartyName(
         @PathVariable partyUuid: UUID,
-        @Valid @RequestBody request: UpdatePartyRequest,
+        @Valid @RequestBody request: UpdatePartyNameRequest,
     ): UpdatePartyResponse {
-        return partyService.updateParty(partyUuid, request)
+        return partyService.updatePartyName(partyUuid, request)
     }
 
     @Operation(summary = "파티 가입 신청", description = "현재 로그인한 유저가 파티 가입을 신청합니다. 호스트 승인 후 참여가 확정됩니다.")

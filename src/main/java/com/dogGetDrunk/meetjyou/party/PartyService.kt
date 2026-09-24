@@ -4,7 +4,6 @@ import com.dogGetDrunk.meetjyou.common.exception.business.party.HostBanNotAllowe
 import com.dogGetDrunk.meetjyou.common.exception.business.party.HostLeaveNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberBanException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberLeaveException
-import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyCapacityBelowJoinedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyFullException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinAlreadyMemberException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinBannedException
@@ -18,7 +17,6 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFo
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
-import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
@@ -42,11 +40,10 @@ import com.dogGetDrunk.meetjyou.party.dto.JoinRequestStatus
 import com.dogGetDrunk.meetjyou.party.dto.MyApplicationResponse
 import com.dogGetDrunk.meetjyou.party.dto.PartyMemberResponse
 import com.dogGetDrunk.meetjyou.party.dto.PendingJoinRequest
-import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
+import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyNameRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
 import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
-import com.dogGetDrunk.meetjyou.plan.Plan
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.Post
@@ -446,45 +443,21 @@ class PartyService(
     }
 
     @Transactional
-    fun updateParty(partyUuid: UUID, request: UpdatePartyRequest): UpdatePartyResponse {
+    fun updatePartyName(partyUuid: UUID, request: UpdatePartyNameRequest): UpdatePartyResponse {
         val userUuid = currentUserProvider.uuid
-        log.info("Party update request received: uuid=$partyUuid by user=$userUuid")
+        log.info("Party name update request received: uuid=$partyUuid by user=$userUuid")
+
+        // Locked before the host check so the entity is read fresh: Party has no @DynamicUpdate, so
+        // flushing it rewrites every column and would otherwise revert a concurrent join approval,
+        // ban or leave that updated `joined` under the same row lock.
+        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         if (!verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
 
-        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
-        validatePartyWritable(party)
-        validateCapacityChange(party, request.capacity)
-
-        party.apply {
-            name = request.name
-            destination = request.destination
-            capacity = request.capacity
-            itinStart = request.itinStart
-            itinFinish = request.itinFinish
-        }
-        applyPlanChange(party, request, userUuid)
-        log.info("Party is updated: uuid=$partyUuid")
+        party.name = request.name
+        log.info("Party name is updated: uuid=$partyUuid")
         return UpdatePartyResponse.of(party)
-    }
-
-    private fun validateCapacityChange(party: Party, newCapacity: Int) {
-        if (newCapacity < party.joined) {
-            throw PartyCapacityBelowJoinedException(party.uuid)
-        }
-    }
-
-    private fun applyPlanChange(party: Party, request: UpdatePartyRequest, userUuid: UUID) {
-        party.plan = request.planUuid?.let { resolveOwnedPlan(it, userUuid) }
-        syncPostPlan(party)
-    }
-
-    private fun syncPostPlan(party: Party) {
-        val post = postRepository.findByParty_Uuid(party.uuid) ?: return
-        post.plan = party.plan
-        post.isPlanPublic = if (party.plan == null) null else (post.isPlanPublic ?: false)
-        log.info("Post plan synced with party. partyUuid=${party.uuid}, planUuid=${party.plan?.uuid}")
     }
 
     @Transactional
@@ -690,14 +663,6 @@ class PartyService(
             PartyImageState.NONE -> null
             PartyImageState.INHERITED -> post?.let { postImgService.createPostThumbnailImgDownloadPars(listOf(it.uuid)).firstOrNull() }
         }
-    }
-
-    private fun resolveOwnedPlan(planUuid: UUID, userUuid: UUID): Plan {
-        val plan = planRepository.findByUuid(planUuid) ?: throw PlanNotFoundException(planUuid)
-        if (plan.owner.uuid != userUuid) {
-            throw PlanUpdateAccessDeniedException(planUuid, userUuid)
-        }
-        return plan
     }
 
     private fun snapshotPlan(party: Party) {

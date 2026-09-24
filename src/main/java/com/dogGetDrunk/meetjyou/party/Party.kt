@@ -50,6 +50,10 @@ class Party(
     @Column(columnDefinition = "TEXT")
     var planSnapshot: String? = null
 
+    companion object {
+        const val NAME_MAX_LENGTH = 20
+    }
+
     fun complete() {
         progressStatus = PartyProgressStatus.COMPLETED
         recruitmentStatus = PartyRecruitmentStatus.CLOSED
