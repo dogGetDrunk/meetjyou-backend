@@ -1,7 +1,6 @@
 package com.dogGetDrunk.meetjyou.common.serialization
 
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
-import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.plan.dto.UpdatePlanRequest
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -53,20 +52,6 @@ class AssertTrueValidatorJsonIgnoreTest : BehaviorSpec({
                         itinStart = Instant.now().plusSeconds(3600), itinFinish = Instant.now().plusSeconds(7200),
                         destination = "Seoul", joined = 1, capacity = 4, name = "Trip",
                         planUuid = null, ownerUuid = UUID.randomUUID(),
-                    )
-                )
-                val keys = keysOf(json)
-                keys shouldNotContain "isItinStartAfterNow"
-                keys shouldNotContain "isItinFinishAfterItinStart"
-            }
-        }
-
-        `when`("UpdatePartyRequest") {
-            then("isItinStartAfterNow/isItinFinishAfterItinStart 키가 JSON에 없다") {
-                val json = objectMapper.writeValueAsString(
-                    UpdatePartyRequest(
-                        itinStart = Instant.now().plusSeconds(3600), itinFinish = Instant.now().plusSeconds(7200),
-                        destination = "Seoul", capacity = 4, name = "Trip", planUuid = null,
                     )
                 )
                 val keys = keysOf(json)

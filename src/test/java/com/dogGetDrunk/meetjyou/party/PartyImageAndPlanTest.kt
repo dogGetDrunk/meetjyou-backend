@@ -3,15 +3,12 @@ package com.dogGetDrunk.meetjyou.party
 import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
-import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
-import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyRequest
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.support.PlanFixtures
-import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
@@ -19,7 +16,6 @@ import com.dogGetDrunk.meetjyou.userparty.PartyRole
 import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
@@ -65,131 +61,7 @@ class PartyImageAndPlanTest : BehaviorSpec() {
     private fun hostMembership(party: Party, host: com.dogGetDrunk.meetjyou.user.User) =
         UserParty(party, host, PartyRole.HOST)
 
-    private fun post(party: Party, author: com.dogGetDrunk.meetjyou.user.User) = Post(
-        party = party,
-        isInstant = false,
-        title = "Trip post",
-        content = "content",
-        itinStart = party.itinStart,
-        itinFinish = party.itinFinish,
-        location = party.destination,
-        capacity = party.capacity,
-    ).apply { this.author = author }
-
     init {
-        given("파티 수정 시 planUuid가 함께 전달되면") {
-            `when`("호출한 유저가 파티 호스트이고 여행 계획서 소유자인 경우") {
-                val host = UserFixtures.user()
-                val party = party()
-                val plan = PlanFixtures.plan(owner = host)
-                val request = UpdatePartyRequest(
-                    itinStart = party.itinStart,
-                    itinFinish = party.itinFinish,
-                    destination = party.destination,
-                    capacity = party.capacity,
-                    name = "New name",
-                    planUuid = plan.uuid,
-                )
-                every { partyRepository.findByUuid(party.uuid) } returns party
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
-                every { currentUserProvider.uuid } returns host.uuid
-                every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
-                every { planRepository.findByUuid(plan.uuid) } returns plan
-
-                then("파티의 plan이 갱신된다") {
-                    sut.updateParty(party.uuid, request)
-                    party.plan shouldBe plan
-                }
-            }
-
-            `when`("여행 계획서 소유자가 아닌 경우") {
-                val host = UserFixtures.user()
-                val party = party()
-                val stranger = UserFixtures.user(email = "stranger@test.com", nickname = "stranger", externalId = "ext-stranger")
-                val strangerPlan = PlanFixtures.plan(owner = stranger)
-                val request = UpdatePartyRequest(
-                    itinStart = party.itinStart,
-                    itinFinish = party.itinFinish,
-                    destination = party.destination,
-                    capacity = party.capacity,
-                    name = "New name",
-                    planUuid = strangerPlan.uuid,
-                )
-                every { partyRepository.findByUuid(party.uuid) } returns party
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
-                every { currentUserProvider.uuid } returns host.uuid
-                every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
-                every { planRepository.findByUuid(strangerPlan.uuid) } returns strangerPlan
-
-                then("PlanUpdateAccessDeniedException이 발생한다") {
-                    shouldThrow<PlanUpdateAccessDeniedException> {
-                        sut.updateParty(party.uuid, request)
-                    }
-                }
-            }
-        }
-
-        given("파티 수정 시 planUuid가 null로 전달되면") {
-            `when`("연결된 모집글이 있으면") {
-                val host = UserFixtures.user()
-                val party = party()
-                val plan = PlanFixtures.plan(owner = host)
-                party.plan = plan
-                val linkedPost = post(party, host).apply { this.plan = plan; this.isPlanPublic = true }
-                val request = UpdatePartyRequest(
-                    itinStart = party.itinStart,
-                    itinFinish = party.itinFinish,
-                    destination = party.destination,
-                    capacity = party.capacity,
-                    name = "New name",
-                    planUuid = null,
-                )
-                every { partyRepository.findByUuid(party.uuid) } returns party
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
-                every { currentUserProvider.uuid } returns host.uuid
-                every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
-                every { postRepository.findByParty_Uuid(party.uuid) } returns linkedPost
-
-                then("파티와 연결된 모집글의 plan이 함께 해제된다") {
-                    sut.updateParty(party.uuid, request)
-                    party.plan shouldBe null
-                    linkedPost.plan shouldBe null
-                    linkedPost.isPlanPublic shouldBe null
-                }
-            }
-        }
-
-        given("파티 수정 시 다른 planUuid로 교체되면") {
-            `when`("연결된 모집글이 있으면") {
-                val host = UserFixtures.user()
-                val party = party()
-                val oldPlan = PlanFixtures.plan(owner = host)
-                party.plan = oldPlan
-                val newPlan = PlanFixtures.plan(owner = host)
-                val linkedPost = post(party, host).apply { this.plan = oldPlan; this.isPlanPublic = true }
-                val request = UpdatePartyRequest(
-                    itinStart = party.itinStart,
-                    itinFinish = party.itinFinish,
-                    destination = party.destination,
-                    capacity = party.capacity,
-                    name = "New name",
-                    planUuid = newPlan.uuid,
-                )
-                every { partyRepository.findByUuid(party.uuid) } returns party
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
-                every { currentUserProvider.uuid } returns host.uuid
-                every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
-                every { planRepository.findByUuid(newPlan.uuid) } returns newPlan
-                every { postRepository.findByParty_Uuid(party.uuid) } returns linkedPost
-
-                then("연결된 모집글의 plan도 새 계획서로 교체된다") {
-                    sut.updateParty(party.uuid, request)
-                    linkedPost.plan shouldBe newPlan
-                    linkedPost.isPlanPublic shouldBe true
-                }
-            }
-        }
-
         given("파티 이미지 상태 전환") {
             `when`("호스트가 이미지 업로드를 확인하면") {
                 val host = UserFixtures.user()

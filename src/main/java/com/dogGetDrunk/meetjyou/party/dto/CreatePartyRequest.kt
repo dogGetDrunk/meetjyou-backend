@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.party.dto
 
+import com.dogGetDrunk.meetjyou.party.Party
 import com.fasterxml.jackson.annotation.JsonIgnore
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.Max
@@ -19,7 +20,7 @@ data class CreatePartyRequest(
     @field:Min(1)
     @field:Max(10)
     val capacity: Int,
-    @field:Size(max = 20)
+    @field:Size(max = Party.NAME_MAX_LENGTH)
     @field:NotBlank
     val name: String,
     val planUuid: UUID?,

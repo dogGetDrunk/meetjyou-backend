@@ -195,3 +195,17 @@
 - 놓친 층: L1
 - 왜 놓쳤나: `record-verifier-gaps.py`가 같은 이유로 두 이벤트(SubagentHandback·SubagentStop)를 보고 있었는데(G11), 새 기록기에는 원장 영향 분석의 "진실 원천 2개" 근거를 적용하지 않음. 테스트는 표를 `last_assistant_message`에 넣은 합성 입력만 사용. 실제로는 표를 낸 검증 3회 모두 SubagentStop이 발생했지만 그중 2회는 마지막 메시지가 한 줄이라 표가 없었음 → 게이트가 정상 검증 뒤에도 "검증 기록 없음"으로 영구 차단(사실상 fail-closed)
 - 추가한 장치: `.claude/hooks/record-verifier-run.py` — hand-back 메시지(`tool_input.message`) 우선, `.claude/settings.json` PostToolUse(SubagentHandback)에 등록. `.claude/hooks/test_hooks.py` "table delivered only via hand-back" 시나리오(수정 전 FAIL 확인). `.claude/hooks/pr-gate.py` — 검증 후에도 반복 차단되면 우회 말고 사용자 보고하도록 deny 메시지에 명시
+
+### G26. 원장 영향 분석이 다른 모듈의 연관 경유 쓰기 경로를 놓침
+- 날짜 / 출처: 2026-09-24, 파티 이름 변경 PATCH(`worktree-party-rename`) PR 전 requirement-verifier 검증 (체크리스트 "쓰는 곳" 근거 불완전 지적)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: "쓰는 곳"을 `party` 패키지 안에서만 찾음. `PostService.kt:300` `post.party.plan = ...`, `PlanService.kt:195` `party.plan = null`처럼 다른 모듈이 연관을 거쳐 잠금 없이 쓰는 경로는 grep 범위에 없었음. `Party`에 `@DynamicUpdate`가 없어 이런 경로의 flush는 모든 컬럼을 다시 씀 → 동시 이름 변경을 옛 값으로 덮어쓸 수 있음(기존 PUT에도 있던 선행 문제, 후속 과제)
+- 추가한 장치: `.claude/templates/ledger.md` "쓰는 곳" 항목 — 필드 대입 grep에 그치지 않고 엔티티 로더(`findByUuid`·`require<Entity>`·연관 getter, 타 모듈 포함) 호출 지점마다 필드 대입과 변경 메서드 호출까지 추적, 실행한 grep 명령·경로별 잠금 여부 기재를 요구
+
+### G27. G26 장치(필드 대입 grep)가 같은 누락을 재현함 — 원장에 "PartyService 내부는 잠금 사용" 오기재
+- 날짜 / 출처: 2026-09-24, G26 수정 후 requirement-verifier 재검증 ("쓰는 곳" 부분 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: G26 장치로 넣은 grep(`party\.[a-zA-Z]+ *=`)은 필드 대입만 잡음. `PartyService`의 `completeParty`(`requireParty` → `party.complete()`), `confirmPartyImage`·`clearPartyImageState`(`requireParty(...).imageState =`)처럼 변경 메서드 호출이나 잠금 없는 로더 헬퍼를 거치는 쓰기는 구조적으로 빠짐. 그 grep 결과만 보고 원장에 "PartyService 내부 경로는 잠금 사용"이라 적음
+- 추가한 장치: `.claude/templates/ledger.md` "쓰는 곳" 항목 — 필드 대입 grep 예시를 빼고, 엔티티 로더 호출 지점부터 필드 대입·변경 메서드 호출까지 추적하도록 기준을 바꿈. 한계: 문서 규칙이라 기계 강제 없음
