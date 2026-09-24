@@ -7,6 +7,8 @@ import time
 
 WORK_DIR = os.path.join(".claude", "work")
 BASE_REF = "origin/main"
+BASE_BRANCH = BASE_REF.split("/", 1)[1]
+SOURCE_ROOT = "src"
 PENDING_STEM = "gap-pending"
 
 
@@ -31,7 +33,9 @@ def work_file(root, stem, extension):
 def resolve_base(root):
     head = git(root, "rev-parse", "HEAD")
     base = git(root, "merge-base", "HEAD", BASE_REF) or "HEAD"
-    if base != head:
+    # On the base branch itself, HEAD reaching BASE_REF just means it is up to date (e.g. a
+    # fast-forward after a PR merged); only commits ahead of BASE_REF are unverified work.
+    if base != head or git(root, "branch", "--show-current") == BASE_BRANCH:
         return base
     # HEAD is already an ancestor of BASE_REF (this branch was merged and BASE_REF
     # moved to include it), so the merge-base degenerates to HEAD itself and every
@@ -56,21 +60,6 @@ def changed_paths(root, pathspec):
     return sorted(set(tracked) | set(untracked))
 
 
-def existing_paths(root, paths):
-    return [p for p in paths if os.path.exists(os.path.join(root, p))]
-
-
-def newest_change_time(root, paths):
-    """Newest mtime among changed paths; deletions fall back to the git index."""
-    present = existing_paths(root, paths)
-    times = [os.path.getmtime(os.path.join(root, p)) for p in present]
-    if len(present) < len(paths):
-        index = git(root, "rev-parse", "--path-format=absolute", "--git-path", "index")
-        if index and os.path.exists(index):
-            times.append(os.path.getmtime(index))
-    return max(times) if times else time.time()
-
-
 def worktree_tree_hash(root):
     """Git tree id of the working tree as `git add -A` would stage it (.gitignore respected).
 
@@ -83,6 +72,14 @@ def worktree_tree_hash(root):
         for args in (["read-tree", "HEAD"], ["add", "-A"], ["write-tree"]):
             result = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, env=env, check=True)
     return result.stdout.strip()
+
+
+def source_tree_hash(root):
+    """Tree id of the working tree's src/ only, so docs edits and commits leave it unchanged.
+
+    Empty when src/ holds no tracked-or-unignored file.
+    """
+    return git(root, "rev-parse", f"{worktree_tree_hash(root)}:{SOURCE_ROOT}")
 
 
 def base_file_text(root, path):
