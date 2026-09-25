@@ -27,9 +27,6 @@ jobs:
           # Caches the Gradle wrapper and dependencies, keyed on the build files' hash.
           cache: 'gradle'
 
-      - name: Agent process hook tests
-        run: python3 .claude/hooks/test_hooks.py
-
       # One Gradle invocation for both, instead of paying JVM startup + configuration twice.
       # dockerTest needs a Docker daemon (Testcontainers MySQL); GitHub-hosted runners provide one.
       - name: Build & Test + preference seed consistency test

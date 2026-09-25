@@ -1,0 +1,19 @@
+{
+  "baseRef": "origin/main",
+  "sourceRoot": "src",
+  "productionPaths": [
+    "src/main"
+  ],
+  "ledgerThreshold": 2,
+  "fullTest": {
+    "preset": "gradle"
+  },
+  "gapLog": "docs/agent-process/gap-log.md",
+  "ledgerExtra": ".claude/ledger-extra.md",
+  "verifierChecks": [
+    "repository or query calls inside loops (N+1) — batch loading with groupBy/associateBy is required",
+    "service methods without @Transactional / @Transactional(readOnly = true)",
+    "access to another user's resources without an ownership check (IDOR)"
+  ],
+  "debug": false
+}

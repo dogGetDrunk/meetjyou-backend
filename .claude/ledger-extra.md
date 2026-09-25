@@ -1,0 +1,3 @@
+- [ ] (JPA) "쓰는 곳" 추적 시 엔티티 로더(`findByUuid`·`require<Entity>` 헬퍼·다른 엔티티의 연관 getter, 다른 모듈 포함)를 grep. `@DynamicUpdate` 없는 엔티티는 잠금 없는 쓰기 경로가 flush 시 모든 컬럼을 덮어씀 (G26·G27)
+- [ ] (H2↔MySQL) H2 테스트로 못 잡는 MySQL 전용 동작 — UUID 컬럼 타입(`@JdbcTypeCode`), 테스트에서 Flyway off. dev 수동 확인 필요 여부 (G8)
+- [ ] (배포) 호스트 전용 파일(시크릿·nginx 설정)·멀티아치 빌드·배포 워크플로 경로 필터 영향 (G14·G15·G16·G18·G30)
