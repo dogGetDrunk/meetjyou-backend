@@ -44,13 +44,11 @@ SPRING_PROFILES_ACTIVE=dev,db,secrets \
 
 ## Verification Workflow
 
-Full spec: `docs/agent-process/README.md`. Hooks in `.claude/settings.json` enforce parts of it.
+Enforced by the **vgate** Claude Code plugin (`~/.claude/skills/vgate`, local-only until published — reviewers without it run ungated). This repo opts in via `.claude/vgate.json`; the plugin injects the working contract at session start and enforces the ledger, full-test evidence, pre-PR verifier run, and gap protocol through hooks.
 
-- **Ledger first** — when 2+ production files change or the design is affected, copy `.claude/templates/ledger.md` to `.claude/work/ledger-<branch>.md` (`/` → `-`), fill requirements (quoted request / conventions / impact analysis), get user approval, then implement. Bug fixes record the failing (red) test output before the fix.
-- **Evidence, not assertion** — run the full `./gradlew test` (or `build`) in the foreground, without pipes, `--tests`, or `--dry-run`; the hook records only that. Run the `requirement-verifier` subagent against the ledger **before `gh pr create`** (hook-enforced on ledger branches: any edit after the run, docs included, needs a re-run) and before reporting completion. Rows whose only evidence is CI stay 🟡 until the PR's CI run, then turn ✅.
-- **Completion report** — open with a `result:` line (top of the reply, not the end). Include the requirement table with evidence (command, counts, time, `file:line`) and a mandatory "확인하지 못한 것" section ("없음" if empty).
-- **Claim hygiene** — mark unverified diagnoses and effort estimates as `[추정]` until checked. Relay subagent or summarizer output as fact only after checking the source. No external facts without a source.
-- **Gap protocol (self-triggered, no user instruction needed)** — when the user challenges finished work, when a verification subagent reports a gap, or when you find a miss yourself: fix; add one verdict line per recorded challenge to `.claude/work/gap-triage-<branch>.md` (`- 갭: <요약> → L<n>` naming the layer that missed it / `- 갭 아님: <이유>`); for each real gap add a `### G<n>` entry to `docs/agent-process/gap-log.md` with `- 놓친 층: L<n>` and a `- 추가한 장치:` citing a backticked file changed on this branch or `이슈 #<n>`, and add that mechanism. Prefer hooks/tests/lint rules over prose rules.
+- Project config: `.claude/vgate.json` (gradle full test, `src/main` ledger threshold, verifier checks: N+1 / `@Transactional` / IDOR), project ledger checklist `.claude/ledger-extra.md`
+- Project gaps: `docs/agent-process/gap-log.md`; project-side layer L2 (static analysis, permissions): `docs/agent-process/README.md`
+- Pre-plugin in-repo version: tag `agent-process-inrepo-final`
 
 ## Conventions
 
