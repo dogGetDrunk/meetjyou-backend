@@ -1,6 +1,6 @@
 # ADR-0002: 알림 outbox 트랜잭션 경계 — Critical 버그는 수정, 원자성 개선은 보류
 
-**Status:** Accepted (Critical fix only) — Part 2 (outbox 원자성 개선)는 미착수, 별도 세션에서 이어서 진행 예정
+**Status:** Accepted (Critical fix only) — Part 2 (outbox 원자성 개선)는 미착수, 이슈 #150으로 추적
 **Date:** 2026-07-13
 **Updated:** 2026-07-19 — `NotificationEventHandler`의 REQUIRES_NEW 부재에 대한 위험도 분석 정정 (하단 Update 섹션 참고)
 **Deciders:** damiannlee

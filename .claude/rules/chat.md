@@ -1,15 +1,19 @@
 ---
 description: Chat module rules — loaded only when working in chat/ package
-globs: ["**/chat/**"]
+paths:
+  - "**/chat/**"
 ---
 
 # Chat Module
 
-WebSocket-based chat. Key classes:
-- `ChatRoom` / `ChatMessage` / `ChatParticipant` — core domain
-- `ChatConnectionService` — manages WS sessions
-- `ChatEventService` — publishes events to notification outbox
+STOMP over WebSocket (`/ws-chat`, pub `/pub/**`, sub `/sub/**`). Key classes:
+- `ChatRoom` / `ChatMessage` / `ChatParticipant` — core domain (`room/`, `message/`, `participant/`)
+- `ChatService` — message handling; `ChatReadService` — read/unread state
+- `connection/` — `ChatStompInterceptor`, `ChatSessionTracker` (presence), `WebSocketEventListener`
+- `event/ChatRoomEventBroadcaster` — room events to subscribers
 
-**Pattern:** Chat events follow the outbox pattern — see `.claude/rules/notification.md`. Do NOT call notification services directly.
+**Notifications:** publish `NotificationEvent` (see `.claude/rules/notification.md`). Do NOT call push senders directly.
 
-**Testing:** Use `@SpringBootTest(webEnvironment = RANDOM_PORT)` + SockJS client for integration tests.
+**Open issue:** WS broadcast is sent before commit → ghost message on rollback (#151).
+
+**Testing:** `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `WebSocketStompClient` — see `ChatIntegrationTest`.

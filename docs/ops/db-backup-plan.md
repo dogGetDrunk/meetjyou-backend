@@ -1,6 +1,6 @@
 # DB 백업 도입 계획 (미착수)
 
-- 상태: **미착수** — 후속 작업으로 진행 예정 (배경: `docs/adr/0003-multi-cloud-component-placement.md` Action Item 2)
+- 상태: **미착수** — 이슈 #142로 추적 (배경: `docs/adr/0003-multi-cloud-component-placement.md` Action Item 2)
 - 작성: 2026-09-21
 
 ## 배경
