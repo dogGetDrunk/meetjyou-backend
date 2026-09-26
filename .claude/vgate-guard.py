@@ -29,7 +29,7 @@ def main():
     if os.path.exists(os.path.join(alive_dir(), session_id)):
         return
     print(json.dumps({"systemMessage": "⚠ vgate plugin hook이 이 세션에서 한 번도 실행되지 않음 — 완료·PR 게이트 없이 진행 중. "
-                                       "~/.claude/skills/vgate 설치와 /reload-plugins(또는 새 세션)를 확인할 것"},
+                                       "`claude plugin list`의 vgate@vgate 설치와 /reload-plugins(또는 새 세션)를 확인할 것"},
                      ensure_ascii=False))
 
 
