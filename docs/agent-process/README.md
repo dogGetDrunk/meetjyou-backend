@@ -1,6 +1,6 @@
 # AI 에이전트 작업 검증 프로세스 — meetjyou 적용분
 
-> 프로세스 본체(원장·완료 게이트·독립 검증·갭 회고, L1·L3~L6)는 **vgate** Claude Code plugin으로 분리됨 → `~/.claude/skills/vgate/docs/README.md`.
+> 프로세스 본체(원장·완료 게이트·독립 검증·갭 회고, L1·L3~L6)는 **vgate** Claude Code plugin으로 분리됨 → `~/orca/projects/vgate/docs/README.md` (개발 레포, plugin id `vgate@vgate`).
 > vgate는 완성도 기준 충족 전까지 로컬 전용 — plugin 없는 환경(리뷰어·타 머신)에선 게이트 미동작.
 > 이 레포에 커밋되던 이관 전 버전(hook·검증자·템플릿): 태그 `agent-process-inrepo-final`.
 > 이 문서는 이 레포 고유 부분만: 설정값, L2, 프로젝트 갭 기록.
