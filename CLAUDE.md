@@ -91,24 +91,29 @@ Read-only methods require `@Transactional(readOnly = true)`. Write methods use `
 **Packages:**
 ```
 com.dogGetDrunk.meetjyou/
-├── auth/          # JWT, OAuth2 OIDC (Kakao/Google), dev bypass filter
-├── user/          # accounts, profiles
-├── party/         # group parties + applications
-├── post/          # travel listings
-├── plan/          # trip planning + markers
-├── chat/          # WebSocket chat (room, message, participant, connection, event)
-├── notification/  # push notifications, transactional outbox
-├── preference/    # user preferences + compatibility matching
-├── image/         # upload/thumbnail via OCI
-├── config/        # Spring config + @ConfigurationProperties
-└── common/        # exceptions, utilities
+├── auth/               # JWT, social login (Kakao/Google/Apple), dev bypass filter
+├── user/               # accounts, profiles
+├── party/              # group parties + applications
+├── userparty/          # user↔party membership (role, member status)
+├── post/               # travel listings
+├── plan/               # trip planning + markers
+├── chat/               # WebSocket chat (room, message, participant, connection, event)
+├── notification/       # push notifications, transactional outbox
+├── notificationcenter/ # in-app notification center (notices, sent/received applications)
+├── notice/             # admin notices
+├── terms/              # terms versions + agreements
+├── version/            # app version check / forced update
+├── preference/         # user preferences + compatibility matching
+├── image/, cloud/      # OCI Object Storage PAR URLs (thumbnails are made client-side)
+├── config/             # Spring config + @ConfigurationProperties
+└── common/             # exceptions, utilities, idempotency
 ```
 
 **Key patterns:**
 - `DevBypassAuthFilter` — skips JWT in `dev` profile
 - Notification outbox — see `.claude/rules/notification.md` for the full pattern
 - Schema managed via Flyway (`db/migration/V*.sql`); `ddl-auto: none`
-- `SecurityConfig` defaults to `.anyRequest().authenticated()`; `permitAll()` is scoped to actuator health, WS handshake/pub-sub, swagger, `auth/registration|nonce|login|refresh|logout`, `dev/auth/**`, and GET-only on `notices/**`, `terms/**`, version check/latest, nickname-duplicate check. Admin actions use `@PreAuthorize("hasAuthority('ADMIN')")`.
+- `SecurityConfig` defaults to `.anyRequest().authenticated()`; `permitAll()` is scoped to actuator health, WS handshake/pub-sub, swagger, `auth/registration|nonce|login|refresh|logout`, `dev/auth/**`, POST `internal/load-test-token` (static secret header), and GET-only on `notices/**`, `terms/**`, version check/latest, nickname-duplicate check. Admin actions use `@PreAuthorize("hasAuthority('ADMIN')")`.
 
 ## Compact Instructions
 

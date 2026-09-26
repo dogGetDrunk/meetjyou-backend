@@ -88,11 +88,12 @@
 ## Action Items
 
 1. [x] EC2 IP가 EIP인지 확인 — EIP (2026-09-21)
-2. [ ] **OCI 밖 주기 백업 도입 (백업 부재 확인, 최우선)** — 계획: `docs/ops/db-backup-plan.md`
+2. [ ] **OCI 밖 주기 백업 도입 (백업 부재 확인, 최우선)** — 계획: `docs/ops/db-backup-plan.md`, 추적: 이슈 #142
 3. [ ] (선택) 요청당 제어 명령 5회 축소 검토 — Hikari `auto-commit: false` + `hibernate.connection.provider_disables_autocommit`, Connector/J `readOnlyPropagatesToServer=false` [미검증]
 4. [ ] (선택) MySQL 서버 인증서 검증(트러스트스토어) 도입
 
 ## 관련
 
-- 원장: `.claude/work/ledger-worktree-aws-ec2-migration.md`(로컬, gitignore)
+- 이관 PR: #135
+- 이관 후 실측: EC2 부하 테스트(이슈 #154), OCI 시절 인프라 이슈 잔존 확인(이슈 #155)
 - 선행 실측: ADR-0001(`GET /posts` 9쿼리), 부하 테스트에서 DB 병목 아님 확인(2026-07-21)
