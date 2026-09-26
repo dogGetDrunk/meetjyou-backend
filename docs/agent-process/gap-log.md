@@ -2,7 +2,7 @@
 
 > 사용자 추궁·검증자·자체 발견으로 드러난 빈틈 기록. 항목마다 **놓친 층 → 추가한 장치**를 남김.
 > 층 정의와 절차: vgate `docs/README.md`, 이 레포 적용분: [README.md](README.md).
-> vgate(검증 프로세스) 자체의 갭 G2·G3·G4·G5·G6·G7·G9·G11·G12·G13·G17·G20·G21·G22·G23·G24·G25·G28·G29·G31·G32는 plugin `~/.claude/skills/vgate/docs/gap-log.md`로 이관 (번호 유지).
+> vgate(검증 프로세스) 자체의 갭 G2·G3·G4·G5·G6·G7·G9·G11·G12·G13·G17·G20·G21·G22·G23·G24·G25·G28·G29·G31·G32는 vgate 개발 레포 `~/orca/projects/vgate/docs/gap-log.md`로 이관 (번호 유지).
 > G1·G19·G26·G27은 사건은 이 레포, 장치(원장 템플릿 항목)는 vgate — 양쪽에 존재. 새 항목은 G33부터.
 > vgate 결함으로 판정된 갭은 장치 칸에 `vgate@<커밋 sha>` 인용 가능.
 
