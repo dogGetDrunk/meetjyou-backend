@@ -10,6 +10,7 @@ pluginManagement {
         kotlin("plugin.jpa") version kotlinVersion
         kotlin("plugin.allopen") version kotlinVersion
         kotlin("plugin.noarg") version kotlinVersion
+        kotlin("kapt") version kotlinVersion
     }
 
     repositories {
