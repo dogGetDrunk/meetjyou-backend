@@ -84,6 +84,9 @@ String concatenation via template literals only — no `+` operator.
 ### @Transactional
 Read-only methods require `@Transactional(readOnly = true)`. Write methods use `@Transactional`.
 
+### UUID columns
+Every entity UUID column (business key or FK) carries `@JdbcTypeCode(Types.VARCHAR)`. H2 tests don't catch a missing one — the column type silently diverges from MySQL.
+
 ## Architecture
 
 **Profiles:** `dev` (JWT bypass + debug logging) / `db,secrets,release` (production)
@@ -110,10 +113,14 @@ com.dogGetDrunk.meetjyou/
 ```
 
 **Key patterns:**
-- `DevBypassAuthFilter` — skips JWT in `dev` profile
-- Notification outbox — see `.claude/rules/notification.md` for the full pattern
+- Notification outbox — publish `NotificationEvent`, never send push directly; full pattern in `.claude/rules/notification.md`
 - Schema managed via Flyway (`db/migration/V*.sql`); `ddl-auto: none`
-- `SecurityConfig` defaults to `.anyRequest().authenticated()`; `permitAll()` is scoped to actuator health, WS handshake/pub-sub, swagger, `auth/registration|nonce|login|refresh|logout`, `dev/auth/**`, POST `internal/load-test-token` (static secret header), and GET-only on `notices/**`, `terms/**`, version check/latest, nickname-duplicate check. Admin actions use `@PreAuthorize("hasAuthority('ADMIN')")`.
+- `SecurityConfig` defaults to `.anyRequest().authenticated()` — new endpoints are private unless whitelisted there (public paths: `.claude/rules/auth.md`). Admin actions use `@PreAuthorize("hasAuthority('ADMIN')")`.
+
+### Module context
+- Module-only, non-obvious invariants (locking, state machines, delete order, open issues) live in `.claude/rules/<module>.md` with `paths:` frontmatter — loaded only when matching files are touched
+- Don't write what the code shows at a glance (class lists, endpoint lists); keep this file to cross-cutting rules
+- No registry of rule files here — rules are discovered by glob
 
 ## Compact Instructions
 
