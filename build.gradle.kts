@@ -13,6 +13,7 @@ plugins {
     id("io.spring.dependency-management")
     id("io.gatling.gradle") version "3.15.1.1"
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
+    kotlin("kapt")
 }
 
 group = "com.example"
@@ -86,7 +87,7 @@ repositories {
 }
 
 dependencies {
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+    kapt("org.springframework.boot:spring-boot-configuration-processor")
 
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -157,6 +158,7 @@ dependencies {
     testImplementation("org.testcontainers:mysql")
 
     testRuntimeOnly("com.h2database:h2")
+    testImplementation(kotlin("test"))
 }
 
 tasks.withType<Test> {
