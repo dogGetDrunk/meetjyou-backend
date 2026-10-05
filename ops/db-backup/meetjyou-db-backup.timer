@@ -1,0 +1,11 @@
+[Unit]
+Description=Run meetjyou DB backup daily at 04:00 KST
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 Asia/Seoul
+# Run a missed backup at boot if the host was down at 04:00.
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target
