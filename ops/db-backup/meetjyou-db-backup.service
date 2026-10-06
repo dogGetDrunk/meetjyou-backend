@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily logical backup of the meetjyou MySQL schema (issue #142)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/meetjyou-backup/backup.env
+ExecStart=/usr/local/bin/meetjyou-db-backup
