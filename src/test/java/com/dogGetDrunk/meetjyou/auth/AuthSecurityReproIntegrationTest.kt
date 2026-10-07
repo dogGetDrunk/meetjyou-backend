@@ -40,6 +40,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.jwt.JwtValidationException
 import org.springframework.test.context.ActiveProfiles
 
@@ -188,6 +189,9 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
         return post("/auth/refresh", HttpEntity<Void>(jsonHeaders(null, bearerToken))).status()
     }
 
+    private fun logoutStatus(bearerToken: String): HttpStatus =
+        post("/auth/logout", HttpEntity<Void>(jsonHeaders(null, bearerToken))).status()
+
     private fun signUpWithGoogle(subject: String, email: String): TokenResponse {
         val (nonce, cookie) = issueNonce()
         stubGoogleIdToken(subject = subject, email = email, nonce = nonce)
@@ -239,6 +243,17 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
             }
         }
 
+        given("refresh token으로") {
+            `when`("로그아웃하면") {
+                then("204를 받고, 그 refresh token은 더 이상 회전되지 않는다") {
+                    val tokens = signUpWithGoogle(subject = "google-sub-logout", email = "logout@gmail.com")
+
+                    logoutStatus(tokens.refreshToken) shouldBe HttpStatus.NO_CONTENT
+                    refreshStatus(tokens.refreshToken) shouldBe HttpStatus.UNAUTHORIZED
+                }
+            }
+        }
+
         given("H2: 소셜 id_token이 검증한 이메일과 다른 이메일을 요청 body에 넣어 가입하면") {
             `when`("가입이 처리된 뒤 저장된 이메일을 보면") {
                 then("body 값이 아니라 검증된 id_token의 이메일이어야 한다") {
@@ -274,6 +289,33 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
                     login(AuthProvider.GOOGLE, cookie) shouldBe HttpStatus.NOT_FOUND
                     register(AuthProvider.GOOGLE, "r3@gmail.com", cookie).status() shouldBe HttpStatus.CREATED
+                }
+            }
+        }
+
+        given("가입된 유저가 nonce를 받아 로그인에 성공한 뒤") {
+            `when`("같은 세션·같은 id_token으로 다시 로그인하면") {
+                then("nonce가 소비되어 401을 받는다") {
+                    signUpWithGoogle(subject = "google-sub-replay", email = "replay@gmail.com")
+                    val (nonce, cookie) = issueNonce()
+                    stubGoogleIdToken(subject = "google-sub-replay", email = "replay@gmail.com", nonce = nonce)
+
+                    login(AuthProvider.GOOGLE, cookie) shouldBe HttpStatus.OK
+                    login(AuthProvider.GOOGLE, cookie) shouldBe HttpStatus.UNAUTHORIZED
+                }
+            }
+        }
+
+        given("Kakao JWK set을 가져오지 못하는 provider 장애 상황에서") {
+            `when`("가입을 요청하면") {
+                then("토큰 오류(401)로 위장되지 않고 서버 오류로 응답한다") {
+                    val (_, cookie) = issueNonce()
+                    val outage = JwtException("Couldn't retrieve remote JWK set")
+                    `when`(kakaoJwtDecoder.decode(anyString())).thenThrow(outage)
+
+                    val response = register(AuthProvider.KAKAO, "kakao@example.com", cookie)
+
+                    response.status() shouldBe HttpStatus.INTERNAL_SERVER_ERROR
                 }
             }
         }
