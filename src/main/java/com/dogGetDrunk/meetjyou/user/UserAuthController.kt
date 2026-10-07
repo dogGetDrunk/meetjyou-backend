@@ -54,11 +54,9 @@ class UserAuthController(
     )
     @PostMapping("/registration")
     fun register(@Valid @RequestBody request: RegistrationRequest, session: HttpSession): ResponseEntity<TokenResponse> {
-        val nonce = session.getAttribute("SESSION_KAKAO_NONCE") as String?
-        if (nonce != null) {
-            session.removeAttribute("SESSION_KAKAO_NONCE")
-        }
+        val nonce = session.getAttribute(SESSION_SOCIAL_NONCE) as String?
         val response = userAuthService.registerViaSocial(request, nonce)
+        session.removeAttribute(SESSION_SOCIAL_NONCE)
         return ResponseEntity.created(URI.create("/${response.uuid}"))
             .body(response)
     }
@@ -82,7 +80,7 @@ class UserAuthController(
     @PostMapping("/nonce")
     fun generateNonce(session: HttpSession): ResponseEntity<NonceResponse> {
         val nonce = UUID.randomUUID()
-        session.setAttribute("SESSION_KAKAO_NONCE", nonce.toString())
+        session.setAttribute(SESSION_SOCIAL_NONCE, nonce.toString())
         return ResponseEntity.ok(NonceResponse(nonce))
     }
 
@@ -110,11 +108,9 @@ class UserAuthController(
     )
     @PostMapping("/login")
     fun login(@Valid @RequestBody request: LoginRequest, session: HttpSession): ResponseEntity<TokenResponse> {
-        val nonce = session.getAttribute("SESSION_KAKAO_NONCE") as String?
-        if (nonce != null) {
-            session.removeAttribute("SESSION_KAKAO_NONCE")
-        }
+        val nonce = session.getAttribute(SESSION_SOCIAL_NONCE) as String?
         val tokenResponseDto = userAuthService.loginViaSocial(request, nonce)
+        session.removeAttribute(SESSION_SOCIAL_NONCE)
         return ResponseEntity.ok(tokenResponseDto)
     }
 
@@ -192,5 +188,12 @@ class UserAuthController(
     @PostMapping("/promote-admin")
     fun promoteAdmin(@Valid @RequestBody request: PromoteAdminRequest): ResponseEntity<TokenResponse> {
         return ResponseEntity.ok(userAuthService.claimAdmin(request.passphrase))
+    }
+
+    companion object {
+        // Consumed only after login/registration succeeds: a client that gets 404 from login
+        // registers next with the same id_token, so the nonce bound to it must still be there.
+        // Replay stays limited to this session, the nonce's only binding.
+        private const val SESSION_SOCIAL_NONCE = "SESSION_SOCIAL_NONCE"
     }
 }
