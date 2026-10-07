@@ -277,7 +277,6 @@ class UserAuthServiceTest : BehaviorSpec() {
             val principal = SocialPrincipal(authProvider = provider, subject = externalId, email = "new@test.com")
             val socialVerifier = mockk<SocialVerifier>(relaxed = true)
             val request = RegistrationRequest(
-                email = "new@test.com",
                 nickname = "newbie",
                 bio = null,
                 gender = Gender.M,
@@ -306,7 +305,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("가입 이력이 없으면") {
                 then("신규 유저를 생성하고 토큰을 발급한다") {
-                    val newUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val newUser = UserFixtures.user(email = principal.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns null
                     every { userService.createUser(request, principal) } returns newUser
 
@@ -320,7 +319,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("grace window(30초) 이내에 생성된 동일 계정이 이미 존재하면(응답 유실 재시도)") {
                 then("UserAlreadyExistsException 대신 그 유저의 로그인 토큰을 반환한다") {
-                    val existingUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val existingUser = UserFixtures.user(email = principal.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns existingUser
 
                     val result = sut.registerViaSocial(request)
@@ -334,7 +333,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("grace window(30초)를 벗어나 생성된 동일 계정이 이미 존재하면") {
                 then("UserAlreadyExistsException을 던진다") {
-                    val oldUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val oldUser = UserFixtures.user(email = principal.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
                     forceCreatedAt(oldUser, Instant.now().minusSeconds(60))
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns oldUser
 

@@ -65,6 +65,17 @@ class GoogleVerifierTest : BehaviorSpec() {
                 }
             }
 
+            `when`("email_verified가 false이면") {
+                then("InvalidJwtException을 던진다") {
+                    val token = buildGoogleIdToken(subject = "google-sub-123", email = "user@example.com", nonce = "test-nonce", emailVerified = false)
+                    every { googleIdTokenVerifier.verify("valid.id.token") } returns token
+
+                    shouldThrow<InvalidJwtException> {
+                        sut.verifyAndExtract(IdToken("valid.id.token"), nonce = "test-nonce")
+                    }
+                }
+            }
+
             `when`("토큰 검증에 실패하면") {
                 then("InvalidJwtException을 던진다") {
                     every { googleIdTokenVerifier.verify("invalid.id.token") } returns null
@@ -85,9 +96,10 @@ class GoogleVerifierTest : BehaviorSpec() {
         }
     }
 
-    private fun buildGoogleIdToken(subject: String, email: String?, nonce: String?): GoogleIdToken {
+    private fun buildGoogleIdToken(subject: String, email: String?, nonce: String?, emailVerified: Boolean = true): GoogleIdToken {
         val payload = GoogleIdToken.Payload()
             .setSubject(subject)
+            .setEmailVerified(emailVerified)
             .also { p -> email?.let { p.email = it } }
             .also { p -> nonce?.let { p.setNonce(it) } }
         val header = JsonWebSignature.Header()

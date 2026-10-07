@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.social.AccessToken
 import com.dogGetDrunk.meetjyou.auth.social.IdToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialToken
+import com.dogGetDrunk.meetjyou.auth.social.SocialTokenRejection
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifier
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.user.AuthProvider
@@ -38,11 +39,14 @@ class GoogleVerifier(
                 ?: throw InvalidJwtException()
 
             val payload = verifiedJwt.payload
-            val subject = payload.subject ?: throw InvalidJwtException()
-            val email = payload.email ?: throw InvalidJwtException()
+            val subject = payload.subject ?: throw InvalidJwtException(message = SocialTokenRejection.MISSING_SUBJECT)
+            val email = payload.email ?: throw InvalidJwtException(message = SocialTokenRejection.MISSING_EMAIL)
 
+            if (payload.emailVerified != true) {
+                throw InvalidJwtException(message = SocialTokenRejection.EMAIL_NOT_VERIFIED)
+            }
             if (nonce.isNullOrBlank() || payload.nonce != nonce) {
-                throw InvalidJwtException()
+                throw InvalidJwtException(message = SocialTokenRejection.NONCE_MISMATCH)
             }
 
             SocialPrincipal(

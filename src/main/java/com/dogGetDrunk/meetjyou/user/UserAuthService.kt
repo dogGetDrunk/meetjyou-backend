@@ -43,7 +43,7 @@ class UserAuthService(
 
     @Transactional
     fun registerViaSocial(request: RegistrationRequest, nonce: String? = null): TokenResponse {
-        log.info("Register via social request received. email: {}, provider: {}", request.email, request.authProvider)
+        log.info("Register via social request received. provider: {}", request.authProvider)
 
         val agreedTerms = termsService.validateRequiredTermsAgreement(request.agreedTermsUuids)
 
