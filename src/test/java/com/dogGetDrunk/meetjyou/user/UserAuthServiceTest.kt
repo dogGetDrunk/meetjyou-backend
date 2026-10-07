@@ -12,8 +12,6 @@ import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjec
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
-import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.preference.Age
 import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.terms.TermsService
@@ -39,8 +37,6 @@ class UserAuthServiceTest : BehaviorSpec() {
     private val jwtProvider = mockk<JwtProvider>(relaxed = true)
     private val termsService = mockk<TermsService>(relaxed = true)
     private val refreshTokenRepository = mockk<RefreshTokenRepository>(relaxed = true)
-    private val adminProperties = AdminProperties(claimPassphrase = "test-passphrase")
-    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
 
     private val sut = UserAuthService(
         socialVerifierRegistry,
@@ -49,8 +45,6 @@ class UserAuthServiceTest : BehaviorSpec() {
         jwtProvider,
         termsService,
         refreshTokenRepository,
-        adminProperties,
-        currentUserProvider,
         rotationOverlapSeconds = 30L,
     )
 
@@ -305,7 +299,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("가입 이력이 없으면") {
                 then("신규 유저를 생성하고 토큰을 발급한다") {
-                    val newUser = UserFixtures.user(email = principal.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val newUser = UserFixtures.user(principal.email, request.nickname, provider, externalId)
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns null
                     every { userService.createUser(request, principal) } returns newUser
 
@@ -319,7 +313,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("grace window(30초) 이내에 생성된 동일 계정이 이미 존재하면(응답 유실 재시도)") {
                 then("UserAlreadyExistsException 대신 그 유저의 로그인 토큰을 반환한다") {
-                    val existingUser = UserFixtures.user(email = principal.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val existingUser = UserFixtures.user(principal.email, request.nickname, provider, externalId)
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns existingUser
 
                     val result = sut.registerViaSocial(request)
@@ -333,7 +327,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("grace window(30초)를 벗어나 생성된 동일 계정이 이미 존재하면") {
                 then("UserAlreadyExistsException을 던진다") {
-                    val oldUser = UserFixtures.user(email = principal.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val oldUser = UserFixtures.user(principal.email, request.nickname, provider, externalId)
                     forceCreatedAt(oldUser, Instant.now().minusSeconds(60))
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns oldUser
 

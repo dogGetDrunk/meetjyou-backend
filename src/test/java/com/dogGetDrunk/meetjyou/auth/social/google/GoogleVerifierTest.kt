@@ -67,7 +67,7 @@ class GoogleVerifierTest : BehaviorSpec() {
 
             `when`("email_verified가 false이면") {
                 then("InvalidJwtException을 던진다") {
-                    val token = buildGoogleIdToken(subject = "google-sub-123", email = "user@example.com", nonce = "test-nonce", emailVerified = false)
+                    val token = buildGoogleIdToken("google-sub-123", "user@example.com", "test-nonce", false)
                     every { googleIdTokenVerifier.verify("valid.id.token") } returns token
 
                     shouldThrow<InvalidJwtException> {
@@ -96,7 +96,12 @@ class GoogleVerifierTest : BehaviorSpec() {
         }
     }
 
-    private fun buildGoogleIdToken(subject: String, email: String?, nonce: String?, emailVerified: Boolean = true): GoogleIdToken {
+    private fun buildGoogleIdToken(
+        subject: String,
+        email: String?,
+        nonce: String?,
+        emailVerified: Boolean = true,
+    ): GoogleIdToken {
         val payload = GoogleIdToken.Payload()
             .setSubject(subject)
             .setEmailVerified(emailVerified)

@@ -85,14 +85,7 @@ class JwtProvider(
      * an API credential and keeps working after logout revokes it.
      */
     fun validateAccessTokenOrThrow(token: String) {
-        val claims = try {
-            getClaims(token)
-        } catch (e: ExpiredJwtException) {
-            throw CustomExpiredJwtException(value = null, message = "Access token expired")
-        } catch (e: Exception) {
-            throw InvalidJwtException(message = "JWT validation failed")
-        }
-        if (!isAccessToken(claims)) {
+        if (!isAccessToken(getClaimsOrThrow(token))) {
             throw InvalidJwtException(message = "Not an access token")
         }
     }
@@ -126,6 +119,15 @@ class JwtProvider(
             REFRESH_TOKEN_TYPE -> true
             null -> claims.id != null
             else -> false
+        }
+
+    private fun getClaimsOrThrow(token: String): Claims =
+        try {
+            getClaims(token)
+        } catch (e: ExpiredJwtException) {
+            throw CustomExpiredJwtException(value = null, message = "Access token expired")
+        } catch (e: Exception) {
+            throw InvalidJwtException(message = "JWT validation failed")
         }
 
     private fun getClaims(token: String): Claims =

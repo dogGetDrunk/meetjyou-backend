@@ -62,7 +62,7 @@ class SecurityConfig(
                     .requestMatchers("/pub/**", "/sub/**").permitAll()
                     // Swagger — API 스펙만 노출, 데이터 없음
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/api-doc/**").permitAll()
-                    // Auth — no token required (promote-admin requires auth, handled by anyRequest)
+                    // Auth — no token required
                     .requestMatchers("$V1/auth/registration").permitAll()
                     .requestMatchers("$V1/auth/nonce").permitAll()
                     .requestMatchers("$V1/auth/login").permitAll()

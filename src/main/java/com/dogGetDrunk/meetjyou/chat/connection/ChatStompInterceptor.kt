@@ -120,7 +120,11 @@ class ChatStompInterceptor(
         userRepository.findByUuid(userUuid)
             ?.takeIf { it.status != UserStatus.DELETED }
             ?: run {
-                log.warn("STOMP CONNECT rejected because the user is withdrawn or unknown. roomUuid={}, userUuid={}", roomUuid, userUuid)
+                log.warn(
+                    "STOMP CONNECT rejected because the user is withdrawn or unknown. roomUuid={}, userUuid={}",
+                    roomUuid,
+                    userUuid,
+                )
                 throw IllegalArgumentException("Withdrawn or unknown user.")
             }
     }

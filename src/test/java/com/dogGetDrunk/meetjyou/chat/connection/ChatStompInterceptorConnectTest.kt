@@ -67,7 +67,7 @@ class ChatStompInterceptorConnectTest : BehaviorSpec() {
 
             `when`("refresh token을 보내면") {
                 then("연결을 거부한다") {
-                    every { jwtProvider.validateAccessTokenOrThrow("refresh") } throws InvalidJwtException(message = "Not an access token")
+                    every { jwtProvider.validateAccessTokenOrThrow("refresh") } throws InvalidJwtException()
 
                     shouldThrow<IllegalArgumentException> { sut.preSend(connectMessage("refresh"), channel) }
                 }

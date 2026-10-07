@@ -8,8 +8,6 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifier
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
-import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
@@ -30,11 +28,9 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
     private val jwtProvider = mockk<JwtProvider>(relaxed = true)
     private val termsService = mockk<TermsService>(relaxed = true)
     private val refreshTokenRepository = mockk<RefreshTokenRepository>(relaxed = true)
-    private val adminProperties = mockk<AdminProperties>(relaxed = true)
-    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val sut = UserAuthService(
         socialVerifierRegistry, userRepository, userService, jwtProvider,
-        termsService, refreshTokenRepository, adminProperties, currentUserProvider,
+        termsService, refreshTokenRepository,
         rotationOverlapSeconds = 30L,
     )
 

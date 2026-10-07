@@ -9,6 +9,7 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.AuthProvider
+import com.dogGetDrunk.meetjyou.user.Role
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.user.dto.NonceResponse
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
@@ -49,6 +50,12 @@ import org.springframework.test.context.ActiveProfiles
  */
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("test")
+@MockBean(
+    FirebaseApp::class,
+    AuthenticationDetailsProvider::class,
+    ObjectStorageClient::class,
+    WorkRequestClient::class,
+)
 class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
     @Autowired
@@ -78,24 +85,17 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
     @MockBean(name = "kakaoJwtDecoder")
     private lateinit var kakaoJwtDecoder: JwtDecoder
 
-    @MockBean
-    private lateinit var firebaseApp: FirebaseApp
-
-    @MockBean
-    private lateinit var ociAuthProvider: AuthenticationDetailsProvider
-
-    @MockBean
-    private lateinit var objectStorageClient: ObjectStorageClient
-
-    @MockBean
-    private lateinit var workRequestClient: WorkRequestClient
-
     // Auth endpoints are rate-limited per client IP; a distinct forwarded IP per test keeps the
     // tests from sharing buckets (requests arrive from 127.0.0.1, a trusted proxy for RemoteIpValve).
     private var clientIp = ""
     private var testCounter = 0
 
     private fun url(path: String) = "http://localhost:$port/api/v1$path"
+
+    private fun post(path: String, entity: HttpEntity<*>): ResponseEntity<String> =
+        restTemplate.postForEntity(url(path), entity, String::class.java)
+
+    private fun ResponseEntity<*>.status(): HttpStatus = HttpStatus.valueOf(statusCode.value())
 
     private fun seedPreferences() {
         preferenceRepository.saveAll(
@@ -116,12 +116,14 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
     /** Issues a nonce and returns it with the session cookie that binds it. */
     private fun issueNonce(): Pair<String, String> {
-        val response = restTemplate.postForEntity(url("/auth/nonce"), HttpEntity<Void>(jsonHeaders(null)), NonceResponse::class.java)
+        val response = restTemplate.postForEntity(
+            url("/auth/nonce"), HttpEntity<Void>(jsonHeaders(null)), NonceResponse::class.java,
+        )
         val sessionCookie = response.headers[HttpHeaders.SET_COOKIE]
             ?.first { it.startsWith("JSESSIONID") }
             ?.substringBefore(";")
-            ?: throw IllegalStateException("No session cookie issued with nonce")
-        val nonce = response.body?.nonce?.toString() ?: throw IllegalStateException("No nonce in body")
+            ?: error("No session cookie issued with nonce")
+        val nonce = response.body?.nonce?.toString() ?: error("No nonce in body")
         return nonce to sessionCookie
     }
 
@@ -163,7 +165,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
             "idToken" to STUB_ID_TOKEN,
             "agreedTermsUuids" to emptyList<String>(),
         )
-        return restTemplate.postForEntity(url("/auth/registration"), HttpEntity(body, jsonHeaders(sessionCookie)), String::class.java)
+        return post("/auth/registration", HttpEntity(body, jsonHeaders(sessionCookie)))
     }
 
     private fun registerOrFail(provider: AuthProvider, claimedEmail: String, sessionCookie: String): TokenResponse {
@@ -174,20 +176,16 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
     private fun login(provider: AuthProvider, sessionCookie: String): HttpStatus {
         val body = mapOf("authProvider" to provider.name, "idToken" to STUB_ID_TOKEN)
-        val response = restTemplate.postForEntity(url("/auth/login"), HttpEntity(body, jsonHeaders(sessionCookie)), String::class.java)
-        return HttpStatus.valueOf(response.statusCode.value())
+        return post("/auth/login", HttpEntity(body, jsonHeaders(sessionCookie))).status()
     }
 
     private fun getMyProfileStatus(bearerToken: String): HttpStatus {
-        val response = restTemplate.exchange(
-            url("/users/me/profile"), HttpMethod.GET, HttpEntity<Void>(jsonHeaders(null, bearerToken)), String::class.java,
-        )
-        return HttpStatus.valueOf(response.statusCode.value())
+        val entity = HttpEntity<Void>(jsonHeaders(null, bearerToken))
+        return restTemplate.exchange(url("/users/me/profile"), HttpMethod.GET, entity, String::class.java).status()
     }
 
     private fun refreshStatus(bearerToken: String): HttpStatus {
-        val response = restTemplate.postForEntity(url("/auth/refresh"), HttpEntity<Void>(jsonHeaders(null, bearerToken)), String::class.java)
-        return HttpStatus.valueOf(response.statusCode.value())
+        return post("/auth/refresh", HttpEntity<Void>(jsonHeaders(null, bearerToken))).status()
     }
 
     private fun signUpWithGoogle(subject: String, email: String): TokenResponse {
@@ -228,14 +226,27 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
             }
         }
 
+        given("관리자 승격 엔드포인트가 제거된 뒤") {
+            `when`("로그인한 유저가 passphrase로 승격을 요청하면") {
+                then("404를 받고 role은 USER로 남는다") {
+                    val tokens = signUpWithGoogle(subject = "google-sub-admin", email = "admin-try@gmail.com")
+                    val body = mapOf("passphrase" to "dev-admin-passphrase")
+                    val request = HttpEntity(body, jsonHeaders(null, tokens.accessToken))
+
+                    post("/auth/promote-admin", request).status() shouldBe HttpStatus.NOT_FOUND
+                    userRepository.findByUuid(tokens.uuid)?.role shouldBe Role.USER
+                }
+            }
+        }
+
         given("H2: 소셜 id_token이 검증한 이메일과 다른 이메일을 요청 body에 넣어 가입하면") {
             `when`("가입이 처리된 뒤 저장된 이메일을 보면") {
                 then("body 값이 아니라 검증된 id_token의 이메일이어야 한다") {
                     val (nonce, cookie) = issueNonce()
                     stubGoogleIdToken(subject = "google-sub-attacker", email = "attacker@gmail.com", nonce = nonce)
-                    val tokens = registerOrFail(AuthProvider.GOOGLE, claimedEmail = "victim@example.com", sessionCookie = cookie)
+                    val tokens = registerOrFail(AuthProvider.GOOGLE, "victim@example.com", cookie)
 
-                    val saved = userRepository.findByUuid(tokens.uuid) ?: throw IllegalStateException("User not saved")
+                    val saved = userRepository.findByUuid(tokens.uuid) ?: error("User not saved")
                     saved.email shouldBe "attacker@gmail.com"
                 }
             }
@@ -245,10 +256,11 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
             `when`("가입을 요청할 때") {
                 then("401로 거부되고 유저가 생성되지 않는다") {
                     val (nonce, cookie) = issueNonce()
-                    stubGoogleIdToken(subject = "google-sub-unverified", email = "unverified@gmail.com", nonce = nonce, emailVerified = false)
+                    stubGoogleIdToken("google-sub-unverified", "unverified@gmail.com", nonce, emailVerified = false)
 
-                    HttpStatus.valueOf(register(AuthProvider.GOOGLE, "unverified@gmail.com", cookie).statusCode.value()) shouldBe
-                        HttpStatus.UNAUTHORIZED
+                    val response = register(AuthProvider.GOOGLE, "unverified@gmail.com", cookie)
+
+                    response.status() shouldBe HttpStatus.UNAUTHORIZED
                     userRepository.count() shouldBe 0L
                 }
             }
@@ -261,8 +273,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
                     stubGoogleIdToken(subject = "google-sub-r3", email = "r3@gmail.com", nonce = nonce)
 
                     login(AuthProvider.GOOGLE, cookie) shouldBe HttpStatus.NOT_FOUND
-                    HttpStatus.valueOf(register(AuthProvider.GOOGLE, "r3@gmail.com", cookie).statusCode.value()) shouldBe
-                        HttpStatus.CREATED
+                    register(AuthProvider.GOOGLE, "r3@gmail.com", cookie).status() shouldBe HttpStatus.CREATED
                 }
             }
         }
@@ -277,8 +288,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
                     )
                     `when`(kakaoJwtDecoder.decode(anyString())).thenThrow(expired)
 
-                    HttpStatus.valueOf(register(AuthProvider.KAKAO, "kakao@example.com", cookie).statusCode.value()) shouldBe
-                        HttpStatus.UNAUTHORIZED
+                    register(AuthProvider.KAKAO, "kakao@example.com", cookie).status() shouldBe HttpStatus.UNAUTHORIZED
                 }
             }
         }

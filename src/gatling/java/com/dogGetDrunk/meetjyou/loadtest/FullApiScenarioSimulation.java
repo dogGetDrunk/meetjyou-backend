@@ -56,7 +56,8 @@ import static io.gatling.javaapi.http.HttpDsl.*;
 public class FullApiScenarioSimulation extends Simulation {
 
     private static final String BASE_URL = System.getProperty("BASE_URL", "http://localhost:8080");
-    private static final String ADMIN_PASSPHRASE = System.getProperty("ADMIN_PASSPHRASE", "dev-admin-passphrase");
+    // Seeded by Flyway V13__seed_admin_user.sql.
+    private static final String SEEDED_ADMIN_UUID = "00000000-0000-0000-0000-000000000001";
 
     private static final HttpProtocolBuilder httpProtocol = http.baseUrl(BASE_URL)
             .contentTypeHeader("application/json");
@@ -91,33 +92,18 @@ public class FullApiScenarioSimulation extends Simulation {
     public void before() {
         try {
             HttpClient client = HttpClient.newHttpClient();
-            String regBody = "{\"email\":\"loadtest-setup-" + uniqueSuffix() + "@local.test\",\"nickname\":\"setupadm\"}";
-            HttpResponse<String> regRes = client.send(
+            // Admin token for the V13-seeded admin user via the dev-profile token endpoint.
+            HttpResponse<String> tokenRes = client.send(
                     HttpRequest.newBuilder()
-                            .uri(URI.create(BASE_URL + "/api/v1/dev/auth/register"))
-                            .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString(regBody))
+                            .uri(URI.create(BASE_URL + "/api/v1/dev/auth/token?uuid=" + SEEDED_ADMIN_UUID))
+                            .POST(HttpRequest.BodyPublishers.noBody())
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
-            if (regRes.statusCode() != 201) {
-                System.out.println("setup: dev register failed (" + regRes.statusCode() + "), version seed skipped");
+            if (tokenRes.statusCode() != 200) {
+                System.out.println("setup: dev admin token failed (" + tokenRes.statusCode() + "), version seed skipped");
                 return;
             }
-            String setupAccessToken = extractJsonString(regRes.body(), "accessToken");
-
-            HttpResponse<String> promoteRes = client.send(
-                    HttpRequest.newBuilder()
-                            .uri(URI.create(BASE_URL + "/api/v1/auth/promote-admin"))
-                            .header("Authorization", "Bearer " + setupAccessToken)
-                            .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString("{\"passphrase\":\"" + ADMIN_PASSPHRASE + "\"}"))
-                            .build(),
-                    HttpResponse.BodyHandlers.ofString());
-            if (promoteRes.statusCode() != 200) {
-                System.out.println("setup: promote-admin failed (" + promoteRes.statusCode() + "), version seed skipped");
-                return;
-            }
-            String adminToken = extractJsonString(promoteRes.body(), "accessToken");
+            String adminToken = extractJsonString(tokenRes.body(), "accessToken");
 
             String versionBody = "{\"platform\":\"ANDROID\",\"version\":\"1.0.0\",\"forceUpdate\":false,"
                     + "\"message\":null,\"storeReleased\":true,\"releasedAt\":\"2026-01-01T00:00:00Z\"}";

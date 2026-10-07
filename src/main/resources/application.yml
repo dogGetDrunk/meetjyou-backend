@@ -128,9 +128,6 @@ dev:
   bypass:
     enabled: false
 
-admin:
-  claim-passphrase: ${ADMIN_CLAIM_PASSPHRASE}
-
 load-test-token:
   enabled: ${LOAD_TEST_TOKEN_ENABLED:false}
   secret: ${LOAD_TEST_TOKEN_SECRET:}
