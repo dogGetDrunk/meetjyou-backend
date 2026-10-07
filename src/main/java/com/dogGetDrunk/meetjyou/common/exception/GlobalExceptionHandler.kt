@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.HttpStatusCode
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authorization.AuthorizationDeniedException
+import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -115,6 +116,30 @@ class GlobalExceptionHandler(
         val status = HttpStatus.UNAUTHORIZED
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
         return ResponseEntity(errorResponse, status)
+    }
+
+    /**
+     * Provider id_tokens decoded by Spring's NimbusJwtDecoder (Kakao) fail with Spring Security's
+     * JwtException rather than our CustomJwtException. An expired or forged provider token is a
+     * client error, so it maps to 401 like our own JWT failures instead of the 500 catch-all.
+     */
+    @ExceptionHandler(JwtException::class)
+    fun handleProviderJwtException(
+        e: JwtException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        log.info("Handling provider JwtException.", e)
+
+        discordAlertService.sendAlert(
+            request = request,
+            status = HttpStatus.UNAUTHORIZED.value(),
+            exceptionClass = e.javaClass.simpleName,
+            summary = "[${ErrorCode.INVALID_JWT.name}] ${ErrorCode.INVALID_JWT.message}",
+            detail = null
+        )
+
+        val status = HttpStatus.UNAUTHORIZED
+        return ResponseEntity(ErrorResponse(status.value(), ErrorCode.INVALID_JWT), status)
     }
 
     @ExceptionHandler(AuthException::class)
