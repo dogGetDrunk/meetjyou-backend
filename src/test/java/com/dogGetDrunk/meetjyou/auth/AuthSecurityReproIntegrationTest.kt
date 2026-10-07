@@ -306,6 +306,18 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
             }
         }
 
+        given("nonce를 받아 가입에 성공한 뒤") {
+            `when`("같은 세션·같은 id_token으로 로그인하면") {
+                then("가입 때 nonce가 소비되어 401을 받는다") {
+                    val (nonce, cookie) = issueNonce()
+                    stubGoogleIdToken(subject = "google-sub-reg-replay", email = "reg-replay@gmail.com", nonce = nonce)
+
+                    register(AuthProvider.GOOGLE, "reg-replay@gmail.com", cookie).status() shouldBe HttpStatus.CREATED
+                    login(AuthProvider.GOOGLE, cookie) shouldBe HttpStatus.UNAUTHORIZED
+                }
+            }
+        }
+
         given("Kakao JWK set을 가져오지 못하는 provider 장애 상황에서") {
             `when`("가입을 요청하면") {
                 then("토큰 오류(401)로 위장되지 않고 서버 오류로 응답한다") {

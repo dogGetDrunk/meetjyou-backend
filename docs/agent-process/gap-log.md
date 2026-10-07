@@ -126,3 +126,17 @@
 - 놓친 층: L1
 - 왜 놓쳤나: 관측된 예외(`JwtValidationException`, 만료)의 상위 타입으로 핸들러를 걸면서, 같은 타입의 다른 발생원(NimbusJwtDecoder의 JWK set 조회 실패 → 일반 `JwtException`)을 영향 분석에서 확인하지 않음. 클라이언트는 재로그인만 반복하고 운영은 4xx로 집계돼 provider 장애가 가려짐
 - 추가한 장치: `src/main/java/com/dogGetDrunk/meetjyou/common/exception/GlobalExceptionHandler.kt` 핸들러를 `BadJwtException`(클라이언트 귀책)으로 축소 + `AuthSecurityReproIntegrationTest.kt` "JWK set 장애 시 500" — 상위 타입으로 되돌리면 `expected:<500> but was:<401>` red 확인
+
+### G37. STOMP refresh 거부 단위 테스트가 판별력 없음 — strict mock 예외가 거부 사유를 대신함
+- 날짜 / 출처: 2026-10-07, `worktree-security-repro-auth`
+- 발견 경로: 검증자 (2차, R1b 부분 판정)
+- 놓친 층: L1
+- 왜 놓쳤나: 거부 케이스에서 검증 대상 호출만 stub하고 나머지(`getUserUuid`·유저·멤버십)는 비워 둠. 프로덕션 코드의 `runCatching`이 미스텁 `MockKException`까지 `IllegalArgumentException`으로 바꿔서, 토큰 타입 검증을 지워도 같은 예외로 green. 거부 테스트의 red 확인(mutation)을 이 테스트엔 하지 않음
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/chat/connection/ChatStompInterceptorConnectTest.kt` refresh 케이스에 나머지 경로 전부 통과하도록 stub — `ChatStompInterceptor.kt`의 `validateAccessTokenOrThrow` 제거 시 "no exception was thrown" red 확인
+
+### G38. nonce 소비 테스트가 로그인 경로만 다룸 — 가입 성공 후 재사용 무방비
+- 날짜 / 출처: 2026-10-07, `worktree-security-repro-auth`
+- 발견 경로: 검증자 (2차, R3 부분 판정)
+- 놓친 층: L1
+- 왜 놓쳤나: G35 보완 시 "성공 시 소비"를 로그인 한 경로로만 일반화. 같은 불변식을 가진 가입 경로(`removeAttribute` 2곳 중 다른 1곳)를 경로별로 열거하지 않음
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/auth/AuthSecurityReproIntegrationTest.kt` "가입에 성공한 뒤 같은 세션으로 로그인하면 401" — 가입 경로 `removeAttribute` 제거 시 `expected:<401> but was:<200 OK>` red 확인

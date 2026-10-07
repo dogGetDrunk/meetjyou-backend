@@ -67,7 +67,12 @@ class ChatStompInterceptorConnectTest : BehaviorSpec() {
 
             `when`("refresh token을 보내면") {
                 then("연결을 거부한다") {
+                    // Everything except the token-type check would let this connection through, so
+                    // the rejection can only come from that check.
                     every { jwtProvider.validateAccessTokenOrThrow("refresh") } throws InvalidJwtException()
+                    every { jwtProvider.getUserUuid("refresh") } returns user.uuid
+                    every { userRepository.findByUuid(user.uuid) } returns user
+                    stubActiveMembership(user.uuid)
 
                     shouldThrow<IllegalArgumentException> { sut.preSend(connectMessage("refresh"), channel) }
                 }
