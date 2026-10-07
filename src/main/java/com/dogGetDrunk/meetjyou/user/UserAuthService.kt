@@ -121,7 +121,7 @@ class UserAuthService(
 
     @Transactional
     fun refreshToken(rawRefreshToken: String): TokenResponse {
-        if (!jwtProvider.validateToken(rawRefreshToken)) {
+        if (!jwtProvider.isRefreshToken(rawRefreshToken)) {
             throw InvalidJwtException(message = "Invalid refresh token")
         }
 
@@ -178,7 +178,7 @@ class UserAuthService(
 
     @Transactional
     fun logout(rawRefreshToken: String) {
-        if (!jwtProvider.validateToken(rawRefreshToken)) {
+        if (!jwtProvider.isRefreshToken(rawRefreshToken)) {
             throw InvalidJwtException(message = "Invalid refresh token")
         }
 

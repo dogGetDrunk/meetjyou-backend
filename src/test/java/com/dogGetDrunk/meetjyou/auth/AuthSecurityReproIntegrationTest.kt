@@ -11,7 +11,6 @@ import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.user.dto.NonceResponse
-import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
@@ -37,12 +36,16 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
+import org.springframework.security.oauth2.core.OAuth2Error
+import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.jwt.JwtValidationException
 import org.springframework.test.context.ActiveProfiles
 
 /**
- * Reproduces auth-protocol flaws through real HTTP requests against the full filter chain.
- * Only the Google signature check is mocked; nonce issuance, session handling, registration and
- * JWT authentication run as in production.
+ * Drives the social sign-up/login flow and token usage through real HTTP requests against the
+ * full filter chain. Only provider signature checks are mocked (Google verifier, Kakao decoder);
+ * nonce issuance, session handling, registration and JWT authentication run as in production.
  */
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("test")
@@ -72,6 +75,9 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
     @MockBean
     private lateinit var googleIdTokenVerifier: GoogleIdTokenVerifier
 
+    @MockBean(name = "kakaoJwtDecoder")
+    private lateinit var kakaoJwtDecoder: JwtDecoder
+
     @MockBean
     private lateinit var firebaseApp: FirebaseApp
 
@@ -83,6 +89,11 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
     @MockBean
     private lateinit var workRequestClient: WorkRequestClient
+
+    // Auth endpoints are rate-limited per client IP; a distinct forwarded IP per test keeps the
+    // tests from sharing buckets (requests arrive from 127.0.0.1, a trusted proxy for RemoteIpValve).
+    private var clientIp = ""
+    private var testCounter = 0
 
     private fun url(path: String) = "http://localhost:$port/api/v1$path"
 
@@ -105,7 +116,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
     /** Issues a nonce and returns it with the session cookie that binds it. */
     private fun issueNonce(): Pair<String, String> {
-        val response = restTemplate.postForEntity(url("/auth/nonce"), null, NonceResponse::class.java)
+        val response = restTemplate.postForEntity(url("/auth/nonce"), HttpEntity<Void>(jsonHeaders(null)), NonceResponse::class.java)
         val sessionCookie = response.headers[HttpHeaders.SET_COOKIE]
             ?.first { it.startsWith("JSESSIONID") }
             ?.substringBefore(";")
@@ -115,61 +126,104 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
     }
 
     /** Makes the Google verifier accept any token as a valid id_token carrying the given claims. */
-    private fun stubGoogleIdToken(subject: String, verifiedEmail: String, nonce: String) {
+    private fun stubGoogleIdToken(subject: String, email: String, nonce: String, emailVerified: Boolean = true) {
         val payload = GoogleIdToken.Payload().apply {
             this.subject = subject
-            this.email = verifiedEmail
+            this.email = email
+            this.emailVerified = emailVerified
             this.nonce = nonce
         }
         val idToken = GoogleIdToken(JsonWebSignature.Header(), payload, ByteArray(0), ByteArray(0))
         `when`(googleIdTokenVerifier.verify(anyString())).thenReturn(idToken)
     }
 
-    private fun registerWithGoogle(claimedEmail: String, sessionCookie: String): TokenResponse {
-        val request = RegistrationRequest(
-            email = claimedEmail,
-            nickname = "repro${System.nanoTime() % 1000}",
-            bio = null,
-            gender = Gender.M,
-            age = Age.TWENTY,
-            personalities = listOf(Personality.INTROVERTED),
-            travelStyles = emptyList(),
-            diet = emptyList(),
-            etc = emptyList(),
-            authProvider = AuthProvider.GOOGLE,
-            idToken = "stubbed-google-id-token",
-            agreedTermsUuids = emptyList(),
+    private fun jsonHeaders(sessionCookie: String?, bearer: String? = null) = HttpHeaders().apply {
+        contentType = MediaType.APPLICATION_JSON
+        set(X_FORWARDED_FOR, clientIp)
+        sessionCookie?.let { add(HttpHeaders.COOKIE, it) }
+        bearer?.let { setBearerAuth(it) }
+    }
+
+    /**
+     * Sent as a raw map so the body keeps an "email" field even if the DTO drops it — older app
+     * builds still send one and must keep working.
+     */
+    private fun register(provider: AuthProvider, claimedEmail: String, sessionCookie: String): ResponseEntity<String> {
+        val body = mapOf(
+            "email" to claimedEmail,
+            "nickname" to "repro${System.nanoTime() % NICKNAME_SUFFIX_RANGE}",
+            "bio" to null,
+            "gender" to Gender.M.name,
+            "age" to Age.TWENTY.name,
+            "personalities" to listOf(Personality.INTROVERTED.name),
+            "travelStyles" to emptyList<String>(),
+            "diet" to emptyList<String>(),
+            "etc" to emptyList<String>(),
+            "authProvider" to provider.name,
+            "idToken" to STUB_ID_TOKEN,
+            "agreedTermsUuids" to emptyList<String>(),
         )
-        val headers = HttpHeaders().apply {
-            contentType = MediaType.APPLICATION_JSON
-            add(HttpHeaders.COOKIE, sessionCookie)
-        }
-        val response = restTemplate.postForEntity(url("/auth/registration"), HttpEntity(request, headers), String::class.java)
+        return restTemplate.postForEntity(url("/auth/registration"), HttpEntity(body, jsonHeaders(sessionCookie)), String::class.java)
+    }
+
+    private fun registerOrFail(provider: AuthProvider, claimedEmail: String, sessionCookie: String): TokenResponse {
+        val response = register(provider, claimedEmail, sessionCookie)
         response.statusCode shouldBe HttpStatus.CREATED
         return objectMapper.readValue(response.body, TokenResponse::class.java)
     }
 
-    private fun getMyProfileStatus(bearerToken: String): HttpStatus {
-        val headers = HttpHeaders().apply { setBearerAuth(bearerToken) }
-        val response = restTemplate.exchange(url("/users/me/profile"), HttpMethod.GET, HttpEntity<Void>(headers), String::class.java)
+    private fun login(provider: AuthProvider, sessionCookie: String): HttpStatus {
+        val body = mapOf("authProvider" to provider.name, "idToken" to STUB_ID_TOKEN)
+        val response = restTemplate.postForEntity(url("/auth/login"), HttpEntity(body, jsonHeaders(sessionCookie)), String::class.java)
         return HttpStatus.valueOf(response.statusCode.value())
+    }
+
+    private fun getMyProfileStatus(bearerToken: String): HttpStatus {
+        val response = restTemplate.exchange(
+            url("/users/me/profile"), HttpMethod.GET, HttpEntity<Void>(jsonHeaders(null, bearerToken)), String::class.java,
+        )
+        return HttpStatus.valueOf(response.statusCode.value())
+    }
+
+    private fun refreshStatus(bearerToken: String): HttpStatus {
+        val response = restTemplate.postForEntity(url("/auth/refresh"), HttpEntity<Void>(jsonHeaders(null, bearerToken)), String::class.java)
+        return HttpStatus.valueOf(response.statusCode.value())
+    }
+
+    private fun signUpWithGoogle(subject: String, email: String): TokenResponse {
+        val (nonce, cookie) = issueNonce()
+        stubGoogleIdToken(subject = subject, email = email, nonce = nonce)
+        return registerOrFail(AuthProvider.GOOGLE, email, cookie)
     }
 
     init {
         extensions(SpringExtension())
 
-        beforeEach { seedPreferences() }
+        beforeEach {
+            testCounter++
+            clientIp = "10.0.0.$testCounter"
+            seedPreferences()
+        }
         afterEach { cleanup() }
 
         given("H1: 가입으로 발급받은 refresh token을") {
             `when`("access token 자리(Authorization 헤더)에 넣어 일반 API를 호출하면") {
                 then("401로 거부되어야 한다") {
-                    val (nonce, cookie) = issueNonce()
-                    stubGoogleIdToken(subject = "google-sub-h1", verifiedEmail = "h1@gmail.com", nonce = nonce)
-                    val tokens = registerWithGoogle(claimedEmail = "h1@gmail.com", sessionCookie = cookie)
+                    val tokens = signUpWithGoogle(subject = "google-sub-h1", email = "h1@gmail.com")
 
                     getMyProfileStatus(tokens.accessToken) shouldBe HttpStatus.OK
                     getMyProfileStatus(tokens.refreshToken) shouldBe HttpStatus.UNAUTHORIZED
+                }
+            }
+        }
+
+        given("access token을") {
+            `when`("refresh 엔드포인트에 넣으면") {
+                then("401로 거부되고, 정상 refresh token은 회전된다") {
+                    val tokens = signUpWithGoogle(subject = "google-sub-r1a", email = "r1a@gmail.com")
+
+                    refreshStatus(tokens.accessToken) shouldBe HttpStatus.UNAUTHORIZED
+                    refreshStatus(tokens.refreshToken) shouldBe HttpStatus.OK
                 }
             }
         }
@@ -178,13 +232,61 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
             `when`("가입이 처리된 뒤 저장된 이메일을 보면") {
                 then("body 값이 아니라 검증된 id_token의 이메일이어야 한다") {
                     val (nonce, cookie) = issueNonce()
-                    stubGoogleIdToken(subject = "google-sub-attacker", verifiedEmail = "attacker@gmail.com", nonce = nonce)
-                    val tokens = registerWithGoogle(claimedEmail = "victim@example.com", sessionCookie = cookie)
+                    stubGoogleIdToken(subject = "google-sub-attacker", email = "attacker@gmail.com", nonce = nonce)
+                    val tokens = registerOrFail(AuthProvider.GOOGLE, claimedEmail = "victim@example.com", sessionCookie = cookie)
 
                     val saved = userRepository.findByUuid(tokens.uuid) ?: throw IllegalStateException("User not saved")
                     saved.email shouldBe "attacker@gmail.com"
                 }
             }
         }
+
+        given("Google id_token의 email_verified가 false이면") {
+            `when`("가입을 요청할 때") {
+                then("401로 거부되고 유저가 생성되지 않는다") {
+                    val (nonce, cookie) = issueNonce()
+                    stubGoogleIdToken(subject = "google-sub-unverified", email = "unverified@gmail.com", nonce = nonce, emailVerified = false)
+
+                    HttpStatus.valueOf(register(AuthProvider.GOOGLE, "unverified@gmail.com", cookie).statusCode.value()) shouldBe
+                        HttpStatus.UNAUTHORIZED
+                    userRepository.count() shouldBe 0L
+                }
+            }
+        }
+
+        given("미가입 유저가 nonce를 받아 로그인을 시도하고") {
+            `when`("404를 받은 뒤 같은 세션·같은 id_token으로 가입하면") {
+                then("가입이 성공한다") {
+                    val (nonce, cookie) = issueNonce()
+                    stubGoogleIdToken(subject = "google-sub-r3", email = "r3@gmail.com", nonce = nonce)
+
+                    login(AuthProvider.GOOGLE, cookie) shouldBe HttpStatus.NOT_FOUND
+                    HttpStatus.valueOf(register(AuthProvider.GOOGLE, "r3@gmail.com", cookie).statusCode.value()) shouldBe
+                        HttpStatus.CREATED
+                }
+            }
+        }
+
+        given("만료된 Kakao id_token으로") {
+            `when`("가입을 요청하면") {
+                then("500이 아니라 401을 받는다") {
+                    val (_, cookie) = issueNonce()
+                    val expired = JwtValidationException(
+                        "An error occurred while attempting to decode the Jwt: Jwt expired",
+                        listOf(OAuth2Error("invalid_token", "Jwt expired", null)),
+                    )
+                    `when`(kakaoJwtDecoder.decode(anyString())).thenThrow(expired)
+
+                    HttpStatus.valueOf(register(AuthProvider.KAKAO, "kakao@example.com", cookie).statusCode.value()) shouldBe
+                        HttpStatus.UNAUTHORIZED
+                }
+            }
+        }
+    }
+
+    private companion object {
+        const val STUB_ID_TOKEN = "stubbed-id-token"
+        const val NICKNAME_SUFFIX_RANGE = 1000
+        const val X_FORWARDED_FOR = "X-Forwarded-For"
     }
 }

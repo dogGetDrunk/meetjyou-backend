@@ -45,6 +45,7 @@ class JwtProvider(
             .issuer(issuer)
             .subject(email)
             .claim("userUuid", userUuid.toString())
+            .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
             .id(jti.toString())
             .issuedAt(now)
             .expiration(expiry)
@@ -66,35 +67,40 @@ class JwtProvider(
             .subject(email)
             .claim("userUuid", userUuid.toString())
             .claim("role", role.name)
+            .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
             .issuedAt(now)
             .expiration(expiry)
             .signWith(secretKey, algorithm)
             .compact()
     }
 
-    fun getRole(token: String): Role =
-        Role.valueOf(getClaims(token)["role"]?.toString() ?: Role.USER.name)
-
     fun extractToken(request: HttpServletRequest): String? {
         val authHeader = request.getHeader("Authorization") ?: return null
         return if (authHeader.startsWith("Bearer ")) authHeader.substring(7) else null
     }
 
-    fun validateToken(token: String): Boolean = try {
-        getClaims(token)
-        true
-    } catch (e: Exception) {
-        false
-    }
-
-    fun validateTokenOrThrow(token: String) {
-        try {
+    /**
+     * Accepts only access tokens. Access and refresh tokens share one signing key, so the
+     * signature alone cannot tell them apart; without this check a 30-day refresh token works as
+     * an API credential and keeps working after logout revokes it.
+     */
+    fun validateAccessTokenOrThrow(token: String) {
+        val claims = try {
             getClaims(token)
         } catch (e: ExpiredJwtException) {
             throw CustomExpiredJwtException(value = null, message = "Access token expired")
         } catch (e: Exception) {
             throw InvalidJwtException(message = "JWT validation failed")
         }
+        if (!isAccessToken(claims)) {
+            throw InvalidJwtException(message = "Not an access token")
+        }
+    }
+
+    fun isRefreshToken(token: String): Boolean = try {
+        isRefreshToken(getClaims(token))
+    } catch (e: Exception) {
+        false
     }
 
     fun getUsername(token: String): String = getClaims(token).subject
@@ -106,10 +112,32 @@ class JwtProvider(
     fun getJti(token: String): String =
         getClaims(token).id ?: throw InvalidJwtException(message = "Missing jti claim")
 
+    // Tokens issued before the type claim existed: only refresh tokens carry a jti. The untyped
+    // branches can go once every pre-claim refresh token has expired (30 days after deploy).
+    private fun isAccessToken(claims: Claims): Boolean =
+        when (claims[TOKEN_TYPE_CLAIM]) {
+            ACCESS_TOKEN_TYPE -> true
+            null -> claims.id == null
+            else -> false
+        }
+
+    private fun isRefreshToken(claims: Claims): Boolean =
+        when (claims[TOKEN_TYPE_CLAIM]) {
+            REFRESH_TOKEN_TYPE -> true
+            null -> claims.id != null
+            else -> false
+        }
+
     private fun getClaims(token: String): Claims =
         Jwts.parser()
             .verifyWith(secretKey)
             .build()
             .parseSignedClaims(token)
             .payload
+
+    companion object {
+        private const val TOKEN_TYPE_CLAIM = "token_type"
+        private const val ACCESS_TOKEN_TYPE = "access"
+        private const val REFRESH_TOKEN_TYPE = "refresh"
+    }
 }

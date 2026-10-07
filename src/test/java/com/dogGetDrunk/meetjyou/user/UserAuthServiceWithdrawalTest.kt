@@ -66,7 +66,7 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
             `when`("리프레시 토큰으로 재발급을 시도하면") {
                 then("UserWithdrawnException을 던지고 토큰을 재발급하지 않는다") {
                     val record = RefreshToken(jti = "jti-1", user = withdrawnUser, expiresAt = LocalDateTime.now().plusDays(1))
-                    every { jwtProvider.validateToken("raw-refresh-token") } returns true
+                    every { jwtProvider.isRefreshToken("raw-refresh-token") } returns true
                     every { jwtProvider.getJti("raw-refresh-token") } returns "jti-1"
                     every { refreshTokenRepository.findByJti("jti-1") } returns record
                     every { jwtProvider.getUserUuid("raw-refresh-token") } returns withdrawnUser.uuid
