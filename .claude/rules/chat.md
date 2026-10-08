@@ -14,6 +14,6 @@ STOMP over WebSocket (`/ws-chat`, pub `/pub/**`, sub `/sub/**`). Key classes:
 
 **Notifications:** publish `NotificationEvent` (see `.claude/rules/notification.md`). Do NOT call push senders directly.
 
-**Open issue:** WS broadcast is sent before commit → ghost message on rollback (#151).
+**WebSocket sends:** never call `SimpMessagingTemplate` from business code. Publish `ChatMessageBroadcastEvent` / go through `ChatRoomEventBroadcaster`; `ChatBroadcastListener` sends after commit (`fallbackExecution = true` covers callers without a transaction). Sending mid-transaction exposes uncommitted or rolled-back rows to clients (#151).
 
 **Testing:** `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `WebSocketStompClient` — see `ChatIntegrationTest`.
