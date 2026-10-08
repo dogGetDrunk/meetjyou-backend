@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.chat
 
 import com.dogGetDrunk.meetjyou.chat.connection.ChatSessionTracker
+import com.dogGetDrunk.meetjyou.chat.event.ChatMessageBroadcastEvent
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessage
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRequest
@@ -21,13 +22,11 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.messaging.simp.SimpMessagingTemplate
 
 class ChatServiceTest : BehaviorSpec() {
 
     private val chatMessageRepository = mockk<ChatMessageRepository>(relaxed = true)
     private val chatRoomRepository = mockk<ChatRoomRepository>(relaxed = true)
-    private val messagingTemplate = mockk<SimpMessagingTemplate>(relaxed = true)
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val partyRepository = mockk<PartyRepository>(relaxed = true)
     private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
@@ -35,7 +34,7 @@ class ChatServiceTest : BehaviorSpec() {
     private val chatReadService = mockk<ChatReadService>(relaxed = true)
     private val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val sut = ChatService(
-        chatMessageRepository, chatRoomRepository, messagingTemplate,
+        chatMessageRepository, chatRoomRepository,
         userRepository, partyRepository, userPartyRepository,
         chatSessionTracker, chatReadService, publisher,
     )
@@ -64,7 +63,7 @@ class ChatServiceTest : BehaviorSpec() {
             }
 
             `when`("JOINED 상태 멤버가 메시지를 전송하면") {
-                then("메시지가 저장된다") {
+                then("메시지가 저장되고 커밋 후 전송용 이벤트가 발행된다") {
                     val membership = NotificationCenterFixtures.hostUserParty(party, sender)
                     every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, senderUuid) } returns membership
                     every { chatMessageRepository.save(any()) } returns mockk(relaxed = true)
@@ -72,6 +71,11 @@ class ChatServiceTest : BehaviorSpec() {
                     sut.handleChatMessage(request, senderUuid)
 
                     verify(exactly = 1) { chatMessageRepository.save(any<ChatMessage>()) }
+                    verify(exactly = 1) {
+                        publisher.publishEvent(
+                            match<Any> { it is ChatMessageBroadcastEvent && it.roomUuid == roomUuid }
+                        )
+                    }
                 }
             }
 
