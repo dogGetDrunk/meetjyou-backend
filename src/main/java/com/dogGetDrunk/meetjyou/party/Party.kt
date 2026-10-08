@@ -12,13 +12,17 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.DynamicUpdate
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 
+// Dynamic so a write path that loaded the party without the row lock (image state, plan link)
+// only updates the columns it changed instead of reverting a concurrent `joined` or `name` change.
 @Entity
+@DynamicUpdate
 class Party(
     var itinStart: Instant,
     var itinFinish: Instant,
