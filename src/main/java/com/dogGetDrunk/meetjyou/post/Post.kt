@@ -13,13 +13,17 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.Id
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.DynamicUpdate
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
 import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 
+// Dynamic so an edit that loaded the post before a concurrent party completion only updates the
+// columns it changed instead of reverting `status` back to RECRUITING.
 @Entity
+@DynamicUpdate
 class Post(
     party: Party,
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")

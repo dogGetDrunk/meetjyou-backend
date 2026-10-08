@@ -7,7 +7,8 @@ paths:
 
 # Party Module
 
-- **Every write to `Party` loads it with `findByUuidForUpdate` first** — `Party` has no `@DynamicUpdate`, so a flush rewrites every column and silently reverts a concurrent `joined` change
+- `Party` and `Post` are `@DynamicUpdate`: a flush only writes changed columns, so an unlocked write path (image state, plan link, post edit) can't revert a concurrent `joined`/`name`/post `status` change it never touched
+- **Same-column writes and stale-read checks still need the row lock** — load with `findByUuidForUpdate` *before* the party is loaded anywhere in the transaction (a later locked re-query keeps the stale snapshot). Locked today: `joined` (approve/ban/leave), `name` (rename), `completeParty` ↔ `PostService.updatePostStatus` (both write post `status`; the latter locks via `PartyService.lockPartyOfPost`)
 - `party.joined` is a hand-maintained counter (approve `++`, ban/leave `--`, host counted from creation via `joined = 1`). A new membership path must adjust it under the same row lock
 - Parties are created only through `PostService.createPost` (party create endpoint is disabled)
 - Change member status only via `UserParty.pending()/approve()/reject()` — they also reset `statusChangedAt` and the `hostRead`/`applicantRead` unread flags
@@ -18,4 +19,4 @@ paths:
 - Reuse host checks: `verifyPartyHost`, `assertCurrentUserIsHost`, `requireActiveHostMembership` ("active" = JOINED)
 - Methods that call OCI Object Storage stay non-`@Transactional` (no DB connection held during network I/O)
 
-**Testing:** one Kotest `BehaviorSpec` per use case, `PartyService` built by hand from relaxed mockk; locking is covered by `UpdatePartyNameIntegrationTest`.
+**Testing:** one Kotest `BehaviorSpec` per use case, `PartyService` built by hand from relaxed mockk; locking and `@DynamicUpdate` are covered by `UpdatePartyNameIntegrationTest` and `PartyPostLostUpdateIntegrationTest`.
