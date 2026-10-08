@@ -12,18 +12,14 @@ import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtExceptio
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
-import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.server.ResponseStatusException
 import java.time.Duration
 import java.time.Instant
 
@@ -35,15 +31,13 @@ class UserAuthService(
     private val jwtProvider: JwtProvider,
     private val termsService: TermsService,
     private val refreshTokenRepository: RefreshTokenRepository,
-    private val adminProperties: AdminProperties,
-    private val currentUserProvider: CurrentUserProvider,
     @Value("\${jwt.rotation-overlap-seconds}") private val rotationOverlapSeconds: Long,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
     fun registerViaSocial(request: RegistrationRequest, nonce: String? = null): TokenResponse {
-        log.info("Register via social request received. email: {}, provider: {}", request.email, request.authProvider)
+        log.info("Register via social request received. provider: {}", request.authProvider)
 
         val agreedTerms = termsService.validateRequiredTermsAgreement(request.agreedTermsUuids)
 
@@ -121,7 +115,7 @@ class UserAuthService(
 
     @Transactional
     fun refreshToken(rawRefreshToken: String): TokenResponse {
-        if (!jwtProvider.validateToken(rawRefreshToken)) {
+        if (!jwtProvider.isRefreshToken(rawRefreshToken)) {
             throw InvalidJwtException(message = "Invalid refresh token")
         }
 
@@ -178,7 +172,7 @@ class UserAuthService(
 
     @Transactional
     fun logout(rawRefreshToken: String) {
-        if (!jwtProvider.validateToken(rawRefreshToken)) {
+        if (!jwtProvider.isRefreshToken(rawRefreshToken)) {
             throw InvalidJwtException(message = "Invalid refresh token")
         }
 
@@ -188,17 +182,6 @@ class UserAuthService(
 
         record.revoke()
         log.info("User logged out, refresh token revoked. jti: {}", jti)
-    }
-
-    @Transactional
-    fun claimAdmin(passphrase: String): TokenResponse {
-        if (passphrase != adminProperties.claimPassphrase) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid passphrase")
-        }
-        val user = currentUserProvider.user
-        user.role = Role.ADMIN
-        log.info("User promoted to ADMIN. uuid: {}", user.uuid)
-        return issueTokenPair(user)
     }
 
     private fun issueTokenPair(user: User, rotatedFrom: RefreshToken? = null): TokenResponse {

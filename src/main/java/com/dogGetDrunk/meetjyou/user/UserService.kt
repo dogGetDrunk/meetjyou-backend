@@ -51,7 +51,7 @@ class UserService(
 
         val createdUser = userRepository.save(
             User(
-                email = request.email,
+                email = principal.email,
                 nickname = request.nickname,
                 authProvider = request.authProvider,
                 externalId = principal.subject,

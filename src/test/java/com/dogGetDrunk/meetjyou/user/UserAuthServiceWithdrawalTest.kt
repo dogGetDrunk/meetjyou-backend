@@ -8,8 +8,6 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifier
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
-import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
@@ -30,11 +28,9 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
     private val jwtProvider = mockk<JwtProvider>(relaxed = true)
     private val termsService = mockk<TermsService>(relaxed = true)
     private val refreshTokenRepository = mockk<RefreshTokenRepository>(relaxed = true)
-    private val adminProperties = mockk<AdminProperties>(relaxed = true)
-    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val sut = UserAuthService(
         socialVerifierRegistry, userRepository, userService, jwtProvider,
-        termsService, refreshTokenRepository, adminProperties, currentUserProvider,
+        termsService, refreshTokenRepository,
         rotationOverlapSeconds = 30L,
     )
 
@@ -66,7 +62,7 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
             `when`("리프레시 토큰으로 재발급을 시도하면") {
                 then("UserWithdrawnException을 던지고 토큰을 재발급하지 않는다") {
                     val record = RefreshToken(jti = "jti-1", user = withdrawnUser, expiresAt = LocalDateTime.now().plusDays(1))
-                    every { jwtProvider.validateToken("raw-refresh-token") } returns true
+                    every { jwtProvider.isRefreshToken("raw-refresh-token") } returns true
                     every { jwtProvider.getJti("raw-refresh-token") } returns "jti-1"
                     every { refreshTokenRepository.findByJti("jti-1") } returns record
                     every { jwtProvider.getUserUuid("raw-refresh-token") } returns withdrawnUser.uuid

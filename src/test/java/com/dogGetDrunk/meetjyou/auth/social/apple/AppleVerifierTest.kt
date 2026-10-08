@@ -80,6 +80,30 @@ class AppleVerifierTest : BehaviorSpec() {
                 }
             }
 
+            `when`("email_verified가 boolean true면") {
+                then("SocialPrincipal을 반환한다") {
+                    val rawNonce = "test-nonce"
+                    val jwt = buildJwt("apple-sub-123", "user@example.com", sha256(rawNonce), emailVerified = true)
+                    every { appleJwtDecoder.decode(any()) } returns jwt
+
+                    sut.verifyAndExtract(IdToken("valid.id.token"), rawNonce).email shouldBe "user@example.com"
+                }
+            }
+
+            `when`("email_verified가 false이거나 없으면") {
+                then("InvalidJwtException을 던진다") {
+                    val rawNonce = "test-nonce"
+                    listOf("false", null).forEach { verified ->
+                        val jwt = buildJwt("apple-sub-123", "user@example.com", sha256(rawNonce), verified)
+                        every { appleJwtDecoder.decode(any()) } returns jwt
+
+                        shouldThrow<InvalidJwtException> {
+                            sut.verifyAndExtract(IdToken("valid.id.token"), nonce = rawNonce)
+                        }
+                    }
+                }
+            }
+
             `when`("AccessToken을 전달하면") {
                 then("InvalidJwtException을 던진다") {
                     shouldThrow<InvalidJwtException> {
@@ -95,7 +119,12 @@ class AppleVerifierTest : BehaviorSpec() {
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
-    private fun buildJwt(subject: String, email: String?, nonceHash: String? = null): Jwt {
+    private fun buildJwt(
+        subject: String,
+        email: String?,
+        nonceHash: String? = null,
+        emailVerified: Any? = "true",
+    ): Jwt {
         val claims = mutableMapOf<String, Any>(
             "iss" to "https://appleid.apple.com",
             "aud" to listOf("com.example.app"),
@@ -103,6 +132,7 @@ class AppleVerifierTest : BehaviorSpec() {
         )
         if (email != null) claims["email"] = email
         if (nonceHash != null) claims["nonce"] = nonceHash
+        if (emailVerified != null) claims["email_verified"] = emailVerified
 
         return Jwt(
             "token-value",

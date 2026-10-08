@@ -105,3 +105,38 @@
 - 놓친 층: L1
 - 왜 놓쳤나: plugin 스크립트를 직접 실행한 결과와 `claude plugin details`의 인벤토리(hook 6종 인식)를 "동작"의 증거로 취급. 내장 hook은 스크립트 부재 시 조용히 종료하도록 설계돼 있어 제거 즉시 무신호로 꺼지는데, 대체 장치가 harness에서 발동하는지는 실측하지 않음
 - 추가한 장치: `.claude/vgate-guard.py` + `.claude/settings.json` Stop 등록 — opt-in 레포에서 이 세션에 vgate heartbeat가 없으면 경고 (red/green 확인: heartbeat 없음 → 경고, 있음 → 무음, 다른 세션 heartbeat 불인정, 미opt-in 레포 무음). vgate 쪽: heartbeat 기록(`scripts/vgate_common.py` `mark_alive`)과 원장 템플릿 항목 "장치 교체·이관은 실제 런타임 발동 증거"
+
+### G34. 토큰 타입 분리에서 logout 경로를 HTTP로 검증하지 않음 — 필터 생략 목록 회귀 무방비
+- 날짜 / 출처: 2026-10-07, `worktree-security-repro-auth` (인증 보안 수정)
+- 발견 경로: 검증자 (R1a 부분 판정)
+- 놓친 층: L1
+- 왜 놓쳤나: refresh·logout 모두 Authorization 헤더로 refresh token을 받아 `JwtAuthFilter` 생략 대상인데, 수용 기준·테스트를 refresh 쪽만 작성. logout은 서비스 단위 테스트(필터 미경유)만 있어 생략 목록에서 logout이 빠져도 green. 원장의 "access→refresh 401" 단언도 수정 전부터 통과하던 것이라 판별력이 refresh→200 한쪽뿐이었음
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/auth/AuthSecurityReproIntegrationTest.kt` "refresh token으로 로그아웃하면" — 생략 목록에서 logout 제거 시 `expected:<204> but was:<401>` red 확인
+
+### G35. nonce 수용 기준이 "실패 시 유지"만 검증 — "성공 시 소비" 제거 회귀 무방비
+- 날짜 / 출처: 2026-10-07, `worktree-security-repro-auth`
+- 발견 경로: 검증자 (R3 부분 판정)
+- 놓친 층: L1
+- 왜 놓쳤나: 운영 버그(로그인 404 후 가입 401)를 재현하는 방향만 테스트로 고정. 같은 변경의 반대 불변식(성공 후엔 nonce 재사용 불가)은 원장 수용 기준에 없어서, `removeAttribute`를 지워도 전체 테스트 green
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/auth/AuthSecurityReproIntegrationTest.kt` "로그인에 성공한 뒤 같은 세션으로 다시 로그인하면 401" — 로그인 성공 후 `removeAttribute` 제거 시 `expected:<401> but was:<200 OK>` red 확인
+
+### G36. 소셜 토큰 예외 매핑을 상위 타입(JwtException)으로 잡아 provider 장애까지 401로 위장
+- 날짜 / 출처: 2026-10-07, `worktree-security-repro-auth`
+- 발견 경로: 검증자 (반증 시도 7번 — 판정은 충족이나 부작용 지적)
+- 놓친 층: L1
+- 왜 놓쳤나: 관측된 예외(`JwtValidationException`, 만료)의 상위 타입으로 핸들러를 걸면서, 같은 타입의 다른 발생원(NimbusJwtDecoder의 JWK set 조회 실패 → 일반 `JwtException`)을 영향 분석에서 확인하지 않음. 클라이언트는 재로그인만 반복하고 운영은 4xx로 집계돼 provider 장애가 가려짐
+- 추가한 장치: `src/main/java/com/dogGetDrunk/meetjyou/common/exception/GlobalExceptionHandler.kt` 핸들러를 `BadJwtException`(클라이언트 귀책)으로 축소 + `AuthSecurityReproIntegrationTest.kt` "JWK set 장애 시 500" — 상위 타입으로 되돌리면 `expected:<500> but was:<401>` red 확인
+
+### G37. STOMP refresh 거부 단위 테스트가 판별력 없음 — strict mock 예외가 거부 사유를 대신함
+- 날짜 / 출처: 2026-10-07, `worktree-security-repro-auth`
+- 발견 경로: 검증자 (2차, R1b 부분 판정)
+- 놓친 층: L1
+- 왜 놓쳤나: 거부 케이스에서 검증 대상 호출만 stub하고 나머지(`getUserUuid`·유저·멤버십)는 비워 둠. 프로덕션 코드의 `runCatching`이 미스텁 `MockKException`까지 `IllegalArgumentException`으로 바꿔서, 토큰 타입 검증을 지워도 같은 예외로 green. 거부 테스트의 red 확인(mutation)을 이 테스트엔 하지 않음
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/chat/connection/ChatStompInterceptorConnectTest.kt` refresh 케이스에 나머지 경로 전부 통과하도록 stub — `ChatStompInterceptor.kt`의 `validateAccessTokenOrThrow` 제거 시 "no exception was thrown" red 확인
+
+### G38. nonce 소비 테스트가 로그인 경로만 다룸 — 가입 성공 후 재사용 무방비
+- 날짜 / 출처: 2026-10-07, `worktree-security-repro-auth`
+- 발견 경로: 검증자 (2차, R3 부분 판정)
+- 놓친 층: L1
+- 왜 놓쳤나: G35 보완 시 "성공 시 소비"를 로그인 한 경로로만 일반화. 같은 불변식을 가진 가입 경로(`removeAttribute` 2곳 중 다른 1곳)를 경로별로 열거하지 않음
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/auth/AuthSecurityReproIntegrationTest.kt` "가입에 성공한 뒤 같은 세션으로 로그인하면 401" — 가입 경로 `removeAttribute` 제거 시 `expected:<401> but was:<200 OK>` red 확인
