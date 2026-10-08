@@ -352,13 +352,13 @@ public class FullApiScenarioSimulation extends Simulation {
     // doesn't invalidate a session mid-scenario for the main journey users.
     private static final ChainBuilder lifecycleFlow = registerAs("life", "uuid", "accessToken", "refreshToken", "nickname")
             .exec(http("POST /auth/refresh").post("/api/v1/auth/refresh")
-                    .header("Authorization", "Bearer #{refreshToken}")
+                    .body(StringBody("{\"refreshToken\":\"#{refreshToken}\"}")).asJson()
                     .check(status().is(200))
                     .check(jsonPath("$.refreshToken").optional().saveAs("refreshedRefreshToken")))
             .exec(session -> session.set("logoutRefreshToken",
                     session.contains("refreshedRefreshToken") ? session.getString("refreshedRefreshToken") : session.getString("refreshToken")))
             .exec(http("POST /auth/logout").post("/api/v1/auth/logout")
-                    .header("Authorization", "Bearer #{logoutRefreshToken}")
+                    .body(StringBody("{\"refreshToken\":\"#{logoutRefreshToken}\"}")).asJson()
                     .check(status().is(204)))
             .pause(Duration.ofMillis(500))
             // Separate throwaway session to test withdrawal (soft delete) without affecting the one above.

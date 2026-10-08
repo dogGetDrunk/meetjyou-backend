@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.auth
 
+import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.preference.Age
 import com.dogGetDrunk.meetjyou.preference.Gender
@@ -64,6 +65,9 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
     @Autowired
     private lateinit var objectMapper: ObjectMapper
+
+    @Autowired
+    private lateinit var jwtProvider: JwtProvider
 
     @Autowired
     private lateinit var userRepository: UserRepository
@@ -185,12 +189,23 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
         return restTemplate.exchange(url("/users/me/profile"), HttpMethod.GET, entity, String::class.java).status()
     }
 
-    private fun refreshStatus(bearerToken: String): HttpStatus {
-        return post("/auth/refresh", HttpEntity<Void>(jsonHeaders(null, bearerToken))).status()
+    /** Sends the token in the JSON body; [bearer] optionally adds an Authorization header too. */
+    private fun refreshStatus(bodyToken: String, bearer: String? = null): HttpStatus =
+        post("/auth/refresh", HttpEntity(mapOf(REFRESH_TOKEN_FIELD to bodyToken), jsonHeaders(null, bearer))).status()
+
+    private fun logoutStatus(bodyToken: String, bearer: String? = null): HttpStatus =
+        post("/auth/logout", HttpEntity(mapOf(REFRESH_TOKEN_FIELD to bodyToken), jsonHeaders(null, bearer))).status()
+
+    // Validly signed but already past exp — what an app interceptor attaches when the access
+    // token lapsed, which is exactly when it calls /auth/refresh.
+    private fun expiredAccessTokenFor(tokens: TokenResponse): String {
+        val user = userRepository.findByUuid(tokens.uuid) ?: error("User not saved")
+        return jwtProvider.generateAccessToken(user.uuid, user.email, user.role, EXPIRED_TTL_MILLIS)
     }
 
-    private fun logoutStatus(bearerToken: String): HttpStatus =
-        post("/auth/logout", HttpEntity<Void>(jsonHeaders(null, bearerToken))).status()
+    /** The pre-change contract: refresh token in the Authorization header, no body. */
+    private fun headerOnlyStatus(path: String, refreshToken: String): HttpStatus =
+        post(path, HttpEntity<Void>(jsonHeaders(null, refreshToken))).status()
 
     private fun signUpWithGoogle(subject: String, email: String): TokenResponse {
         val (nonce, cookie) = issueNonce()
@@ -230,15 +245,44 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
             }
         }
 
+        // JwtAuthFilter never authenticates under /auth/, so any non-public /auth path — the removed
+        // promote-admin, or a future authenticated endpoint placed there — fails closed with 401.
         given("관리자 승격 엔드포인트가 제거된 뒤") {
-            `when`("로그인한 유저가 passphrase로 승격을 요청하면") {
-                then("404를 받고 role은 USER로 남는다") {
+            `when`("로그인한 유저가 유효한 access token과 passphrase로 승격을 요청하면") {
+                then("/auth 아래 비공개 경로는 fail-closed로 401을 받고 role은 USER로 남는다") {
                     val tokens = signUpWithGoogle(subject = "google-sub-admin", email = "admin-try@gmail.com")
                     val body = mapOf("passphrase" to "dev-admin-passphrase")
                     val request = HttpEntity(body, jsonHeaders(null, tokens.accessToken))
 
-                    post("/auth/promote-admin", request).status() shouldBe HttpStatus.NOT_FOUND
+                    post("/auth/promote-admin", request).status() shouldBe HttpStatus.UNAUTHORIZED
                     userRepository.findByUuid(tokens.uuid)?.role shouldBe Role.USER
+                }
+            }
+        }
+
+        given("refresh token을 예전처럼 Authorization 헤더에만 넣으면") {
+            `when`("refresh·logout을 호출할 때") {
+                then("body가 없어 400을 받는다") {
+                    val tokens = signUpWithGoogle(subject = "google-sub-legacy", email = "legacy@gmail.com")
+
+                    headerOnlyStatus("/auth/refresh", tokens.refreshToken) shouldBe HttpStatus.BAD_REQUEST
+                    headerOnlyStatus("/auth/logout", tokens.refreshToken) shouldBe HttpStatus.BAD_REQUEST
+                }
+            }
+        }
+
+        given("앱 인터셉터가 만료되거나 잘못된 access token을 헤더에 붙인 채") {
+            `when`("body의 refresh token으로 refresh·logout을 호출하면") {
+                then("헤더는 무시되고 정상 처리된다") {
+                    val tokens = signUpWithGoogle(subject = "google-sub-stale", email = "stale@gmail.com")
+
+                    val expiredAccess = expiredAccessTokenFor(tokens)
+
+                    getMyProfileStatus(expiredAccess) shouldBe HttpStatus.UNAUTHORIZED
+                    refreshStatus(tokens.refreshToken, bearer = expiredAccess) shouldBe HttpStatus.OK
+                    val second = signUpWithGoogle(subject = "google-sub-stale2", email = "stale2@gmail.com")
+                    val secondExpiredAccess = expiredAccessTokenFor(second)
+                    logoutStatus(second.refreshToken, bearer = secondExpiredAccess) shouldBe HttpStatus.NO_CONTENT
                 }
             }
         }
@@ -352,5 +396,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
         const val STUB_ID_TOKEN = "stubbed-id-token"
         const val NICKNAME_SUFFIX_RANGE = 1000
         const val X_FORWARDED_FOR = "X-Forwarded-For"
+        const val REFRESH_TOKEN_FIELD = "refreshToken"
+        const val EXPIRED_TTL_MILLIS = -60_000L
     }
 }

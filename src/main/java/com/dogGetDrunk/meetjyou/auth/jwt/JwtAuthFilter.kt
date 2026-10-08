@@ -31,14 +31,17 @@ class JwtAuthFilter(
 
     val log = LoggerFactory.getLogger(JwtAuthFilter::class.java)
 
-    // Refresh and logout carry a refresh token in the Authorization header and validate it
-    // themselves, so the access-only check here must not run on them.
+    // Every /auth endpoint is public and authenticates with its own credential (provider token,
+    // refresh token in the body), so an Authorization header there is ignored: an app interceptor
+    // that attaches an expired access token must still be able to refresh. Fail-closed: an
+    // endpoint under /auth that requires authentication gets no principal here and is rejected
+    // by anyRequest().authenticated().
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         val path = request.requestURI
         return path == "/actuator/health"
             || path.startsWith("/swagger-ui")
             || path.startsWith("/v3/api-docs")
-            || path in REFRESH_TOKEN_PATHS
+            || path.startsWith(AUTH_ENDPOINTS_PREFIX)
     }
 
     override fun doFilterInternal(
@@ -102,6 +105,6 @@ class JwtAuthFilter(
     }
 
     companion object {
-        private val REFRESH_TOKEN_PATHS = setOf("$V1/auth/refresh", "$V1/auth/logout")
+        private const val AUTH_ENDPOINTS_PREFIX = "$V1/auth/"
     }
 }

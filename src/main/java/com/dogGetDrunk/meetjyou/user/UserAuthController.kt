@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.dto.NonceResponse
+import com.dogGetDrunk.meetjyou.user.dto.RefreshTokenRequest
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import io.swagger.v3.oas.annotations.Operation
@@ -17,7 +18,6 @@ import jakarta.validation.constraints.NotBlank
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
 import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
 import java.net.URI
@@ -113,7 +113,10 @@ class UserAuthController(
         return ResponseEntity.ok(tokenResponseDto)
     }
 
-    @Operation(summary = "토큰 갱신", description = "리프레시 토큰을 이용해 새로운 액세스 토큰 및 리프레시 토큰을 발급한다.")
+    @Operation(
+        summary = "토큰 갱신",
+        description = "요청 body의 리프레시 토큰으로 새 액세스·리프레시 토큰을 발급한다. $AUTH_HEADER_IGNORED",
+    )
     @ApiResponses(
         value = [ApiResponse(
             responseCode = "200",
@@ -136,14 +139,14 @@ class UserAuthController(
         )]
     )
     @PostMapping("/refresh")
-    fun refreshToken(
-        @RequestHeader("Authorization") authorizationHeader: String,
-    ): ResponseEntity<TokenResponse> {
-        val refreshToken = authorizationHeader.removePrefix("Bearer ")
-        return ResponseEntity.ok(userAuthService.refreshToken(refreshToken))
+    fun refreshToken(@Valid @RequestBody request: RefreshTokenRequest): ResponseEntity<TokenResponse> {
+        return ResponseEntity.ok(userAuthService.refreshToken(request.refreshToken))
     }
 
-    @Operation(summary = "로그아웃", description = "리프레시 토큰을 무효화하여 로그아웃한다.")
+    @Operation(
+        summary = "로그아웃",
+        description = "요청 body의 리프레시 토큰을 무효화하여 로그아웃한다. $AUTH_HEADER_IGNORED",
+    )
     @ApiResponses(
         value = [ApiResponse(
             responseCode = "204",
@@ -160,11 +163,8 @@ class UserAuthController(
         )]
     )
     @PostMapping("/logout")
-    fun logout(
-        @RequestHeader("Authorization") authorizationHeader: String,
-    ): ResponseEntity<Void> {
-        val refreshToken = authorizationHeader.removePrefix("Bearer ")
-        userAuthService.logout(refreshToken)
+    fun logout(@Valid @RequestBody request: RefreshTokenRequest): ResponseEntity<Void> {
+        userAuthService.logout(request.refreshToken)
         return ResponseEntity.noContent().build()
     }
 
@@ -173,5 +173,6 @@ class UserAuthController(
         // registers next with the same id_token, so the nonce bound to it must still be there.
         // Replay stays limited to this session, the nonce's only binding.
         private const val SESSION_SOCIAL_NONCE = "SESSION_SOCIAL_NONCE"
+        private const val AUTH_HEADER_IGNORED = "Authorization 헤더는 사용하지 않는다(붙어 있어도 무시)."
     }
 }
