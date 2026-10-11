@@ -7,9 +7,9 @@ import org.springframework.stereotype.Component
 class DefaultNotificationTargetResolver(
     private val pushTokenRepository: PushTokenRepository,
 ) : NotificationTargetResolver {
-    override fun resolveUserTargets(userIds: Collection<Long>): Map<Long, List<String>> {
+    override fun resolveUserTargets(userIds: Collection<Long>): Map<Long, List<PushTarget>> {
         if (userIds.isEmpty()) return emptyMap()
         return pushTokenRepository.findAllByUserIdInAndActiveTrue(userIds)
-            .groupBy({ it.user.id }, { it.token })
+            .groupBy({ it.user.id }, { PushTarget(tokenId = it.id, token = it.token) })
     }
 }

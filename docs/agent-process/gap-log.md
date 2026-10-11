@@ -105,3 +105,17 @@
 - 놓친 층: L1
 - 왜 놓쳤나: plugin 스크립트를 직접 실행한 결과와 `claude plugin details`의 인벤토리(hook 6종 인식)를 "동작"의 증거로 취급. 내장 hook은 스크립트 부재 시 조용히 종료하도록 설계돼 있어 제거 즉시 무신호로 꺼지는데, 대체 장치가 harness에서 발동하는지는 실측하지 않음
 - 추가한 장치: `.claude/vgate-guard.py` + `.claude/settings.json` Stop 등록 — opt-in 레포에서 이 세션에 vgate heartbeat가 없으면 경고 (red/green 확인: heartbeat 없음 → 경고, 있음 → 무음, 다른 세션 heartbeat 불인정, 미opt-in 레포 무음). vgate 쪽: heartbeat 기록(`scripts/vgate_common.py` `mark_alive`)과 원장 템플릿 항목 "장치 교체·이관은 실제 런타임 발동 증거"
+
+### G50. 뒤처진 로컬 main에서 브랜치를 만들어 전체 테스트 증거가 옛 base 기준
+- 날짜 / 출처: 2026-10-11, `fix/notification-outbox-reliability-150` (#150) 완료 보고 전 requirement-verifier 검증
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 작업 시작 시 `git branch --show-current`로 브랜치 이름만 확인하고 `origin/main` 대비 뒤처짐은 보지 않음. 로컬 `main`이 PR #164·#166 머지 전 상태라 4커밋 뒤였고, 348건 통과 증거와 `git diff origin/main`에 무관한 21개 파일이 섞임. 변경 파일이 겹치지 않아 fast-forward 후 365건 재통과로 정정
+- 추가한 장치: `.claude/ledger-extra.md` — 원장 체크리스트에 "(base) 브랜치 생성 전 `git rev-list --count HEAD..origin/main` = 0 확인" 항목 추가. 한계: 문서 규칙이라 기계 강제 없음
+
+### G51. 외부 SDK enum 값을 문자열로 비교해 등록 해제 판정이 항상 false — sender mock 테스트만 있어 통과
+- 날짜 / 출처: 2026-10-11, `fix/notification-outbox-reliability-150` (#150) requirement-verifier 재검증 (R4 부분 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: `FcmNotificationSender`에 `tokenInvalid`를 추가하면서 `e.errorCode.name == "UNREGISTERED"`로 비교. `UNREGISTERED`는 `MessagingErrorCode`에만 있고 `com.google.firebase.ErrorCode`에는 없어(firebase-admin 9.5.0 `javap`) 항상 false → 등록 해제 토큰이 비활성화되지 않고 일시 실패로 재시도됨. 원장 R4·I3의 검증 방법이 sender를 mock한 디스패처 단위뿐이라 예외 → `SendResult` 매핑은 어떤 테스트도 실행하지 않았고, SDK의 값 목록을 원문 확인 없이 기억으로 씀. 문자열 비교라 컴파일러도 못 잡음
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/notification/sender/FcmNotificationSenderTest.kt` — 실제 `FirebaseMessagingException`(기본 코드 `NOT_FOUND` + messaging 코드 `UNREGISTERED`)으로 매핑 6건 단언(수정 전 1건 red 확인). 수정은 enum 비교(`MessagingErrorCode.UNREGISTERED`)라 값이 사라지면 컴파일 실패. 한계: FCM이 실제로 돌려주는 코드 조합은 실발송 미확인

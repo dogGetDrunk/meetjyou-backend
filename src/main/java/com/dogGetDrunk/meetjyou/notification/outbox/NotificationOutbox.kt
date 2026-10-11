@@ -51,5 +51,8 @@ class NotificationOutbox(
     @CreationTimestamp
     val createdAt: Instant = Instant.now()
 
+    // JSON array of push_token ids that already received this notification; null = none yet.
+    var deliveredTokenIds: String? = null
+
     enum class DeliveryStatus { PENDING, SENDING, SENT, FAILED, DEAD }
 }
