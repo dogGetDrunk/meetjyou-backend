@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.social.AccessToken
 import com.dogGetDrunk.meetjyou.auth.social.IdToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialToken
+import com.dogGetDrunk.meetjyou.auth.social.SocialTokenRejection
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifier
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.user.AuthProvider
@@ -42,13 +43,14 @@ class KakaoVerifier(
             val verifiedJwt = kakaoJwtDecoder.decode(token.value)
 
             if (nonce.isNullOrBlank() || verifiedJwt.claims["nonce"] != nonce) {
-                throw InvalidJwtException()
+                throw InvalidJwtException(message = SocialTokenRejection.NONCE_MISMATCH)
             }
 
             SocialPrincipal(
                 authProvider = AuthProvider.KAKAO,
                 subject = verifiedJwt.subject,
-                email = verifiedJwt.claims["email"] as? String ?: throw InvalidJwtException(),
+                email = verifiedJwt.claims["email"] as? String
+                    ?: throw InvalidJwtException(message = SocialTokenRejection.MISSING_EMAIL),
             ).also {
                 val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNs)
                 log.info("auth.verify.kakao.idToken success elapsedMs={}", elapsedMs)

@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.HttpStatusCode
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authorization.AuthorizationDeniedException
+import org.springframework.security.oauth2.jwt.BadJwtException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -115,6 +116,32 @@ class GlobalExceptionHandler(
         val status = HttpStatus.UNAUTHORIZED
         val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
         return ResponseEntity(errorResponse, status)
+    }
+
+    /**
+     * Provider id_tokens decoded by Spring's NimbusJwtDecoder (Kakao) fail with Spring Security's
+     * exceptions rather than our CustomJwtException. Only BadJwtException (expired, malformed,
+     * bad signature, failed claim validation) is the client's fault and maps to 401. Its parent
+     * JwtException also covers provider-side failures such as an unreachable JWK set; those stay
+     * on the 500 catch-all so an outage is not reported to clients as a bad token.
+     */
+    @ExceptionHandler(BadJwtException::class)
+    fun handleProviderJwtException(
+        e: BadJwtException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        log.info("Handling provider BadJwtException.", e)
+
+        discordAlertService.sendAlert(
+            request = request,
+            status = HttpStatus.UNAUTHORIZED.value(),
+            exceptionClass = e.javaClass.simpleName,
+            summary = "[${ErrorCode.INVALID_JWT.name}] ${ErrorCode.INVALID_JWT.message}",
+            detail = null
+        )
+
+        val status = HttpStatus.UNAUTHORIZED
+        return ResponseEntity(ErrorResponse(status.value(), ErrorCode.INVALID_JWT), status)
     }
 
     @ExceptionHandler(AuthException::class)

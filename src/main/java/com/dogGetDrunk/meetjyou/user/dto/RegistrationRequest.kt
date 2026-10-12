@@ -8,16 +8,15 @@ import com.dogGetDrunk.meetjyou.preference.Personality
 import com.dogGetDrunk.meetjyou.preference.TravelStyle
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import jakarta.validation.constraints.AssertTrue
-import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import org.hibernate.validator.constraints.UniqueElements
 import java.util.UUID
 
+// No email field: the email is taken from the verified provider token. Older app builds that
+// still send one are fine, since unknown JSON properties are ignored.
 data class RegistrationRequest(
-    @field:Email
-    val email: String,
     @field:Size(min = 2, max = 8)
     @field:NotBlank
     @field:Pattern(regexp = "^[a-zA-Z0-9가-힣]+$")

@@ -39,10 +39,8 @@ class JwtAuthFilterTest : BehaviorSpec() {
             `when`("계정 status가 NORMAL이면") {
                 then("SecurityContext에 인증 정보를 설정하고 체인을 통과시킨다") {
                     every { jwtProvider.extractToken(any()) } returns "valid.token"
-                    every { jwtProvider.validateTokenOrThrow("valid.token") } returns Unit
+                    every { jwtProvider.validateAccessTokenOrThrow("valid.token") } returns Unit
                     every { jwtProvider.getUserUuid("valid.token") } returns user.uuid
-                    every { jwtProvider.getUsername("valid.token") } returns user.email
-                    every { jwtProvider.getRole("valid.token") } returns Role.USER
                     every { userRepository.findByUuid(user.uuid) } returns user
 
                     var passed = false
@@ -57,14 +55,28 @@ class JwtAuthFilterTest : BehaviorSpec() {
                 }
             }
 
+            `when`("DB의 role이 ADMIN이면") {
+                then("토큰 claim과 무관하게 ADMIN 권한으로 인증한다") {
+                    user.role = Role.ADMIN
+                    every { jwtProvider.extractToken(any()) } returns "valid.token"
+                    every { jwtProvider.validateAccessTokenOrThrow("valid.token") } returns Unit
+                    every { jwtProvider.getUserUuid("valid.token") } returns user.uuid
+                    every { userRepository.findByUuid(user.uuid) } returns user
+
+                    val request = MockHttpServletRequest("GET", "/api/v1/notices")
+                    filter.doFilter(request, MockHttpServletResponse()) { _, _ -> }
+
+                    SecurityContextHolder.getContext().authentication.authorities.map { it.authority } shouldBe
+                        listOf(Role.ADMIN.name)
+                }
+            }
+
             `when`("계정 status가 DELETED(탈퇴)이면") {
                 then("401을 반환하고 체인을 통과시키지 않는다") {
                     user.status = UserStatus.DELETED
                     every { jwtProvider.extractToken(any()) } returns "valid.token"
-                    every { jwtProvider.validateTokenOrThrow("valid.token") } returns Unit
+                    every { jwtProvider.validateAccessTokenOrThrow("valid.token") } returns Unit
                     every { jwtProvider.getUserUuid("valid.token") } returns user.uuid
-                    every { jwtProvider.getUsername("valid.token") } returns user.email
-                    every { jwtProvider.getRole("valid.token") } returns Role.USER
                     every { userRepository.findByUuid(user.uuid) } returns user
 
                     var passed = false
@@ -83,10 +95,8 @@ class JwtAuthFilterTest : BehaviorSpec() {
             `when`("토큰의 유저를 찾을 수 없으면") {
                 then("401을 반환하고 체인을 통과시키지 않는다") {
                     every { jwtProvider.extractToken(any()) } returns "valid.token"
-                    every { jwtProvider.validateTokenOrThrow("valid.token") } returns Unit
+                    every { jwtProvider.validateAccessTokenOrThrow("valid.token") } returns Unit
                     every { jwtProvider.getUserUuid("valid.token") } returns user.uuid
-                    every { jwtProvider.getUsername("valid.token") } returns user.email
-                    every { jwtProvider.getRole("valid.token") } returns Role.USER
                     every { userRepository.findByUuid(user.uuid) } returns null
 
                     var passed = false
@@ -106,7 +116,7 @@ class JwtAuthFilterTest : BehaviorSpec() {
             `when`("토큰 검증에 실패하면") {
                 then("401을 반환하고 체인을 통과시키지 않는다") {
                     every { jwtProvider.extractToken(any()) } returns "invalid.token"
-                    every { jwtProvider.validateTokenOrThrow("invalid.token") } throws InvalidJwtException()
+                    every { jwtProvider.validateAccessTokenOrThrow("invalid.token") } throws InvalidJwtException()
 
                     var passed = false
                     val chain = FilterChain { _, _ -> passed = true }

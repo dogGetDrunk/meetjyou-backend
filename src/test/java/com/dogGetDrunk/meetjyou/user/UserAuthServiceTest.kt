@@ -12,8 +12,6 @@ import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjec
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
-import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.config.property.AdminProperties
 import com.dogGetDrunk.meetjyou.preference.Age
 import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.terms.TermsService
@@ -39,8 +37,6 @@ class UserAuthServiceTest : BehaviorSpec() {
     private val jwtProvider = mockk<JwtProvider>(relaxed = true)
     private val termsService = mockk<TermsService>(relaxed = true)
     private val refreshTokenRepository = mockk<RefreshTokenRepository>(relaxed = true)
-    private val adminProperties = AdminProperties(claimPassphrase = "test-passphrase")
-    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
 
     private val sut = UserAuthService(
         socialVerifierRegistry,
@@ -49,8 +45,6 @@ class UserAuthServiceTest : BehaviorSpec() {
         jwtProvider,
         termsService,
         refreshTokenRepository,
-        adminProperties,
-        currentUserProvider,
         rotationOverlapSeconds = 30L,
     )
 
@@ -79,7 +73,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                 then("기존 레코드를 revoke하고 새 TokenResponse를 반환한다") {
                     val record = RefreshTokenFixtures.refreshToken(user = user, jti = jti)
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns record
                     every { jwtProvider.getUserUuid(rawToken) } returns user.uuid
@@ -100,7 +94,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("JWT 서명이 유효하지 않으면") {
                 then("InvalidJwtException을 던진다") {
-                    every { jwtProvider.validateToken(rawToken) } returns false
+                    every { jwtProvider.isRefreshToken(rawToken) } returns false
 
                     shouldThrow<InvalidJwtException> {
                         sut.refreshToken(rawToken)
@@ -110,7 +104,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("jti에 해당하는 DB 레코드가 없으면") {
                 then("InvalidJwtException을 던진다") {
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns null
 
@@ -124,7 +118,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                 then("InvalidJwtException을 던진다") {
                     val revokedRecord = RefreshTokenFixtures.refreshToken(user = user, jti = jti, revoked = true)
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns revokedRecord
 
@@ -146,7 +140,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                         replacedByJti = replacementJti,
                     )
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns revokedRecord
                     every { refreshTokenRepository.findByJti(replacementJti) } returns replacement
@@ -175,7 +169,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                         replacedByJti = UUID.randomUUID().toString(),
                     )
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns revokedRecord
 
@@ -203,7 +197,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                         replacedByJti = replacementJti,
                     )
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns revokedRecord
                     every { refreshTokenRepository.findByJti(replacementJti) } returns consumedReplacement
@@ -224,7 +218,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                         expiresAt = LocalDateTime.now().minusDays(1),
                     )
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns expiredRecord
 
@@ -238,7 +232,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                 then("IncorrectJwtSubjectException을 던진다") {
                     val record = RefreshTokenFixtures.refreshToken(user = user, jti = jti)
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns record
                     every { jwtProvider.getUserUuid(rawToken) } returns user.uuid
@@ -256,7 +250,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                     val record = RefreshTokenFixtures.refreshToken(user = user, jti = jti)
                     val unknownUuid = UUID.randomUUID()
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns record
                     every { jwtProvider.getUserUuid(rawToken) } returns unknownUuid
@@ -277,7 +271,6 @@ class UserAuthServiceTest : BehaviorSpec() {
             val principal = SocialPrincipal(authProvider = provider, subject = externalId, email = "new@test.com")
             val socialVerifier = mockk<SocialVerifier>(relaxed = true)
             val request = RegistrationRequest(
-                email = "new@test.com",
                 nickname = "newbie",
                 bio = null,
                 gender = Gender.M,
@@ -306,7 +299,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("가입 이력이 없으면") {
                 then("신규 유저를 생성하고 토큰을 발급한다") {
-                    val newUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val newUser = UserFixtures.user(principal.email, request.nickname, provider, externalId)
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns null
                     every { userService.createUser(request, principal) } returns newUser
 
@@ -320,7 +313,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("grace window(30초) 이내에 생성된 동일 계정이 이미 존재하면(응답 유실 재시도)") {
                 then("UserAlreadyExistsException 대신 그 유저의 로그인 토큰을 반환한다") {
-                    val existingUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val existingUser = UserFixtures.user(principal.email, request.nickname, provider, externalId)
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns existingUser
 
                     val result = sut.registerViaSocial(request)
@@ -334,7 +327,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("grace window(30초)를 벗어나 생성된 동일 계정이 이미 존재하면") {
                 then("UserAlreadyExistsException을 던진다") {
-                    val oldUser = UserFixtures.user(email = request.email, nickname = request.nickname, authProvider = provider, externalId = externalId)
+                    val oldUser = UserFixtures.user(principal.email, request.nickname, provider, externalId)
                     forceCreatedAt(oldUser, Instant.now().minusSeconds(60))
                     every { userRepository.findByAuthProviderAndExternalId(provider, externalId) } returns oldUser
 
@@ -356,7 +349,7 @@ class UserAuthServiceTest : BehaviorSpec() {
                 then("레코드를 revoke하고 정상 종료한다") {
                     val record = RefreshTokenFixtures.refreshToken(user = user, jti = jti)
 
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns record
 
@@ -368,7 +361,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("JWT 서명이 유효하지 않으면") {
                 then("InvalidJwtException을 던진다") {
-                    every { jwtProvider.validateToken(rawToken) } returns false
+                    every { jwtProvider.isRefreshToken(rawToken) } returns false
 
                     shouldThrow<InvalidJwtException> {
                         sut.logout(rawToken)
@@ -378,7 +371,7 @@ class UserAuthServiceTest : BehaviorSpec() {
 
             `when`("jti에 해당하는 DB 레코드가 없으면") {
                 then("InvalidJwtException을 던진다") {
-                    every { jwtProvider.validateToken(rawToken) } returns true
+                    every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns null
 

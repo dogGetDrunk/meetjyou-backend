@@ -33,7 +33,6 @@ class AuthRateLimitFilter(
             "/api/v1/auth/login" to 5L,
             "/api/v1/auth/refresh" to 10L,
             "/api/v1/internal/load-test-token" to 5L,
-            "/api/v1/auth/promote-admin" to 5L,
         )
         private val WINDOW: Duration = Duration.ofMinutes(1)
     }

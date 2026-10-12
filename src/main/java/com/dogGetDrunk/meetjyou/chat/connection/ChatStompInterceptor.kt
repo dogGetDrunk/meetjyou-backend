@@ -2,6 +2,8 @@ package com.dogGetDrunk.meetjyou.chat.connection
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
+import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.UserStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.messaging.Message
@@ -19,6 +21,7 @@ class ChatStompInterceptor(
     private val jwtProvider: JwtProvider,
     private val chatRoomRepository: ChatRoomRepository,
     private val userPartyRepository: UserPartyRepository,
+    private val userRepository: UserRepository,
 ) : ChannelInterceptor {
 
     private val log = LoggerFactory.getLogger(ChatStompInterceptor::class.java)
@@ -43,6 +46,7 @@ class ChatStompInterceptor(
             ?: throw IllegalArgumentException("roomUuid header is missing or invalid.")
 
         val userUuid = resolveUserUuidForConnect(accessor, roomUuid)
+        validateActiveUser(userUuid, roomUuid)
         val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
             ?: throw IllegalArgumentException("Chat room was not found.")
 
@@ -98,7 +102,10 @@ class ChatStompInterceptor(
             ?.trim()
 
         if (!token.isNullOrBlank()) {
-            return runCatching { jwtProvider.getUserUuid(token) }
+            return runCatching {
+                jwtProvider.validateAccessTokenOrThrow(token)
+                jwtProvider.getUserUuid(token)
+            }
                 .getOrElse {
                     log.warn("STOMP CONNECT rejected because JWT parsing failed. roomUuid={}", roomUuid)
                     throw IllegalArgumentException("JWT parsing failed.")
@@ -107,6 +114,19 @@ class ChatStompInterceptor(
 
         log.warn("STOMP CONNECT rejected because Authorization header was missing. roomUuid={}", roomUuid)
         throw IllegalArgumentException("Authentication information is missing.")
+    }
+
+    private fun validateActiveUser(userUuid: UUID, roomUuid: UUID) {
+        userRepository.findByUuid(userUuid)
+            ?.takeIf { it.status != UserStatus.DELETED }
+            ?: run {
+                log.warn(
+                    "STOMP CONNECT rejected because the user is withdrawn or unknown. roomUuid={}, userUuid={}",
+                    roomUuid,
+                    userUuid,
+                )
+                throw IllegalArgumentException("Withdrawn or unknown user.")
+            }
     }
 
     private fun validateMembership(
