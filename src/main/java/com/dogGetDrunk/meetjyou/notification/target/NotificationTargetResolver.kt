@@ -1,5 +1,5 @@
 package com.dogGetDrunk.meetjyou.notification.target
 
 interface NotificationTargetResolver {
-    fun resolveUserTargets(userIds: Collection<Long>): Map<Long, List<String>>
+    fun resolveUserTargets(userIds: Collection<Long>): Map<Long, List<PushTarget>>
 }

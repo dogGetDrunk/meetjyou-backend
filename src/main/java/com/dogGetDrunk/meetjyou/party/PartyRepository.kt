@@ -22,6 +22,11 @@ interface PartyRepository : JpaRepository<Party, Long> {
     @Query("SELECT p FROM Party p WHERE p.uuid = :uuid")
     fun findByUuidForUpdate(@Param("uuid") uuid: UUID): Party?
 
+    // Scalar on purpose: resolves which party row to lock without loading the post or party into
+    // the persistence context ahead of that lock.
+    @Query("SELECT p.party.uuid FROM Post p WHERE p.uuid = :postUuid")
+    fun findUuidByPostUuid(@Param("postUuid") postUuid: UUID): UUID?
+
     @Query(
         value = "SELECT p FROM Party p LEFT JOIN FETCH p.plan",
         countQuery = "SELECT COUNT(p) FROM Party p",

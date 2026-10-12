@@ -15,6 +15,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.party.SelfBanNotAllowe
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PlanNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
@@ -447,9 +448,9 @@ class PartyService(
         val userUuid = currentUserProvider.uuid
         log.info("Party name update request received: uuid=$partyUuid by user=$userUuid")
 
-        // Locked before the host check so the entity is read fresh: Party has no @DynamicUpdate, so
-        // flushing it rewrites every column and would otherwise revert a concurrent join approval,
-        // ban or leave that updated `joined` under the same row lock.
+        // Locked before the host check so the entity is read fresh: @DynamicUpdate keeps this flush
+        // off `joined`, but two concurrent renames write the same `name` column and are serialized
+        // here so the response reflects the committed name.
         val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         if (!verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
@@ -491,7 +492,10 @@ class PartyService(
         val userUuid = currentUserProvider.uuid
         log.info("Party completion requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
 
-        val party = requireParty(partyUuid)
+        // Locked so a concurrent PostService.updatePostStatus (which takes the same lock) can't
+        // pass its "not completed" check on a stale read and flip the post back to RECRUITING
+        // after this completes it — @DynamicUpdate doesn't help there, both write `status`.
+        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         val hostMembership = requireActiveHostMembership(partyUuid, userUuid)
 
         if (!hostMembership.isActiveMember()) {
@@ -617,6 +621,15 @@ class PartyService(
         }
 
         log.info("Party leave completed. partyUuid={}, userUuid={}", partyUuid, userUuid)
+    }
+
+    // Locks the row of the post's party for a caller about to write post state that completeParty
+    // guards with the same lock (see PostService.updatePostStatus). Must run before the post or
+    // party is loaded in the transaction, or the persistence context keeps the stale snapshot.
+    @Transactional
+    fun lockPartyOfPost(postUuid: UUID) {
+        val partyUuid = partyRepository.findUuidByPostUuid(postUuid) ?: throw PostNotFoundException(postUuid)
+        partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
     }
 
     @Transactional

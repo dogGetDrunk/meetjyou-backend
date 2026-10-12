@@ -1,12 +1,12 @@
 package com.dogGetDrunk.meetjyou.chat.event
 
-import org.springframework.messaging.simp.SimpMessagingTemplate
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
 class ChatRoomEventBroadcaster(
-    private val messagingTemplate: SimpMessagingTemplate,
+    private val publisher: ApplicationEventPublisher,
 ) {
 
     fun broadcastPartyCompleted(
@@ -92,7 +92,8 @@ class ChatRoomEventBroadcaster(
         )
     }
 
+    // Sent by ChatBroadcastListener after the caller's transaction commits.
     private fun broadcast(event: ChatRoomEvent) {
-        messagingTemplate.convertAndSend("/sub/chat/room/${event.roomUuid}/events", event)
+        publisher.publishEvent(event)
     }
 }

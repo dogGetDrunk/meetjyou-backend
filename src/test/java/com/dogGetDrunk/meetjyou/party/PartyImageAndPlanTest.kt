@@ -3,6 +3,8 @@ package com.dogGetDrunk.meetjyou.party
 import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
@@ -16,14 +18,18 @@ import com.dogGetDrunk.meetjyou.userparty.PartyRole
 import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import io.mockk.verifyOrder
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Instant
+import java.util.UUID
 
 class PartyImageAndPlanTest : BehaviorSpec() {
 
@@ -108,6 +114,43 @@ class PartyImageAndPlanTest : BehaviorSpec() {
             }
         }
 
+        given("lockPartyOfPost 호출 시") {
+            val postUuid = UUID.randomUUID()
+
+            `when`("게시글의 파티가 있으면") {
+                val party = party()
+                every { partyRepository.findUuidByPostUuid(postUuid) } returns party.uuid
+                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
+
+                then("파티 uuid를 스칼라로 찾은 뒤 그 파티 행을 잠근다") {
+                    sut.lockPartyOfPost(postUuid)
+                    verifyOrder {
+                        partyRepository.findUuidByPostUuid(postUuid)
+                        partyRepository.findByUuidForUpdate(party.uuid)
+                    }
+                }
+            }
+
+            `when`("게시글이 없으면") {
+                every { partyRepository.findUuidByPostUuid(postUuid) } returns null
+
+                then("PostNotFoundException을 던지고 잠그지 않는다") {
+                    shouldThrow<PostNotFoundException> { sut.lockPartyOfPost(postUuid) }
+                    verify(exactly = 0) { partyRepository.findByUuidForUpdate(any()) }
+                }
+            }
+
+            `when`("파티 행이 사라졌으면") {
+                val partyUuid = UUID.randomUUID()
+                every { partyRepository.findUuidByPostUuid(postUuid) } returns partyUuid
+                every { partyRepository.findByUuidForUpdate(partyUuid) } returns null
+
+                then("PartyNotFoundException을 던진다") {
+                    shouldThrow<PartyNotFoundException> { sut.lockPartyOfPost(postUuid) }
+                }
+            }
+        }
+
         given("파티 종료 시") {
             `when`("연결된 plan이 있으면") {
                 val host = UserFixtures.user()
@@ -115,7 +158,7 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                 val plan = PlanFixtures.plan(owner = host)
                 val marker = PlanFixtures.marker(plan)
                 party.plan = plan
-                every { partyRepository.findByUuid(party.uuid) } returns party
+                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
                 every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns listOf(marker)
@@ -124,6 +167,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                     sut.completeParty(party.uuid)
                     party.planSnapshot shouldNotBe null
                     party.planSnapshot!!.contains(plan.destination) shouldBe true
+                }
+
+                then("파티 행 잠금으로 조회하고 잠금 없는 조회는 하지 않는다") {
+                    sut.completeParty(party.uuid)
+                    verify(exactly = 1) { partyRepository.findByUuidForUpdate(party.uuid) }
+                    verify(exactly = 0) { partyRepository.findByUuid(party.uuid) }
                 }
             }
         }

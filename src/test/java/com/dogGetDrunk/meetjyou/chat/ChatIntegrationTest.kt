@@ -128,13 +128,8 @@ class ChatIntegrationTest : BehaviorSpec() {
                         ChatMessageRequest(roomUuid = roomUuid, message = "hello from test"),
                     )
 
+                    // The broadcast is sent after commit, so cleanup() can't race a pending insert.
                     withTimeout(5000L) { received.await() } shouldBe "hello from test"
-
-                    // The broadcast fires mid-transaction, before handleChatMessage's commit
-                    // (post-broadcast work: read-receipt update, notification event publish).
-                    // Give that a moment to settle before cleanup() deletes the room/message rows,
-                    // or a late commit can insert a message referencing an already-deleted room.
-                    delay(300)
 
                     session.disconnect()
                 }

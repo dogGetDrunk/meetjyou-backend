@@ -140,3 +140,25 @@
 - 놓친 층: L1
 - 왜 놓쳤나: G35 보완 시 "성공 시 소비"를 로그인 한 경로로만 일반화. 같은 불변식을 가진 가입 경로(`removeAttribute` 2곳 중 다른 1곳)를 경로별로 열거하지 않음
 - 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/auth/AuthSecurityReproIntegrationTest.kt` "가입에 성공한 뒤 같은 세션으로 로그인하면 401" — 가입 경로 `removeAttribute` 제거 시 `expected:<401> but was:<200 OK>` red 확인
+
+### G50. 뒤처진 로컬 main에서 브랜치를 만들어 전체 테스트 증거가 옛 base 기준
+- 날짜 / 출처: 2026-10-11, `fix/notification-outbox-reliability-150` (#150) 완료 보고 전 requirement-verifier 검증
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: 작업 시작 시 `git branch --show-current`로 브랜치 이름만 확인하고 `origin/main` 대비 뒤처짐은 보지 않음. 로컬 `main`이 PR #164·#166 머지 전 상태라 4커밋 뒤였고, 348건 통과 증거와 `git diff origin/main`에 무관한 21개 파일이 섞임. 변경 파일이 겹치지 않아 fast-forward 후 365건 재통과로 정정
+- 추가한 장치: `.claude/ledger-extra.md` — 원장 체크리스트에 "(base) 브랜치 생성 전 `git rev-list --count HEAD..origin/main` = 0 확인" 항목 추가. 한계: 문서 규칙이라 기계 강제 없음
+
+### G51. 외부 SDK enum 값을 문자열로 비교해 등록 해제 판정이 항상 false — sender mock 테스트만 있어 통과
+- 날짜 / 출처: 2026-10-11, `fix/notification-outbox-reliability-150` (#150) requirement-verifier 재검증 (R4 부분 판정)
+- 발견 경로: 검증자
+- 놓친 층: L1
+- 왜 놓쳤나: `FcmNotificationSender`에 `tokenInvalid`를 추가하면서 `e.errorCode.name == "UNREGISTERED"`로 비교. `UNREGISTERED`는 `MessagingErrorCode`에만 있고 `com.google.firebase.ErrorCode`에는 없어(firebase-admin 9.5.0 `javap`) 항상 false → 등록 해제 토큰이 비활성화되지 않고 일시 실패로 재시도됨. 원장 R4·I3의 검증 방법이 sender를 mock한 디스패처 단위뿐이라 예외 → `SendResult` 매핑은 어떤 테스트도 실행하지 않았고, SDK의 값 목록을 원문 확인 없이 기억으로 씀. 문자열 비교라 컴파일러도 못 잡음
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/notification/sender/FcmNotificationSenderTest.kt` — 실제 `FirebaseMessagingException`(기본 코드 `NOT_FOUND` + messaging 코드 `UNREGISTERED`)으로 매핑 6건 단언(수정 전 1건 red 확인). 수정은 enum 비교(`MessagingErrorCode.UNREGISTERED`)라 값이 사라지면 컴파일 실패. 한계: FCM이 실제로 돌려주는 코드 조합은 실발송 미확인
+
+
+### G52. 병렬 브랜치가 같은 Flyway 버전(V35)을 각각 추가 — git은 충돌 없이 병합, 운영 기동 실패 직전
+- 날짜 / 출처: 2026-10-12, `worktree-security-repro-auth` (PR #163) 머지 직전, main의 PR #167과 번호 중복
+- 발견 경로: 자체 발견 (머지 전 `git diff --name-status HEAD...origin/main`으로 main 변경 파일 확인)
+- 놓친 층: L3
+- 왜 놓쳤나: 파일명이 달라(`V35__add_outbox_delivered_token_ids.sql` / `V35__drop_user_email_unique.sql`) git이 충돌로 보지 않음. 테스트 프로필은 Flyway 비활성(H2)이라 `./gradlew test`도 통과. 실제 MySQL로 Flyway를 돌리는 dockerTest는 CI에 있지만 PR의 CI 통과 기록은 main이 전진하기 전 base 기준(G50과 같은 축)이라 초록불로 남음
+- 추가한 장치: `src/test/java/com/dogGetDrunk/meetjyou/convention/MigrationVersionTest.kt` — 마이그레이션 버전 번호 중복 시 `./gradlew test` 실패 (V35 중복 파일을 넣어 red 확인). 한계: main을 병합한 뒤 돌려야 잡힘 — 머지 직전 CI가 옛 base 기준으로 남는 문제는 그대로

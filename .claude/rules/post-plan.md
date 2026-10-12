@@ -23,6 +23,6 @@ Opting a new create endpoint in:
 ## Post ↔ party ↔ plan
 - Creating a post also creates its Party and ChatRoom; deleting a post does not delete the party
 - A post may only attach a plan owned by its author (`resolvePlanReference`) — otherwise `isPlanPublic=true` exposes someone else's plan. Plan changes sync to `party.plan`
-- Posts of a COMPLETED party are read-only
+- Posts of a COMPLETED party are read-only. A write to post `status` takes the party row lock (`PartyService.lockPartyOfPost`) before loading the post — `completeParty` writes the same column under that lock (see party rules)
 - Plan read access goes through `PlanAccessGuard.validateReadAccess` (owner / public post / JOINED member)
 - No ON DELETE CASCADE on plan FKs — deleting a plan detaches `party.plan`, `post.plan`, `post.isPlanPublic` first

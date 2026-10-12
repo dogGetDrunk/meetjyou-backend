@@ -195,6 +195,11 @@ class PostService(
 
     @Transactional
     fun updatePostStatus(postUuid: UUID, request: UpdatePostStatusRequest): UpdatePostStatusResponse {
+        // Party row locked before the post or party is loaded: completeParty writes this same
+        // `status` column under that lock, so a stale "not completed" read would let a completed
+        // party's post go back to RECRUITING. Only the party row is locked explicitly, so the
+        // lock order matches completeParty (party, then the post row at flush) — no deadlock.
+        partyService.lockPartyOfPost(postUuid)
         val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
         val userUuid = currentUserProvider.uuid
         assertIsAuthor(post, postUuid, userUuid)

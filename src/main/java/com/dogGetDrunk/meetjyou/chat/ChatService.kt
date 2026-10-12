@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.chat
 
 import com.dogGetDrunk.meetjyou.chat.connection.ChatSessionTracker
+import com.dogGetDrunk.meetjyou.chat.event.ChatMessageBroadcastEvent
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessage
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRequest
@@ -20,7 +21,6 @@ import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -29,7 +29,6 @@ import java.util.UUID
 class ChatService(
     private val chatMessageRepository: ChatMessageRepository,
     private val chatRoomRepository: ChatRoomRepository,
-    private val messagingTemplate: SimpMessagingTemplate,
     private val userRepository: UserRepository,
     private val partyRepository: PartyRepository,
     private val userPartyRepository: UserPartyRepository,
@@ -94,10 +93,11 @@ class ChatService(
         )
         val response = ChatMessageResponse.of(savedMessage, unreadCount)
 
-        messagingTemplate.convertAndSend("/sub/chat/room/${room.uuid}", response)
+        // Published first so the after-commit listener sends the message before the read updates below.
+        publisher.publishEvent(ChatMessageBroadcastEvent(roomUuid = room.uuid, message = response))
 
         log.info(
-            "Chat message broadcast completed. roomUuid={}, messageUuid={}",
+            "Chat message broadcast scheduled after commit. roomUuid={}, messageUuid={}",
             room.uuid,
             savedMessage.uuid,
         )

@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.post
 
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
@@ -23,6 +24,9 @@ import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import io.mockk.verifyOrder
+import java.util.UUID
 
 class UpdatePostStatusServiceTest : BehaviorSpec() {
 
@@ -58,6 +62,29 @@ class UpdatePostStatusServiceTest : BehaviorSpec() {
             beforeEach {
                 every { postRepository.findByUuid(post.uuid) } returns post
                 every { currentUserProvider.uuid } returns author.uuid
+            }
+
+            `when`("상태를 바꾸면") {
+                then("게시글을 읽기 전에 연결된 파티 행을 잠근다") {
+                    sut.updatePostStatus(post.uuid, request)
+
+                    verifyOrder {
+                        partyService.lockPartyOfPost(post.uuid)
+                        postRepository.findByUuid(post.uuid)
+                    }
+                }
+            }
+
+            `when`("게시글이 없으면") {
+                then("잠금 단계의 PostNotFoundException이 그대로 전파되고 게시글을 읽지 않는다") {
+                    val missing = UUID.randomUUID()
+                    every { partyService.lockPartyOfPost(missing) } throws PostNotFoundException(missing)
+
+                    shouldThrow<PostNotFoundException> {
+                        sut.updatePostStatus(missing, request)
+                    }
+                    verify(exactly = 0) { postRepository.findByUuid(missing) }
+                }
             }
 
             `when`("파티가 아직 진행 중이면") {
