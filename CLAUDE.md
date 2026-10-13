@@ -44,10 +44,9 @@ SPRING_PROFILES_ACTIVE=dev,db,secrets \
 
 ## Verification Workflow
 
-Enforced by the **vgate** Claude Code plugin (source `~/orca/projects/vgate`, installed as `vgate@vgate`; local-only until published — reviewers without it run ungated). This repo opts in via `.claude/vgate.json`; the plugin injects the working contract at session start and enforces the ledger, full-test evidence, pre-PR verifier run, and gap protocol through hooks.
+No hook-enforced gate — the vgate plugin was retired here on 2026-10-13. The Testing rules above and the `./gradlew build` checks are the gate.
 
-- Project config: `.claude/vgate.json` (gradle full test, `src/main` ledger threshold, verifier checks: N+1 / `@Transactional` / IDOR), project ledger checklist `.claude/ledger-extra.md`
-- Project gaps: `docs/agent-process/gap-log.md`; project-side layer L2 (static analysis, permissions): `docs/agent-process/README.md`
+- Past gap records and project-side static checks: `docs/agent-process/` (history, no longer enforced by hooks)
 - Pre-plugin in-repo version: tag `agent-process-inrepo-final`
 
 ## Conventions
