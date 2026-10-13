@@ -10,18 +10,5 @@
       "Bash(security find-generic-password *)",
       "Bash(security find-internet-password *)"
     ]
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -n \"$R\" ] || R=\"$CLAUDE_PROJECT_DIR\"; S=\"$R/.claude/vgate-guard.py\"; [ -f \"$S\" ] || exit 0; exec python3 \"$S\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
   }
 }
