@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
+import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
@@ -14,6 +15,7 @@ import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.terms.TermsType
+import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.assertions.throwables.shouldThrow
@@ -52,6 +54,43 @@ class UserServiceTest : BehaviorSpec() {
     init {
         beforeEach { clearAllMocks() }
         afterSpec { unmockkAll() }
+
+        // ── createUser ───────────────────────────────────────────────────────
+
+        given("createUser 호출 시") {
+            val principal = SocialPrincipal(AuthProvider.GOOGLE, subject = "google-sub-1", email = "verified@gmail.com")
+            val request = RegistrationRequest(
+                nickname = "newbie",
+                bio = null,
+                gender = Gender.M,
+                age = Age.TWENTY,
+                personalities = emptyList(),
+                travelStyles = emptyList(),
+                diet = emptyList(),
+                etc = emptyList(),
+                authProvider = AuthProvider.GOOGLE,
+                idToken = "id-token-value",
+                agreedTermsUuids = emptyList(),
+            )
+
+            `when`("정상적으로 호출되면") {
+                then("검증된 principal의 식별자로 소셜 계정을 유저에 달아 함께 저장한다") {
+                    every { userRepository.save(any()) } answers { firstArg() }
+                    every { preferenceRepository.findAllByTypeAndNameIn(any(), any()) } answers {
+                        secondArg<List<String>>().map { name -> Preference(type = firstArg(), name = name) }
+                    }
+                    every { userPreferenceRepository.save(any()) } answers { firstArg() }
+
+                    val created = sut.createUser(request, principal)
+
+                    val account = created.socialAccounts.single()
+                    account.user shouldBe created
+                    account.provider shouldBe AuthProvider.GOOGLE
+                    account.externalId shouldBe "google-sub-1"
+                    account.email shouldBe "verified@gmail.com"
+                }
+            }
+        }
 
         // ── confirmProfileImage ──────────────────────────────────────────────
 

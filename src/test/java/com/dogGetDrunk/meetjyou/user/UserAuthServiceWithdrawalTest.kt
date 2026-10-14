@@ -48,7 +48,7 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
                     every { socialVerifierRegistry.get(withdrawnUser.authProvider) } returns socialVerifier
                     every { socialVerifier.verifyAndExtract(IdToken("id-token"), any()) } returns principal
                     every {
-                        userRepository.findByAuthProviderAndExternalId(withdrawnUser.authProvider, withdrawnUser.externalId)
+                        userRepository.findBySocialAccount(withdrawnUser.authProvider, withdrawnUser.externalId)
                     } returns withdrawnUser
 
                     val request = LoginRequest(authProvider = withdrawnUser.authProvider, idToken = "id-token")
