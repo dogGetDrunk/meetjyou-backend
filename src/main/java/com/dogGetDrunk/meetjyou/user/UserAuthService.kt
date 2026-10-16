@@ -77,7 +77,7 @@ class UserAuthService(
                 message = "User already exists for provider $authProvider"
             )
         }
-        if (existing.status == UserStatus.DELETED) {
+        if (!existing.isActive()) {
             throw UserWithdrawnException(existing.uuid.toString(), message = "Withdrawn user attempted to register")
         }
         log.info("Registration retried within grace window after a likely lost response. uuid: {}", existing.uuid)
@@ -104,13 +104,27 @@ class UserAuthService(
                 message = "User not found for provider ${request.authProvider}"
             )
 
-        if (user.status == UserStatus.DELETED) {
-            throw UserWithdrawnException(user.uuid.toString(), message = "Withdrawn user attempted to log in")
-        }
+        restoreIfWithdrawn(user)
 
         log.info("User logged in successfully. uuid: {}, email: {}", user.uuid, user.email)
 
         return issueTokenPair(user)
+    }
+
+    /**
+     * Logging in during the withdrawal grace period cancels the withdrawal. Past it the account
+     * only waits for the purge job and stays locked.
+     */
+    private fun restoreIfWithdrawn(user: User) {
+        if (user.isActive()) return
+        if (!user.isRestorable(Instant.now())) {
+            throw UserWithdrawnException(
+                user.uuid.toString(),
+                message = "Withdrawn user attempted to log in after grace period",
+            )
+        }
+        user.restore()
+        log.info("Withdrawn user restored by logging in within grace period. uuid: {}", user.uuid)
     }
 
     @Transactional
@@ -134,7 +148,7 @@ class UserAuthService(
             throw IncorrectJwtSubjectException(email, message = "Email claim does not match user record")
         }
 
-        if (user.status == UserStatus.DELETED) {
+        if (!user.isActive()) {
             throw UserWithdrawnException(user.uuid.toString(), message = "Withdrawn user attempted to refresh token")
         }
 

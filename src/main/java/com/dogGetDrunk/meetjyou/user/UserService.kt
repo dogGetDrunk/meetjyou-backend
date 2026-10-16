@@ -1,6 +1,5 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
@@ -24,7 +23,6 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
@@ -35,14 +33,12 @@ class UserService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val currentUserProvider: CurrentUserProvider,
     private val termsService: TermsService,
-    private val refreshTokenRepository: RefreshTokenRepository,
+    private val userSessionRevoker: UserSessionRevoker,
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
     companion object {
         private const val PREFERENCE_NOT_FOUND = "Preference not found in DB"
-        // Nicknames of withdrawn accounts stay reserved for this long, then become reusable.
-        private val NICKNAME_GRACE_PERIOD: Duration = Duration.ofDays(30)
     }
 
     @Transactional
@@ -82,9 +78,8 @@ class UserService(
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
 
         log.info("Processing user withdrawal (user uuid: {})", uuid)
-        user.status = UserStatus.DELETED
-        user.withdrawnAt = Instant.now()
-        refreshTokenRepository.revokeAllByUser(user)
+        user.withdraw(Instant.now())
+        userSessionRevoker.revokeAll(user)
         log.info("User withdrawal completed (user uuid: {})", uuid)
     }
 
@@ -151,7 +146,7 @@ class UserService(
 
     @Transactional(readOnly = true)
     fun isDuplicateNickname(nickname: String): Boolean {
-        val gracePeriodCutoff = Instant.now().minus(NICKNAME_GRACE_PERIOD)
+        val gracePeriodCutoff = Instant.now().minus(User.WITHDRAWAL_GRACE_PERIOD)
         return userRepository.existsActiveNickname(nickname, gracePeriodCutoff)
     }
 

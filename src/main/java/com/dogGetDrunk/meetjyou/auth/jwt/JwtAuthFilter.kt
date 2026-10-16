@@ -7,7 +7,6 @@ import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnExcep
 import com.dogGetDrunk.meetjyou.config.ApiVersionConfig.Companion.V1
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
-import com.dogGetDrunk.meetjyou.user.UserStatus
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -87,7 +86,7 @@ class JwtAuthFilter(
 
     private fun resolveActiveUser(userUuid: UUID): User {
         val user = userRepository.findByUuid(userUuid)
-        if (user == null || user.status == UserStatus.DELETED) {
+        if (user == null || !user.isActive()) {
             throw UserWithdrawnException(userUuid.toString(), message = "Withdrawn or unknown user attempted to use an access token")
         }
         return user
