@@ -18,4 +18,8 @@ interface PushTokenRepository : JpaRepository<PushToken, Long> {
     @Modifying
     @Query("update PushToken pt set pt.active = false where pt.id in :ids")
     fun deactivateAllByIdIn(@Param("ids") ids: Collection<Long>)
+
+    @Modifying
+    @Query("delete from PushToken pt where pt.user.id in :userIds")
+    fun deleteAllByUserIdIn(@Param("userIds") userIds: Collection<Long>): Int
 }

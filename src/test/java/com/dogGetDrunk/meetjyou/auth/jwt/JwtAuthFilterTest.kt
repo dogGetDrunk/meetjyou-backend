@@ -71,24 +71,26 @@ class JwtAuthFilterTest : BehaviorSpec() {
                 }
             }
 
-            `when`("계정 status가 DELETED(탈퇴)이면") {
-                then("401을 반환하고 체인을 통과시키지 않는다") {
-                    user.status = UserStatus.DELETED
-                    every { jwtProvider.extractToken(any()) } returns "valid.token"
-                    every { jwtProvider.validateAccessTokenOrThrow("valid.token") } returns Unit
-                    every { jwtProvider.getUserUuid("valid.token") } returns user.uuid
-                    every { userRepository.findByUuid(user.uuid) } returns user
+            listOf(UserStatus.DELETED, UserStatus.PURGED).forEach { inactive ->
+                `when`("계정 status가 ${inactive}이면") {
+                    then("401을 반환하고 체인을 통과시키지 않는다") {
+                        user.status = inactive
+                        every { jwtProvider.extractToken(any()) } returns "valid.token"
+                        every { jwtProvider.validateAccessTokenOrThrow("valid.token") } returns Unit
+                        every { jwtProvider.getUserUuid("valid.token") } returns user.uuid
+                        every { userRepository.findByUuid(user.uuid) } returns user
 
-                    var passed = false
-                    val chain = FilterChain { _, _ -> passed = true }
-                    val request = MockHttpServletRequest("GET", "/api/v1/users/me/profile")
-                    val response = MockHttpServletResponse()
+                        var passed = false
+                        val chain = FilterChain { _, _ -> passed = true }
+                        val request = MockHttpServletRequest("GET", "/api/v1/users/me/profile")
+                        val response = MockHttpServletResponse()
 
-                    filter.doFilter(request, response, chain)
+                        filter.doFilter(request, response, chain)
 
-                    passed shouldBe false
-                    response.status shouldBe 401
-                    SecurityContextHolder.getContext().authentication shouldBe null
+                        passed shouldBe false
+                        response.status shouldBe 401
+                        SecurityContextHolder.getContext().authentication shouldBe null
+                    }
                 }
             }
 

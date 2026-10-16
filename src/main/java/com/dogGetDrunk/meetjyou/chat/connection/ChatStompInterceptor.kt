@@ -3,7 +3,6 @@ package com.dogGetDrunk.meetjyou.chat.connection
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
-import com.dogGetDrunk.meetjyou.user.UserStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.messaging.Message
@@ -118,7 +117,7 @@ class ChatStompInterceptor(
 
     private fun validateActiveUser(userUuid: UUID, roomUuid: UUID) {
         userRepository.findByUuid(userUuid)
-            ?.takeIf { it.status != UserStatus.DELETED }
+            ?.takeIf { it.isActive() }
             ?: run {
                 log.warn(
                     "STOMP CONNECT rejected because the user is withdrawn or unknown. roomUuid={}, userUuid={}",

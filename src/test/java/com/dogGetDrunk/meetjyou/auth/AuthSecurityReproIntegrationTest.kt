@@ -11,7 +11,10 @@ import com.dogGetDrunk.meetjyou.preference.PreferenceType
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.Role
+import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.UserStatus
+import com.dogGetDrunk.meetjyou.user.WithdrawnUserPurgeScheduler
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import com.dogGetDrunk.meetjyou.user.dto.NonceResponse
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
@@ -23,14 +26,17 @@ import com.google.firebase.FirebaseApp
 import com.oracle.bmc.auth.AuthenticationDetailsProvider
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.workrequests.WorkRequestClient
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.boot.test.web.client.TestRestTemplate
@@ -45,6 +51,9 @@ import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.jwt.JwtValidationException
 import org.springframework.test.context.ActiveProfiles
+import java.time.Instant
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Drives the social sign-up/login flow and token usage through real HTTP requests against the
@@ -82,6 +91,9 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
     @Autowired
     private lateinit var refreshTokenRepository: RefreshTokenRepository
 
+    @Autowired
+    private lateinit var withdrawnUserPurgeScheduler: WithdrawnUserPurgeScheduler
+
     @Value("\${local.server.port}")
     private var port: Int = 0
 
@@ -95,6 +107,10 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
     // tests from sharing buckets (requests arrive from 127.0.0.1, a trusted proxy for RemoteIpValve).
     private var clientIp = ""
     private var testCounter = 0
+
+    // Not System.nanoTime(): on Apple Silicon it ticks every ~41.7ns, so `% 1000` yields only ~24
+    // values and two sign-ups in one test collided on the UNIQUE nickname. "repro" + 5 digits fits 10 chars.
+    private val nicknameCounter = AtomicInteger()
 
     private fun url(path: String) = "http://localhost:$port/api/v1$path"
 
@@ -159,7 +175,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
     private fun register(provider: AuthProvider, claimedEmail: String, sessionCookie: String): ResponseEntity<String> {
         val body = mapOf(
             "email" to claimedEmail,
-            "nickname" to "repro${System.nanoTime() % NICKNAME_SUFFIX_RANGE}",
+            "nickname" to "repro${nicknameCounter.incrementAndGet()}",
             "bio" to null,
             "gender" to Gender.M.name,
             "age" to Age.TWENTY.name,
@@ -207,6 +223,24 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
     /** The pre-change contract: refresh token in the Authorization header, no body. */
     private fun headerOnlyStatus(path: String, refreshToken: String): HttpStatus =
         post(path, HttpEntity<Void>(jsonHeaders(null, refreshToken))).status()
+
+    private fun loginWithGoogle(subject: String, email: String): HttpStatus {
+        val (nonce, cookie) = issueNonce()
+        stubGoogleIdToken(subject = subject, email = email, nonce = nonce)
+        return login(AuthProvider.GOOGLE, cookie)
+    }
+
+    private fun withdrawStatus(accessToken: String): HttpStatus {
+        val entity = HttpEntity<Void>(jsonHeaders(null, accessToken))
+        return restTemplate.exchange(url("/users/me"), HttpMethod.DELETE, entity, String::class.java).status()
+    }
+
+    // Moves the withdrawal back past the grace period instead of waiting for it.
+    private fun expireWithdrawal(uuid: UUID) {
+        val user = userRepository.findByUuid(uuid) ?: error("User not saved")
+        user.withdraw(Instant.now().minus(User.WITHDRAWAL_GRACE_PERIOD).minusSeconds(1))
+        userRepository.save(user)
+    }
 
     private fun signUpWithGoogle(subject: String, email: String): TokenResponse {
         val (nonce, cookie) = issueNonce()
@@ -331,6 +365,55 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
             }
         }
 
+        given("탈퇴 시각 없이 status만 DELETED로 바꾼 유저를") {
+            `when`("저장하면") {
+                then("엔티티의 @Check가 H2 스키마에도 들어가 있어 거부된다") {
+                    val broken = UserFixtures.user(email = "broken@gmail.com", nickname = "broken").apply {
+                        status = UserStatus.DELETED
+                    }
+
+                    shouldThrow<DataIntegrityViolationException> { userRepository.save(broken) }
+                }
+            }
+        }
+
+        given("탈퇴한 유저가 유예기간 안에") {
+            `when`("같은 소셜 계정으로 다시 로그인하면") {
+                then("계정이 NORMAL로 복구되고 토큰을 받는다") {
+                    val tokens = signUpWithGoogle(subject = SUB_RESTORE, email = "restore@gmail.com")
+                    withdrawStatus(tokens.accessToken) shouldBe HttpStatus.OK
+
+                    loginWithGoogle(SUB_RESTORE, "restore@gmail.com") shouldBe HttpStatus.OK
+
+                    val restored = userRepository.findByUuid(tokens.uuid) ?: error("User not saved")
+                    restored.status shouldBe UserStatus.NORMAL
+                    restored.withdrawnAt shouldBe null
+                }
+            }
+        }
+
+        given("탈퇴 후 유예기간(30일)이 지난 유저는") {
+            `when`("purge 전에는 로그인이 막히고, purge가 돈 뒤에는") {
+                then("같은 소셜 계정으로 새로 가입할 수 있고 옛 계정은 익명화된 채 남는다") {
+                    val old = signUpWithGoogle(subject = SUB_PURGE, email = "purge@gmail.com")
+                    withdrawStatus(old.accessToken) shouldBe HttpStatus.OK
+                    expireWithdrawal(old.uuid)
+
+                    loginWithGoogle(SUB_PURGE, "purge@gmail.com") shouldBe HttpStatus.UNAUTHORIZED
+
+                    withdrawnUserPurgeScheduler.purgeExpiredWithdrawals()
+
+                    loginWithGoogle(SUB_PURGE, "purge@gmail.com") shouldBe HttpStatus.NOT_FOUND
+                    val renewed = signUpWithGoogle(subject = SUB_PURGE, email = "purge@gmail.com")
+                    renewed.uuid shouldNotBe old.uuid
+                    userRepository.findBySocialAccount(AuthProvider.GOOGLE, SUB_PURGE)?.uuid shouldBe renewed.uuid
+                    val purged = userRepository.findByUuid(old.uuid) ?: error("Purged row must stay for FKs")
+                    purged.status shouldBe UserStatus.PURGED
+                    purged.email shouldBe ""
+                }
+            }
+        }
+
         given("H2: 소셜 id_token이 검증한 이메일과 다른 이메일을 요청 body에 넣어 가입하면") {
             `when`("가입이 처리된 뒤 저장된 이메일을 보면") {
                 then("body 값이 아니라 검증된 id_token의 이메일이어야 한다") {
@@ -427,9 +510,10 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
     private companion object {
         const val STUB_ID_TOKEN = "stubbed-id-token"
-        const val NICKNAME_SUFFIX_RANGE = 1000
         const val X_FORWARDED_FOR = "X-Forwarded-For"
         const val REFRESH_TOKEN_FIELD = "refreshToken"
         const val EXPIRED_TTL_MILLIS = -60_000L
+        const val SUB_RESTORE = "google-sub-restore"
+        const val SUB_PURGE = "google-sub-purge"
     }
 }

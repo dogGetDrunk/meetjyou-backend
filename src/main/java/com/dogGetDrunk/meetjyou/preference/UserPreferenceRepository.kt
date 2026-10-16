@@ -19,4 +19,8 @@ interface UserPreferenceRepository : JpaRepository<UserPreference, Long> {
     fun findPreferencesByUserIdAndType(@Param("userId") userId: Long, @Param("type") type: PreferenceType): List<Preference>
 
     fun findAllByUser_IdIn(userIds: List<Long>): List<UserPreference>
+
+    @Modifying
+    @Query("DELETE FROM UserPreference up WHERE up.user.id IN :userIds")
+    fun deleteAllByUserIdIn(@Param("userIds") userIds: Collection<Long>): Int
 }
