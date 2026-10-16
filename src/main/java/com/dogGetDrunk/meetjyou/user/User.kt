@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.user
 
+import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -7,6 +8,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.OneToMany
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.UpdateTimestamp
@@ -47,4 +49,12 @@ class User(
     @Enumerated(EnumType.STRING)
     var status: UserStatus = UserStatus.NORMAL
     var withdrawnAt: Instant? = null
+
+    // Social identities this user can sign in with. Owned by the user: saved and removed with it.
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val socialAccounts: MutableList<UserSocialAccount> = mutableListOf()
+
+    fun addSocialAccount(provider: AuthProvider, externalId: String, email: String) {
+        socialAccounts.add(UserSocialAccount(user = this, provider = provider, externalId = externalId, email = email))
+    }
 }

@@ -12,6 +12,7 @@ import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.Role
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import com.dogGetDrunk.meetjyou.user.dto.NonceResponse
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -294,6 +295,38 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
                     logoutStatus(tokens.refreshToken) shouldBe HttpStatus.NO_CONTENT
                     refreshStatus(tokens.refreshToken) shouldBe HttpStatus.UNAUTHORIZED
+                }
+            }
+        }
+
+        given("소셜 가입이 처리되면") {
+            `when`("그 provider·subject로 유저를 찾으면") {
+                then("가입한 유저가 소셜 계정 테이블을 통해 조회된다") {
+                    val tokens = signUpWithGoogle(subject = "google-sub-linked", email = "linked@gmail.com")
+
+                    val found = userRepository.findBySocialAccount(AuthProvider.GOOGLE, "google-sub-linked")
+
+                    found?.uuid shouldBe tokens.uuid
+                    userRepository.findBySocialAccount(AuthProvider.KAKAO, "google-sub-linked") shouldBe null
+                }
+            }
+        }
+
+        given("user 행에만 provider·external_id가 있고 소셜 계정 행은 없는 유저가") {
+            `when`("그 소셜 계정으로 로그인하면") {
+                then("식별은 소셜 계정 테이블로만 하므로 404를 받는다") {
+                    userRepository.save(
+                        UserFixtures.user(
+                            email = "orphan@gmail.com",
+                            nickname = "orphan",
+                            authProvider = AuthProvider.GOOGLE,
+                            externalId = "google-sub-orphan",
+                        )
+                    )
+                    val (nonce, cookie) = issueNonce()
+                    stubGoogleIdToken(subject = "google-sub-orphan", email = "orphan@gmail.com", nonce = nonce)
+
+                    login(AuthProvider.GOOGLE, cookie) shouldBe HttpStatus.NOT_FOUND
                 }
             }
         }

@@ -11,7 +11,16 @@ import java.util.UUID
 interface UserRepository : JpaRepository<User, Long> {
     fun findByUuid(uuid: UUID): User?
     fun findByEmail(email: String): User?
-    fun findByAuthProviderAndExternalId(authProvider: AuthProvider, externalId: String): User?
+
+    @Query(
+        """
+        SELECT a.user
+        FROM UserSocialAccount a
+        WHERE a.provider = :provider AND a.externalId = :externalId
+        """
+    )
+    fun findBySocialAccount(@Param("provider") provider: AuthProvider, @Param("externalId") externalId: String): User?
+
     fun existsByUuid(uuid: UUID): Boolean
     fun existsByEmail(email: String): Boolean
     fun existsByNickname(nickname: String): Boolean

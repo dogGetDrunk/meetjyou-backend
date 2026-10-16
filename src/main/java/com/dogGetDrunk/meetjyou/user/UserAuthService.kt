@@ -51,7 +51,7 @@ class UserAuthService(
             .get(request.authProvider)
             .verifyAndExtract(token, nonce)
 
-        userRepository.findByAuthProviderAndExternalId(principal.authProvider, principal.subject)?.let { existing ->
+        userRepository.findBySocialAccount(principal.authProvider, principal.subject)?.let { existing ->
             return resolveDuplicateRegistration(existing, principal, request.authProvider)
         }
 
@@ -98,7 +98,7 @@ class UserAuthService(
             .get(request.authProvider)
             .verifyAndExtract(token, nonce)
 
-        val user = userRepository.findByAuthProviderAndExternalId(principal.authProvider, principal.subject)
+        val user = userRepository.findBySocialAccount(principal.authProvider, principal.subject)
             ?: throw UserNotFoundException(
                 principal.email,
                 message = "User not found for provider ${request.authProvider}"

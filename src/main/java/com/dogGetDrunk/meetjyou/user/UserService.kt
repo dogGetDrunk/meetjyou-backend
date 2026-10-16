@@ -49,16 +49,7 @@ class UserService(
     fun createUser(request: RegistrationRequest, principal: SocialPrincipal): User {
         validateNicknameAvailable(request.nickname)
 
-        val createdUser = userRepository.save(
-            User(
-                email = principal.email,
-                nickname = request.nickname,
-                authProvider = request.authProvider,
-                externalId = principal.subject,
-            ).apply {
-                bio = request.bio.normalizeOrNull()
-            }
-        )
+        val createdUser = userRepository.save(buildUser(request, principal))
 
         saveUserPreference(createdUser, request.gender.name, PreferenceType.GENDER)
         saveUserPreference(createdUser, request.age.name, PreferenceType.AGE)
@@ -71,6 +62,18 @@ class UserService(
         log.info("User saved successfully. uuid: {}, email: {}", createdUser.uuid, createdUser.email)
 
         return createdUser
+    }
+
+    private fun buildUser(request: RegistrationRequest, principal: SocialPrincipal): User {
+        val user = User(
+            email = principal.email,
+            nickname = request.nickname,
+            authProvider = request.authProvider,
+            externalId = principal.subject,
+        )
+        user.bio = request.bio.normalizeOrNull()
+        user.addSocialAccount(principal.authProvider, principal.subject, principal.email)
+        return user
     }
 
     @Transactional
