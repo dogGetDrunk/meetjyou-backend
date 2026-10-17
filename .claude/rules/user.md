@@ -7,6 +7,10 @@ paths:
 # User Module
 
 - Social identity lives in `user_social_account` — `(provider, external_id)` unique service-wide, one account per provider per user. Owned by `User` (`socialAccounts`, cascade + orphan removal): add via `user.addSocialAccount(...)`, no separate repository. Registration and login resolve the user through `UserRepository.findBySocialAccount` only
+- Link / unlink (`SocialAccountService`, `/users/me/social-accounts`)
+  - Link: identity already mine → 200 no-op (retry); owned by another user, a withdrawn one in grace included → 409; same provider already linked → 409. Concurrent links are settled by the two unique constraints — `flushNewLink` maps the violation to 409
+  - Unlink: last account refused (400). Rows are read with `findSocialAccountsForUpdate` (`FOR UPDATE`, ignores the REPEATABLE READ snapshot), so it stays correct whatever the transaction read earlier — count those rows, never `user.socialAccounts` (may be stale). `SocialAccountConcurrencyDockerTest` guards both races
+  - `socialAccounts` is read-only outside `User`; `removeSocialAccount` skips the last-account check, so call it only from `SocialAccountService.unlink`
 - `user.auth_provider` / `user.external_id` are still written at sign-up (V37 expand step, keeps an image rollback working) but never read for identity — don't add lookups on them. A user saved without a social row (dev auth, load-test account, test fixtures) cannot social-login
 - Withdrawal lifecycle `NORMAL → DELETED → PURGED`, grace period = `User.WITHDRAWAL_GRACE_PERIOD` (30 days, single source for restore, purge and nickname check)
   - Withdraw: `user.withdraw(now)` + `UserSessionRevoker.revokeAll` (refresh tokens revoked, push tokens deleted). Nothing cascades to posts, parties or plans

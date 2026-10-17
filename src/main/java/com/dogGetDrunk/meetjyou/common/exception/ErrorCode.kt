@@ -19,6 +19,12 @@ enum class ErrorCode(
     TOO_MANY_PERSONALITIES("Too many personalities"),
     TOO_MANY_TRAVEL_STYLES("Too many travel styles"),
 
+    // Social account
+    SOCIAL_ACCOUNT_ALREADY_LINKED("Social account is linked to another user"),
+    SOCIAL_PROVIDER_ALREADY_LINKED("Another account of this provider is already linked"),
+    SOCIAL_ACCOUNT_NOT_LINKED("Social account is not linked"),
+    LAST_SOCIAL_ACCOUNT_UNLINK("Cannot unlink the last social account"),
+
     // JWT
     TOKEN_COMMON("The token has an issue"),
     EXPIRED_TOKEN("The token has expired"),

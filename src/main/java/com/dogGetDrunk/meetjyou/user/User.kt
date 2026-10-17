@@ -54,11 +54,21 @@ class User(
     var withdrawnAt: Instant? = null
 
     // Social identities this user can sign in with. Owned by the user: saved and removed with it.
+    // Read-only outside: unlinking must go through SocialAccountService, which locks the rows first.
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val socialAccounts: MutableList<UserSocialAccount> = mutableListOf()
+    private val _socialAccounts: MutableList<UserSocialAccount> = mutableListOf()
+    val socialAccounts: List<UserSocialAccount> get() = _socialAccounts
 
-    fun addSocialAccount(provider: AuthProvider, externalId: String, email: String) {
-        socialAccounts.add(UserSocialAccount(user = this, provider = provider, externalId = externalId, email = email))
+    fun addSocialAccount(provider: AuthProvider, externalId: String, email: String): UserSocialAccount {
+        val account = UserSocialAccount(user = this, provider = provider, externalId = externalId, email = email)
+        _socialAccounts.add(account)
+        return account
+    }
+
+    // Keyed by provider (one account per provider per user), not by instance: the caller finds the
+    // target through a separate locking query, not through this collection.
+    fun removeSocialAccount(provider: AuthProvider) {
+        _socialAccounts.removeIf { it.provider == provider }
     }
 
     fun isActive(): Boolean = status == UserStatus.NORMAL

@@ -172,7 +172,7 @@ class UserAuthController(
         // Consumed only after login/registration succeeds: a client that gets 404 from login
         // registers next with the same id_token, so the nonce bound to it must still be there.
         // Replay stays limited to this session, the nonce's only binding.
-        private const val SESSION_SOCIAL_NONCE = "SESSION_SOCIAL_NONCE"
+        const val SESSION_SOCIAL_NONCE = "SESSION_SOCIAL_NONCE"
         private const val AUTH_HEADER_IGNORED = "Authorization 헤더는 사용하지 않는다(붙어 있어도 무시)."
     }
 }
