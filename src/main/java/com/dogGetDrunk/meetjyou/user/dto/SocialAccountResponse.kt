@@ -6,7 +6,7 @@ import java.time.Instant
 
 data class SocialAccountResponse(
     val provider: AuthProvider,
-    val email: String,
+    val email: String?,
     val linkedAt: Instant,
 ) {
     companion object {

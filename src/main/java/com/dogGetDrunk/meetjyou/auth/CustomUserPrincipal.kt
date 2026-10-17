@@ -6,11 +6,10 @@ import java.util.UUID
 
 data class CustomUserPrincipal(
     val uuid: UUID,
-    private val email: String,
     private val authorities: Collection<GrantedAuthority> = emptyList()
 ) : UserDetails {
 
-    override fun getUsername(): String = email
+    override fun getUsername(): String = uuid.toString()
 
     override fun getAuthorities(): Collection<GrantedAuthority> = authorities
 

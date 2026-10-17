@@ -95,7 +95,6 @@ class JwtAuthFilter(
     private fun buildAuthentication(user: User, request: HttpServletRequest): UsernamePasswordAuthenticationToken {
         val principal = CustomUserPrincipal(
             uuid = user.uuid,
-            email = user.email,
             authorities = listOf(SimpleGrantedAuthority(user.role.name)),
         )
         return UsernamePasswordAuthenticationToken(principal, null, principal.authorities).apply {

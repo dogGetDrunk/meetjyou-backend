@@ -22,7 +22,8 @@ import java.util.UUID
 // Mirrors V38 so the H2 test schema (generated from entities) enforces it too.
 @Check(name = "chk_user_withdrawn_at", constraints = "status = 'NORMAL' OR withdrawn_at IS NOT NULL")
 class User(
-    var email: String,
+    // Contact data only, never identity: null when the provider shared no verified email.
+    var email: String?,
     var nickname: String,
     @Enumerated(EnumType.STRING)
     var authProvider: AuthProvider,
@@ -59,7 +60,7 @@ class User(
     private val _socialAccounts: MutableList<UserSocialAccount> = mutableListOf()
     val socialAccounts: List<UserSocialAccount> get() = _socialAccounts
 
-    fun addSocialAccount(provider: AuthProvider, externalId: String, email: String): UserSocialAccount {
+    fun addSocialAccount(provider: AuthProvider, externalId: String, email: String?): UserSocialAccount {
         val account = UserSocialAccount(user = this, provider = provider, externalId = externalId, email = email)
         _socialAccounts.add(account)
         return account
@@ -94,7 +95,7 @@ class User(
      * valid. Child rows (social accounts, tokens, preferences) are bulk-deleted by the caller.
      */
     fun anonymize() {
-        email = ""
+        email = null
         nickname = anonymizedNickname(id)
         externalId = anonymizedExternalId(uuid)
         bio = null

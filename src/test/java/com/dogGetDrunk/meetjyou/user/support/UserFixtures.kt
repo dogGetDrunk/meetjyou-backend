@@ -10,7 +10,7 @@ object UserFixtures {
     fun externalId(i: Int = 1) = "external-$i"
 
     fun user(
-        email: String = email(),
+        email: String? = email(),
         nickname: String = nickname(),
         authProvider: AuthProvider = authProvider(),
         externalId: String = externalId(),

@@ -31,7 +31,7 @@ class ChatTestDataHelper(
     private val chatMessageRepository: ChatMessageRepository,
     private val notificationOutboxRepository: NotificationOutboxRepository,
 ) {
-    data class TestData(val userUuid: UUID, val userEmail: String, val roomUuid: UUID)
+    data class TestData(val userUuid: UUID, val roomUuid: UUID)
 
     @Transactional
     fun createTestData(): TestData {
@@ -66,7 +66,7 @@ class ChatTestDataHelper(
         )
         val chatRoom = chatRoomRepository.save(ChatRoom(party = party))
         userPartyRepository.save(UserParty(party = party, user = user, role = PartyRole.MEMBER))
-        return TestData(userUuid = user.uuid, userEmail = user.email, roomUuid = chatRoom.uuid)
+        return TestData(userUuid = user.uuid, roomUuid = chatRoom.uuid)
     }
 
     @Transactional

@@ -3,7 +3,6 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshToken
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
-import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.auth.social.socialTokenOf
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
@@ -47,13 +46,13 @@ class UserAuthService(
             .verifyAndExtract(token, nonce)
 
         userRepository.findBySocialAccount(principal.authProvider, principal.subject)?.let { existing ->
-            return resolveDuplicateRegistration(existing, principal, request.authProvider)
+            return resolveDuplicateRegistration(existing, request.authProvider)
         }
 
         val user = userService.createUser(request, principal)
         termsService.saveUserTerms(user, agreedTerms)
 
-        log.info("User registered successfully. uuid: {}, email: {}", user.uuid, user.email)
+        log.info("User registered successfully. uuid: {}, provider: {}", user.uuid, principal.authProvider)
 
         return issueTokenPair(user)
     }
@@ -65,10 +64,10 @@ class UserAuthService(
      * caller into it instead of failing — matching the refresh-token rotation grace window. An
      * account created outside the window is a genuine pre-existing account, not a retry.
      */
-    private fun resolveDuplicateRegistration(existing: User, principal: SocialPrincipal, authProvider: AuthProvider): TokenResponse {
+    private fun resolveDuplicateRegistration(existing: User, authProvider: AuthProvider): TokenResponse {
         if (Duration.between(existing.createdAt, Instant.now()) > Duration.ofSeconds(rotationOverlapSeconds)) {
             throw UserAlreadyExistsException(
-                principal.email,
+                authProvider.name,
                 message = "User already exists for provider $authProvider"
             )
         }
@@ -91,13 +90,13 @@ class UserAuthService(
 
         val user = userRepository.findBySocialAccount(principal.authProvider, principal.subject)
             ?: throw UserNotFoundException(
-                principal.email,
+                request.authProvider.name,
                 message = "User not found for provider ${request.authProvider}"
             )
 
         restoreIfWithdrawn(user)
 
-        log.info("User logged in successfully. uuid: {}, email: {}", user.uuid, user.email)
+        log.info("User logged in successfully. uuid: {}, provider: {}", user.uuid, principal.authProvider)
 
         return issueTokenPair(user)
     }
@@ -131,13 +130,16 @@ class UserAuthService(
         val activeRecord = resolveActiveRecord(record)
 
         val userUuid = jwtProvider.getUserUuid(rawRefreshToken)
-        val email = jwtProvider.getUsername(rawRefreshToken)
+        // The signed userUuid claim must name the record's owner. Compared by uuid, not the old
+        // email subject: a social account may come without an email.
+        if (record.user.uuid != userUuid) {
+            throw IncorrectJwtSubjectException(
+                userUuid.toString(),
+                message = "Refresh token record belongs to another user",
+            )
+        }
         val user = userRepository.findByUuid(userUuid)
             ?: throw UserNotFoundException(userUuid, message = "User not found during token refresh")
-
-        if (user.email != email) {
-            throw IncorrectJwtSubjectException(email, message = "Email claim does not match user record")
-        }
 
         if (!user.isActive()) {
             throw UserWithdrawnException(user.uuid.toString(), message = "Withdrawn user attempted to refresh token")
@@ -190,8 +192,8 @@ class UserAuthService(
     }
 
     private fun issueTokenPair(user: User, rotatedFrom: RefreshToken? = null): TokenResponse {
-        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email, user.role)
-        val generated = jwtProvider.generateRefreshToken(user.uuid, user.email)
+        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.role)
+        val generated = jwtProvider.generateRefreshToken(user.uuid)
         rotatedFrom?.revoke(generated.jti.toString())
         refreshTokenRepository.save(
             RefreshToken(

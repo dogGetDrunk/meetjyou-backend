@@ -91,7 +91,7 @@ class UpdatePartyNameIntegrationTest : BehaviorSpec() {
         )
     }
 
-    private fun tokenOf(user: User) = jwtProvider.generateAccessToken(user.uuid, user.email, Role.USER)
+    private fun tokenOf(user: User) = jwtProvider.generateAccessToken(user.uuid, Role.USER)
 
     // Trip already started: renaming must not be tied to itinerary validation.
     // Runs in one transaction because ChatRoom's @MapsId needs the Party to still be managed.

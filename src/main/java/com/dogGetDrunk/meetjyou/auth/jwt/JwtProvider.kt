@@ -29,21 +29,23 @@ class JwtProvider(
     private val secretKey: SecretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret))
     private val algorithm: MacAlgorithm = Jwts.SIG.HS256
 
-    fun generateAccessToken(userUuid: UUID, email: String, role: Role): String {
-        return generateToken(userUuid, email, role, accessTokenExpiration)
+    // sub is the user uuid, not the email: a social account may come without one. Tokens issued
+    // before this change carry the email in sub; nothing reads sub, so they keep working.
+    fun generateAccessToken(userUuid: UUID, role: Role): String {
+        return generateToken(userUuid, role, accessTokenExpiration)
     }
 
-    fun generateAccessToken(userUuid: UUID, email: String, role: Role, expirationMillis: Long): String {
-        return generateToken(userUuid, email, role, expirationMillis)
+    fun generateAccessToken(userUuid: UUID, role: Role, expirationMillis: Long): String {
+        return generateToken(userUuid, role, expirationMillis)
     }
 
-    fun generateRefreshToken(userUuid: UUID, email: String): GeneratedRefreshToken {
+    fun generateRefreshToken(userUuid: UUID): GeneratedRefreshToken {
         val jti = UUID.randomUUID()
         val now = Date()
         val expiry = Date(now.time + refreshTokenExpiration)
         val token = Jwts.builder()
             .issuer(issuer)
-            .subject(email)
+            .subject(userUuid.toString())
             .claim("userUuid", userUuid.toString())
             .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
             .id(jti.toString())
@@ -58,13 +60,13 @@ class JwtProvider(
         )
     }
 
-    private fun generateToken(userUuid: UUID, email: String, role: Role, expirationMillis: Long): String {
+    private fun generateToken(userUuid: UUID, role: Role, expirationMillis: Long): String {
         val now = Date()
         val expiry = Date(now.time + expirationMillis)
 
         return Jwts.builder()
             .issuer(issuer)
-            .subject(email)
+            .subject(userUuid.toString())
             .claim("userUuid", userUuid.toString())
             .claim("role", role.name)
             .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
@@ -95,8 +97,6 @@ class JwtProvider(
     } catch (e: Exception) {
         false
     }
-
-    fun getUsername(token: String): String = getClaims(token).subject
 
     fun getUserUuid(token: String): UUID = UUID.fromString(getClaims(token)["userUuid"].toString())
 

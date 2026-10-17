@@ -77,10 +77,9 @@ class UserAuthServiceTest : BehaviorSpec() {
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns record
                     every { jwtProvider.getUserUuid(rawToken) } returns user.uuid
-                    every { jwtProvider.getUsername(rawToken) } returns user.email
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { jwtProvider.generateAccessToken(any(), any(), any()) } returns "new.access.token"
-                    every { jwtProvider.generateRefreshToken(any(), any()) } returns generatedRefreshToken
+                    every { jwtProvider.generateAccessToken(any(), any()) } returns "new.access.token"
+                    every { jwtProvider.generateRefreshToken(any()) } returns generatedRefreshToken
 
                     val result = sut.refreshToken(rawToken)
 
@@ -145,10 +144,9 @@ class UserAuthServiceTest : BehaviorSpec() {
                     every { refreshTokenRepository.findByJti(jti) } returns revokedRecord
                     every { refreshTokenRepository.findByJti(replacementJti) } returns replacement
                     every { jwtProvider.getUserUuid(rawToken) } returns user.uuid
-                    every { jwtProvider.getUsername(rawToken) } returns user.email
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { jwtProvider.generateAccessToken(any(), any(), any()) } returns "new.access.token"
-                    every { jwtProvider.generateRefreshToken(any(), any()) } returns generatedRefreshToken
+                    every { jwtProvider.generateAccessToken(any(), any()) } returns "new.access.token"
+                    every { jwtProvider.generateRefreshToken(any()) } returns generatedRefreshToken
 
                     val result = sut.refreshToken(rawToken)
 
@@ -228,33 +226,32 @@ class UserAuthServiceTest : BehaviorSpec() {
                 }
             }
 
-            `when`("JWT email claim이 DB 유저의 email과 다르면") {
-                then("IncorrectJwtSubjectException을 던진다") {
+            `when`("JWT userUuid claim이 refresh 레코드 소유자와 다르면") {
+                then("IncorrectJwtSubjectException을 던지고 토큰을 발급하지 않는다") {
                     val record = RefreshTokenFixtures.refreshToken(user = user, jti = jti)
+                    val otherUuid = UUID.randomUUID()
 
                     every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns record
-                    every { jwtProvider.getUserUuid(rawToken) } returns user.uuid
-                    every { jwtProvider.getUsername(rawToken) } returns "attacker@evil.com"
-                    every { userRepository.findByUuid(user.uuid) } returns user
+                    every { jwtProvider.getUserUuid(rawToken) } returns otherUuid
 
                     shouldThrow<IncorrectJwtSubjectException> {
                         sut.refreshToken(rawToken)
                     }
+                    verify(exactly = 0) { refreshTokenRepository.save(any()) }
                 }
             }
 
             `when`("JWT UUID에 해당하는 유저가 DB에 없으면") {
                 then("UserNotFoundException을 던진다") {
                     val record = RefreshTokenFixtures.refreshToken(user = user, jti = jti)
-                    val unknownUuid = UUID.randomUUID()
 
                     every { jwtProvider.isRefreshToken(rawToken) } returns true
                     every { jwtProvider.getJti(rawToken) } returns jti
                     every { refreshTokenRepository.findByJti(jti) } returns record
-                    every { jwtProvider.getUserUuid(rawToken) } returns unknownUuid
-                    every { userRepository.findByUuid(unknownUuid) } returns null
+                    every { jwtProvider.getUserUuid(rawToken) } returns user.uuid
+                    every { userRepository.findByUuid(user.uuid) } returns null
 
                     shouldThrow<UserNotFoundException> {
                         sut.refreshToken(rawToken)
@@ -293,8 +290,8 @@ class UserAuthServiceTest : BehaviorSpec() {
             beforeEach {
                 every { socialVerifierRegistry.get(provider) } returns socialVerifier
                 every { socialVerifier.verifyAndExtract(IdToken("id-token-value"), any()) } returns principal
-                every { jwtProvider.generateAccessToken(any(), any(), any()) } returns "new.access.token"
-                every { jwtProvider.generateRefreshToken(any(), any()) } returns generatedRefreshToken
+                every { jwtProvider.generateAccessToken(any(), any()) } returns "new.access.token"
+                every { jwtProvider.generateRefreshToken(any()) } returns generatedRefreshToken
             }
 
             `when`("가입 이력이 없으면") {

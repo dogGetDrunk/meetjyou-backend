@@ -39,9 +39,8 @@ class UserSocialAccount(
     @Column(name = "external_id", nullable = false, length = 100)
     val externalId: String,
 
-    // The email this provider verified; user.email stays the account's contact email.
-    @Column(nullable = false)
-    val email: String,
+    // The email this provider verified, null if it shared none; user.email stays the account's contact email.
+    val email: String?,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

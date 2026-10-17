@@ -149,7 +149,7 @@ class PostIdempotencyIntegrationTest : BehaviorSpec() {
             `when`("둘 다 사전 조회를 통과해 생성 경로로 진입해도") {
                 then("Post row는 정확히 1개만 생성되고 둘 다 같은 uuid로 200을 받는다") {
                     val user = createTestUser("idem-same-${System.nanoTime()}@example.com")
-                    val token = jwtProvider.generateAccessToken(user.uuid, user.email, Role.USER)
+                    val token = jwtProvider.generateAccessToken(user.uuid, Role.USER)
                     val key = "same-body-key-${System.nanoTime()}"
                     val request = samplePostRequest("Same Body")
 
@@ -176,7 +176,7 @@ class PostIdempotencyIntegrationTest : BehaviorSpec() {
             `when`("하나는 유니크 제약에 걸려 롤백되면") {
                 then("이긴 쪽은 200, 진 쪽은 컨트롤러의 해시 재검증에 의해 409를 받는다") {
                     val user = createTestUser("idem-diff-${System.nanoTime()}@example.com")
-                    val token = jwtProvider.generateAccessToken(user.uuid, user.email, Role.USER)
+                    val token = jwtProvider.generateAccessToken(user.uuid, Role.USER)
                     val key = "diff-body-key-${System.nanoTime()}"
                     val requestA = samplePostRequest("Body A")
                     val requestB = samplePostRequest("Body B")

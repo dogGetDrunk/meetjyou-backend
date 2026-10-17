@@ -7,6 +7,4 @@ package com.dogGetDrunk.meetjyou.auth.social
 object SocialTokenRejection {
     const val NONCE_MISMATCH = "Nonce missing or mismatched"
     const val MISSING_SUBJECT = "Missing sub claim"
-    const val MISSING_EMAIL = "Missing email claim"
-    const val EMAIL_NOT_VERIFIED = "Email not verified by provider"
 }

@@ -11,6 +11,7 @@ paths:
   - Link: identity already mine → 200 no-op (retry); owned by another user, a withdrawn one in grace included → 409; same provider already linked → 409. Concurrent links are settled by the two unique constraints — `flushNewLink` maps the violation to 409
   - Unlink: last account refused (400). Rows are read with `findSocialAccountsForUpdate` (`FOR UPDATE`, ignores the REPEATABLE READ snapshot), so it stays correct whatever the transaction read earlier — count those rows, never `user.socialAccounts` (may be stale). `SocialAccountConcurrencyDockerTest` guards both races
   - `socialAccounts` is read-only outside `User`; `removeSocialAccount` skips the last-account check, so call it only from `SocialAccountService.unlink`
+- `user.email` / `user_social_account.email` are nullable (V39): contact data only, null when the provider shared no verified email. Never use them for identity or lookups
 - `user.auth_provider` / `user.external_id` are still written at sign-up (V37 expand step, keeps an image rollback working) but never read for identity — don't add lookups on them. A user saved without a social row (dev auth, load-test account, test fixtures) cannot social-login
 - Withdrawal lifecycle `NORMAL → DELETED → PURGED`, grace period = `User.WITHDRAWAL_GRACE_PERIOD` (30 days, single source for restore, purge and nickname check)
   - Withdraw: `user.withdraw(now)` + `UserSessionRevoker.revokeAll` (refresh tokens revoked, push tokens deleted). Nothing cascades to posts, parties or plans

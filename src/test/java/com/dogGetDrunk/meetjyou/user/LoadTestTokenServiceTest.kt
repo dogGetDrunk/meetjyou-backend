@@ -65,7 +65,7 @@ class LoadTestTokenServiceTest : BehaviorSpec() {
                     every { userRepository.findByEmail(any()) } returns null andThen syntheticUser
                     every { userRepository.save(any()) } returns syntheticUser
                     every {
-                        jwtProvider.generateAccessToken(syntheticUser.uuid, syntheticUser.email, syntheticUser.role, props.ttlMillis)
+                        jwtProvider.generateAccessToken(syntheticUser.uuid, syntheticUser.role, props.ttlMillis)
                     } returns "issued-token"
 
                     val first = sut.issueToken(secret)

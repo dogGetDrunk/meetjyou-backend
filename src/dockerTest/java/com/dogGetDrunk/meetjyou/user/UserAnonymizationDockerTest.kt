@@ -107,7 +107,7 @@ private val INSERT_USER = """
 """.trimIndent()
 
 private val ANONYMIZE_USER = """
-    UPDATE user SET email = '', nickname = ?, external_id = ?, bio = NULL, status = ?
+    UPDATE user SET email = NULL, nickname = ?, external_id = ?, bio = NULL, status = ?
     WHERE id = ?
 """.trimIndent()
 

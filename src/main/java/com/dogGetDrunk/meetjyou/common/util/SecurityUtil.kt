@@ -12,11 +12,6 @@ object SecurityUtil {
         return principal.uuid
     }
 
-    fun getCurrentUserEmail(): String {
-        val principal = getPrincipal()
-        return principal.username
-    }
-
     private fun getPrincipal(): CustomUserPrincipal {
         val authentication = SecurityContextHolder.getContext().authentication
             ?: throw UnauthenticatedException("current-user")

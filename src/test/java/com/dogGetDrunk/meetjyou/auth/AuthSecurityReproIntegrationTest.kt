@@ -47,6 +47,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.oauth2.core.OAuth2Error
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.jwt.JwtValidationException
@@ -161,6 +162,26 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
         `when`(googleIdTokenVerifier.verify(anyString())).thenReturn(idToken)
     }
 
+    private fun stubKakaoIdTokenWithoutEmail(subject: String, nonce: String) {
+        val jwt = Jwt.withTokenValue(STUB_ID_TOKEN)
+            .header("alg", "RS256")
+            .subject(subject)
+            .claim("nonce", nonce)
+            .build()
+        `when`(kakaoJwtDecoder.decode(anyString())).thenReturn(jwt)
+    }
+
+    // An account without an email must log in again, refresh and call an authenticated API.
+    private fun assertEmaillessAccountWorks(
+        tokens: TokenResponse,
+        loginWithFreshNonce: (String, String) -> HttpStatus,
+    ) {
+        val (loginNonce, loginCookie) = issueNonce()
+        loginWithFreshNonce(loginNonce, loginCookie) shouldBe HttpStatus.OK
+        refreshStatus(tokens.refreshToken) shouldBe HttpStatus.OK
+        getMyProfileStatus(tokens.accessToken) shouldBe HttpStatus.OK
+    }
+
     private fun jsonHeaders(sessionCookie: String?, bearer: String? = null) = HttpHeaders().apply {
         contentType = MediaType.APPLICATION_JSON
         set(X_FORWARDED_FOR, clientIp)
@@ -217,7 +238,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
     // token lapsed, which is exactly when it calls /auth/refresh.
     private fun expiredAccessTokenFor(tokens: TokenResponse): String {
         val user = userRepository.findByUuid(tokens.uuid) ?: error("User not saved")
-        return jwtProvider.generateAccessToken(user.uuid, user.email, user.role, EXPIRED_TTL_MILLIS)
+        return jwtProvider.generateAccessToken(user.uuid, user.role, EXPIRED_TTL_MILLIS)
     }
 
     /** The pre-change contract: refresh token in the Authorization header, no body. */
@@ -409,7 +430,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
                     userRepository.findBySocialAccount(AuthProvider.GOOGLE, SUB_PURGE)?.uuid shouldBe renewed.uuid
                     val purged = userRepository.findByUuid(old.uuid) ?: error("Purged row must stay for FKs")
                     purged.status shouldBe UserStatus.PURGED
-                    purged.email shouldBe ""
+                    purged.email shouldBe null
                 }
             }
         }
@@ -428,15 +449,37 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
         }
 
         given("Google id_token의 email_verified가 false이면") {
-            `when`("가입을 요청할 때") {
-                then("401로 거부되고 유저가 생성되지 않는다") {
+            `when`("가입 후 로그인·토큰 갱신을 하면") {
+                then("미검증 email은 저장하지 않고 모든 단계가 성공한다") {
+                    val subject = "google-sub-unverified"
                     val (nonce, cookie) = issueNonce()
-                    stubGoogleIdToken("google-sub-unverified", "unverified@gmail.com", nonce, emailVerified = false)
+                    stubGoogleIdToken(subject, "unverified@gmail.com", nonce, emailVerified = false)
 
-                    val response = register(AuthProvider.GOOGLE, "unverified@gmail.com", cookie)
+                    val tokens = registerOrFail(AuthProvider.GOOGLE, "unverified@gmail.com", cookie)
 
-                    response.status() shouldBe HttpStatus.UNAUTHORIZED
-                    userRepository.count() shouldBe 0L
+                    userRepository.findByUuid(tokens.uuid)?.email shouldBe null
+                    assertEmaillessAccountWorks(tokens) { loginNonce, loginCookie ->
+                        stubGoogleIdToken(subject, "unverified@gmail.com", loginNonce, emailVerified = false)
+                        login(AuthProvider.GOOGLE, loginCookie)
+                    }
+                }
+            }
+        }
+
+        given("Kakao id_token에 email이 없으면(이메일 제공 미동의)") {
+            `when`("가입 후 로그인·토큰 갱신을 하면") {
+                then("email 없이 모든 단계가 성공한다") {
+                    val subject = "kakao-sub-no-email"
+                    val (nonce, cookie) = issueNonce()
+                    stubKakaoIdTokenWithoutEmail(subject, nonce)
+
+                    val tokens = registerOrFail(AuthProvider.KAKAO, "ignored@example.com", cookie)
+
+                    userRepository.findByUuid(tokens.uuid)?.email shouldBe null
+                    assertEmaillessAccountWorks(tokens) { loginNonce, loginCookie ->
+                        stubKakaoIdTokenWithoutEmail(subject, loginNonce)
+                        login(AuthProvider.KAKAO, loginCookie)
+                    }
                 }
             }
         }
