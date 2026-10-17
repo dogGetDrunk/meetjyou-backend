@@ -282,7 +282,7 @@ class UserServiceTest : BehaviorSpec() {
                     user.status shouldBe UserStatus.DELETED
                     user.withdrawnAt shouldNotBe null
                     verify { userSessionRevoker.revokeAll(user) }
-                    verify(exactly = 0) { userRepository.deleteByUuid(any()) }
+                    verify(exactly = 0) { userRepository.delete(any()) }
                 }
             }
 

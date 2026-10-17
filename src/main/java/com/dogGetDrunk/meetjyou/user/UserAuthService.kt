@@ -3,10 +3,9 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshToken
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
-import com.dogGetDrunk.meetjyou.auth.social.AccessToken
-import com.dogGetDrunk.meetjyou.auth.social.IdToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
+import com.dogGetDrunk.meetjyou.auth.social.socialTokenOf
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
@@ -41,11 +40,7 @@ class UserAuthService(
 
         val agreedTerms = termsService.validateRequiredTermsAgreement(request.agreedTermsUuids)
 
-        val token = if (!request.idToken.isNullOrBlank()) {
-            IdToken(request.idToken)
-        } else {
-            AccessToken(request.accessToken ?: throw InvalidJwtException(message = "No idToken or accessToken provided"))
-        }
+        val token = socialTokenOf(request.idToken, request.accessToken)
 
         val principal = socialVerifierRegistry
             .get(request.authProvider)
@@ -86,11 +81,7 @@ class UserAuthService(
 
     @Transactional
     fun loginViaSocial(request: LoginRequest, nonce: String? = null): TokenResponse {
-        val token = if (!request.idToken.isNullOrBlank()) {
-            IdToken(request.idToken)
-        } else {
-            AccessToken(request.accessToken ?: throw InvalidJwtException(message = "No idToken or accessToken provided"))
-        }
+        val token = socialTokenOf(request.idToken, request.accessToken)
 
         log.info("Login via social request received. token: {}, provider: {}", token.value.take(5), request.authProvider)
 
