@@ -58,7 +58,6 @@ class DevBypassAuthFilter(
 
         val principal = CustomUserPrincipal(
             uuid = devAdminUuid,
-            email = "dev-admin@local",
             authorities = authorities
         )
 

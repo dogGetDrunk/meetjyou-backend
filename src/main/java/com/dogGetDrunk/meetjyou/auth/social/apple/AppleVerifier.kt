@@ -32,6 +32,11 @@ class AppleVerifier(
         }
     }
 
+    // An unverified email is dropped, not rejected: email is contact data, not identity.
+    // Apple sends email_verified as either a boolean or the string "true".
+    private fun verifiedEmail(claims: Map<String, Any>): String? =
+        (claims["email"] as? String)?.takeIf { claims["email_verified"]?.toString() == "true" }
+
     private fun sha256(input: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
@@ -47,16 +52,10 @@ class AppleVerifier(
             if (nonce.isNullOrBlank() || verifiedJwt.claims["nonce"] != sha256(nonce)) {
                 throw InvalidJwtException(message = SocialTokenRejection.NONCE_MISMATCH)
             }
-            // Apple sends email_verified as either a boolean or the string "true".
-            if (verifiedJwt.claims["email_verified"]?.toString() != "true") {
-                throw InvalidJwtException(message = SocialTokenRejection.EMAIL_NOT_VERIFIED)
-            }
-
             SocialPrincipal(
                 authProvider = AuthProvider.APPLE,
                 subject = verifiedJwt.subject,
-                email = verifiedJwt.claims["email"] as? String
-                    ?: throw InvalidJwtException(message = SocialTokenRejection.MISSING_EMAIL),
+                email = verifiedEmail(verifiedJwt.claims),
             ).also {
                 val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNs)
                 log.info("auth.verify.apple.idToken success elapsedMs={}", elapsedMs)

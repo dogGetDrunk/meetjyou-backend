@@ -53,7 +53,7 @@ class GetPostApplicationStatusTest : BehaviorSpec() {
 
         beforeEach {
             clearAllMocks()
-            val principal = CustomUserPrincipal(user.uuid, user.email)
+            val principal = CustomUserPrincipal(user.uuid)
             SecurityContextHolder.getContext().authentication =
                 UsernamePasswordAuthenticationToken(principal, null, emptyList())
             every { currentUserProvider.uuid } returns user.uuid

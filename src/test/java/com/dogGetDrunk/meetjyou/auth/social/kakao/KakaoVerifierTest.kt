@@ -76,14 +76,15 @@ class KakaoVerifierTest : BehaviorSpec() {
                 }
             }
 
-            `when`("email claim이 없으면") {
-                then("InvalidJwtException을 던진다") {
+            `when`("email claim이 없으면(이메일 제공 미동의)") {
+                then("email 없이 SocialPrincipal을 반환한다") {
                     val jwt = buildJwt(subject = "kakao-sub-123", email = null, nonce = "test-nonce")
                     every { kakaoJwtDecoder.decode(any()) } returns jwt
 
-                    shouldThrow<InvalidJwtException> {
-                        sut.verifyAndExtract(IdToken("valid.id.token"), nonce = "test-nonce")
-                    }
+                    val result = sut.verifyAndExtract(IdToken("valid.id.token"), nonce = "test-nonce")
+
+                    result.subject shouldBe "kakao-sub-123"
+                    result.email shouldBe null
                 }
             }
         }
@@ -143,7 +144,7 @@ class KakaoVerifierTest : BehaviorSpec() {
                 withSuccess(
                     """
                     {"id":$KAKAO_USER_ID,"connected_at":"2024-01-01T00:00:00Z",
-                     "kakao_account":{"email":"user@example.com","is_email_verified":true}}
+                     "kakao_account":{"email":"user@example.com","is_email_valid":true,"is_email_verified":true}}
                     """.trimIndent(),
                     MediaType.APPLICATION_JSON,
                 ),

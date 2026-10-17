@@ -53,8 +53,8 @@ class KakaoVerifier(
             SocialPrincipal(
                 authProvider = AuthProvider.KAKAO,
                 subject = verifiedJwt.subject,
-                email = verifiedJwt.claims["email"] as? String
-                    ?: throw InvalidJwtException(message = SocialTokenRejection.MISSING_EMAIL),
+                // Present only when the user consented to share it; email is optional.
+                email = verifiedJwt.claims["email"] as? String,
             ).also {
                 val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNs)
                 log.info("auth.verify.kakao.idToken success elapsedMs={}", elapsedMs)
@@ -111,7 +111,7 @@ class KakaoVerifier(
             }
 
             val subject = tokenInfo.id.toString()
-            val email = userInfo.kakaoAccount.email
+            val email = userInfo.kakaoAccount?.verifiedEmail()
 
             val totalElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - totalStartedNs)
             log.info("auth.verify.kakao.accessToken success elapsedMs={}", totalElapsedMs)

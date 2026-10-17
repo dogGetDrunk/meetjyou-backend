@@ -136,7 +136,7 @@ class PartyPostLostUpdateIntegrationTest : BehaviorSpec() {
     private fun patchPostStatus(postUuid: UUID, status: PostStatus, user: User): HttpStatus {
         val headers = HttpHeaders()
         headers.contentType = MediaType.APPLICATION_JSON
-        headers.setBearerAuth(jwtProvider.generateAccessToken(user.uuid, user.email, Role.USER))
+        headers.setBearerAuth(jwtProvider.generateAccessToken(user.uuid, Role.USER))
         val response = restTemplate.exchange(
             "http://localhost:$port/api/v1/posts/$postUuid/status",
             HttpMethod.PATCH,

@@ -44,7 +44,7 @@ class LoadTestTokenService(
                 )
             )
 
-        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.email, user.role, props.ttlMillis)
+        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.role, props.ttlMillis)
         log.warn("Load-test token issued. uuid={}", user.uuid)
 
         return LoadTestTokenResponse(accessToken, Instant.now().plusMillis(props.ttlMillis))

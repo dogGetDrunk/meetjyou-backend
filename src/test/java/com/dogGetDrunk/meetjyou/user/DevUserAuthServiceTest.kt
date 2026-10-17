@@ -48,8 +48,8 @@ class DevUserAuthServiceTest : BehaviorSpec() {
 
                     every { userRepository.findByEmail(email) } returns null
                     every { userRepository.save(capture(capturedUser)) } returns newUser
-                    every { jwtProvider.generateAccessToken(any(), any(), any()) } returns "access-token"
-                    every { jwtProvider.generateRefreshToken(any(), any()) } returns GeneratedRefreshToken(
+                    every { jwtProvider.generateAccessToken(any(), any()) } returns "access-token"
+                    every { jwtProvider.generateRefreshToken(any()) } returns GeneratedRefreshToken(
                         token = "refresh-token",
                         jti = UUID.randomUUID(),
                         expiresAt = LocalDateTime.now().plusDays(30),
@@ -74,8 +74,8 @@ class DevUserAuthServiceTest : BehaviorSpec() {
                     val existingUser = UserFixtures.user(email = email, nickname = "기존유저")
 
                     every { userRepository.findByEmail(email) } returns existingUser
-                    every { jwtProvider.generateAccessToken(existingUser.uuid, existingUser.email, any()) } returns "access-token"
-                    every { jwtProvider.generateRefreshToken(existingUser.uuid, existingUser.email) } returns GeneratedRefreshToken(
+                    every { jwtProvider.generateAccessToken(existingUser.uuid, any()) } returns "access-token"
+                    every { jwtProvider.generateRefreshToken(existingUser.uuid) } returns GeneratedRefreshToken(
                         token = "refresh-token",
                         jti = UUID.randomUUID(),
                         expiresAt = LocalDateTime.now().plusDays(30),
@@ -99,8 +99,8 @@ class DevUserAuthServiceTest : BehaviorSpec() {
                     val user = UserFixtures.user()
 
                     every { userRepository.findByUuid(user.uuid) } returns user
-                    every { jwtProvider.generateAccessToken(user.uuid, user.email, any()) } returns "access-token"
-                    every { jwtProvider.generateRefreshToken(user.uuid, user.email) } returns GeneratedRefreshToken(
+                    every { jwtProvider.generateAccessToken(user.uuid, any()) } returns "access-token"
+                    every { jwtProvider.generateRefreshToken(user.uuid) } returns GeneratedRefreshToken(
                         token = "refresh-token",
                         jti = UUID.randomUUID(),
                         expiresAt = LocalDateTime.now().plusDays(30),

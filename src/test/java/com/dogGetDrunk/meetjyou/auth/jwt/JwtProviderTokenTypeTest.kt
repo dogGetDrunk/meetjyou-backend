@@ -32,8 +32,8 @@ class JwtProviderTokenTypeTest : BehaviorSpec({
     }
 
     Given("새로 발급된 토큰") {
-        val access = sut.generateAccessToken(userUuid, EMAIL, Role.USER)
-        val refresh = sut.generateRefreshToken(userUuid, EMAIL).token
+        val access = sut.generateAccessToken(userUuid, Role.USER)
+        val refresh = sut.generateRefreshToken(userUuid).token
 
         When("access 전용 검증을 하면") {
             Then("access token은 통과하고 refresh token은 거부된다") {
@@ -46,6 +46,27 @@ class JwtProviderTokenTypeTest : BehaviorSpec({
             Then("refresh token만 true다") {
                 sut.isRefreshToken(refresh) shouldBe true
                 sut.isRefreshToken(access) shouldBe false
+            }
+        }
+
+        When("subject를 읽으면") {
+            Then("email이 아니라 user uuid다(email 없는 계정도 토큰을 받는다)") {
+                val key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret))
+                listOf(access, refresh).forEach { token ->
+                    Jwts.parser().verifyWith(key).build().parseSignedClaims(token).payload.subject shouldBe
+                        userUuid.toString()
+                }
+            }
+        }
+    }
+
+    Given("sub에 email이 담긴 배포 전 refresh token") {
+        When("userUuid를 읽으면") {
+            Then("userUuid claim에서 읽혀 갱신 흐름이 그대로 동작한다") {
+                val legacyRefresh = legacyToken(jti = UUID.randomUUID().toString())
+
+                sut.isRefreshToken(legacyRefresh) shouldBe true
+                sut.getUserUuid(legacyRefresh) shouldBe userUuid
             }
         }
     }

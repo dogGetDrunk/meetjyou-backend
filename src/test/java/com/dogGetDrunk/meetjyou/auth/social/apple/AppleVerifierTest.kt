@@ -69,14 +69,15 @@ class AppleVerifierTest : BehaviorSpec() {
             }
 
             `when`("email claim이 없으면") {
-                then("InvalidJwtException을 던진다") {
+                then("email 없이 SocialPrincipal을 반환한다") {
                     val rawNonce = "test-nonce"
                     val jwt = buildJwt(subject = "apple-sub-123", email = null, nonceHash = sha256(rawNonce))
                     every { appleJwtDecoder.decode(any()) } returns jwt
 
-                    shouldThrow<InvalidJwtException> {
-                        sut.verifyAndExtract(IdToken("valid.id.token"), nonce = rawNonce)
-                    }
+                    val result = sut.verifyAndExtract(IdToken("valid.id.token"), nonce = rawNonce)
+
+                    result.subject shouldBe "apple-sub-123"
+                    result.email shouldBe null
                 }
             }
 
@@ -91,15 +92,16 @@ class AppleVerifierTest : BehaviorSpec() {
             }
 
             `when`("email_verified가 false이거나 없으면") {
-                then("InvalidJwtException을 던진다") {
+                then("미검증 email은 버리고 SocialPrincipal을 반환한다") {
                     val rawNonce = "test-nonce"
                     listOf("false", null).forEach { verified ->
                         val jwt = buildJwt("apple-sub-123", "user@example.com", sha256(rawNonce), verified)
                         every { appleJwtDecoder.decode(any()) } returns jwt
 
-                        shouldThrow<InvalidJwtException> {
-                            sut.verifyAndExtract(IdToken("valid.id.token"), nonce = rawNonce)
-                        }
+                        val result = sut.verifyAndExtract(IdToken("valid.id.token"), nonce = rawNonce)
+
+                        result.subject shouldBe "apple-sub-123"
+                        result.email shouldBe null
                     }
                 }
             }

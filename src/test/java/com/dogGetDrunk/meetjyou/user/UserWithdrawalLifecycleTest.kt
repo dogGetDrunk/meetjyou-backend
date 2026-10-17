@@ -61,7 +61,7 @@ class UserWithdrawalLifecycleTest : BehaviorSpec({
 
                 user.anonymize()
 
-                user.email shouldBe ""
+                user.email shouldBe null
                 user.nickname shouldStartWith "~"
                 user.externalId shouldBe "withdrawn:${user.uuid}"
                 user.bio shouldBe null

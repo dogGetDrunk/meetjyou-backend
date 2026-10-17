@@ -66,13 +66,26 @@ class GoogleVerifierTest : BehaviorSpec() {
             }
 
             `when`("email_verified가 false이면") {
-                then("InvalidJwtException을 던진다") {
+                then("미검증 email은 버리고 SocialPrincipal을 반환한다") {
                     val token = buildGoogleIdToken("google-sub-123", "user@example.com", "test-nonce", false)
                     every { googleIdTokenVerifier.verify("valid.id.token") } returns token
 
-                    shouldThrow<InvalidJwtException> {
-                        sut.verifyAndExtract(IdToken("valid.id.token"), nonce = "test-nonce")
-                    }
+                    val result = sut.verifyAndExtract(IdToken("valid.id.token"), nonce = "test-nonce")
+
+                    result.subject shouldBe "google-sub-123"
+                    result.email shouldBe null
+                }
+            }
+
+            `when`("email claim이 없으면") {
+                then("email 없이 SocialPrincipal을 반환한다") {
+                    val token = buildGoogleIdToken("google-sub-123", null, "test-nonce", true)
+                    every { googleIdTokenVerifier.verify("valid.id.token") } returns token
+
+                    val result = sut.verifyAndExtract(IdToken("valid.id.token"), nonce = "test-nonce")
+
+                    result.subject shouldBe "google-sub-123"
+                    result.email shouldBe null
                 }
             }
 

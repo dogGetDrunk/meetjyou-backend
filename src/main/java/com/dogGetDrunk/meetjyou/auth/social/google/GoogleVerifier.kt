@@ -40,11 +40,9 @@ class GoogleVerifier(
 
             val payload = verifiedJwt.payload
             val subject = payload.subject ?: throw InvalidJwtException(message = SocialTokenRejection.MISSING_SUBJECT)
-            val email = payload.email ?: throw InvalidJwtException(message = SocialTokenRejection.MISSING_EMAIL)
+            // An unverified email is dropped, not rejected: email is contact data, not identity.
+            val email = payload.email?.takeIf { payload.emailVerified == true }
 
-            if (payload.emailVerified != true) {
-                throw InvalidJwtException(message = SocialTokenRejection.EMAIL_NOT_VERIFIED)
-            }
             if (nonce.isNullOrBlank() || payload.nonce != nonce) {
                 throw InvalidJwtException(message = SocialTokenRejection.NONCE_MISMATCH)
             }

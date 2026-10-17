@@ -93,7 +93,6 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
                     every { jwtProvider.getJti("raw-refresh-token") } returns "jti-1"
                     every { refreshTokenRepository.findByJti("jti-1") } returns record
                     every { jwtProvider.getUserUuid("raw-refresh-token") } returns withdrawnUser.uuid
-                    every { jwtProvider.getUsername("raw-refresh-token") } returns withdrawnUser.email
                     every { userRepository.findByUuid(withdrawnUser.uuid) } returns withdrawnUser
 
                     shouldThrow<UserWithdrawnException> {
