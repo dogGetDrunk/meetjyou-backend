@@ -23,9 +23,13 @@ class KakaoVerifier(
     private val props: KakaoOidcProperties,
     @Qualifier("kakaoJwtDecoder") private val kakaoJwtDecoder: JwtDecoder,
     private val meterRegistry: MeterRegistry,
+    restClientBuilder: RestClient.Builder,
 ) : SocialVerifier {
 
     private val log = LoggerFactory.getLogger(KakaoVerifier::class.java)
+
+    // Injected builder instead of RestClient.create() so tests can bind a MockRestServiceServer.
+    private val restClient: RestClient = restClientBuilder.build()
 
     override fun verifyAndExtract(token: SocialToken, nonce: String?): SocialPrincipal {
         // https://developers.kakao.com/docs/latest/ko/kakaologin/utilize#oidc-id-token-verify
@@ -79,8 +83,8 @@ class KakaoVerifier(
 
         try {
             val tokenInfo = measureExternalCallMs("kakao.tokenInfo") {
-                RestClient.create(props.accessTokenInfoUri)
-                    .get()
+                restClient.get()
+                    .uri(props.accessTokenInfoUri)
                     .headers {
                         it.setBearerAuth(token.value)
                         it.contentType = MediaType.APPLICATION_FORM_URLENCODED
@@ -95,8 +99,8 @@ class KakaoVerifier(
             }
 
             val userInfo = measureExternalCallMs("kakao.userInfo") {
-                RestClient.create(props.userInfoUri)
-                    .get()
+                restClient.get()
+                    .uri(props.userInfoUri)
                     .headers {
                         it.setBearerAuth(token.value)
                         it.contentType = MediaType.APPLICATION_FORM_URLENCODED
