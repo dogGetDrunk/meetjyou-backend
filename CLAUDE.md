@@ -12,7 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `git branch --show-current`로 현재 브랜치를 확인하고 사용자에게 알릴 것. 예상 브랜치가 아니면 작업을 시작하지 말고 사용자에게 확인받을 것.
 
 ### Committing & PRs
-- 커밋 생성, PR 생성은 사용자가 명시적으로 요청할 때만 수행. 작업을 마쳤다고 자동으로 커밋하거나 PR을 올리지 말 것.
+- 작업(논리적 단위)이 끝나면 확인 없이 커밋·푸시까지 진행. 커밋 메시지·PR 본문도 사전 확인 불필요
+- **PR 생성은 사전 승인 필수** — 푸시 후 PR을 열지 사용자에게 묻고, 승인받은 PR만 생성·머지. 한 PR의 승인은 다음 PR로 이어지지 않음
 - 커밋 메시지와 PR 본문은 한국어 + 개조식(불릿 위주 요약, 서술형 문장 지양)으로 작성.
 
 ### After a PR merges
