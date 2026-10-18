@@ -326,20 +326,22 @@ class UserServiceTest : BehaviorSpec() {
             }
         }
 
-        // ── isDuplicateNickname (30일 유예기간) ─────────────────────────────────
+        // ── isDuplicateNickname ─────────────────────────────────────────────
+        // Must agree with what sign-up / update enforce (the raw UNIQUE column): a "available"
+        // answer the next request then rejects with a 409 is the bug this guards.
 
         given("isDuplicateNickname 호출 시") {
-            `when`("existsActiveNickname이 true를 반환하면") {
-                then("true를 반환한다") {
-                    every { userRepository.existsActiveNickname("nickname", any()) } returns true
+            `when`("닉네임을 가진 행이 있으면(탈퇴 유예가 끝났지만 purge 전인 계정 포함)") {
+                then("가입·변경과 같은 기준으로 중복(true)이라고 답한다") {
+                    every { userRepository.existsByNickname("nickname") } returns true
 
                     sut.isDuplicateNickname("nickname") shouldBe true
                 }
             }
 
-            `when`("existsActiveNickname이 false를 반환하면 (탈퇴 30일 경과 등)") {
-                then("false를 반환한다") {
-                    every { userRepository.existsActiveNickname("nickname", any()) } returns false
+            `when`("닉네임을 가진 행이 없으면") {
+                then("사용 가능(false)이라고 답한다") {
+                    every { userRepository.existsByNickname("nickname") } returns false
 
                     sut.isDuplicateNickname("nickname") shouldBe false
                 }

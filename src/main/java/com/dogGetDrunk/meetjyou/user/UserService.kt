@@ -154,15 +154,14 @@ class UserService(
         termsService.recordConsentChange(user, TermsType.MARKETING_EMAIL_EVENTS, emailConsented)
     }
 
+    // Same rule as validateNicknameAvailable, on purpose: answering "available" for a nickname
+    // the next sign-up then rejects is worse than freeing it late. A withdrawn account's nickname
+    // is released when the purge job anonymizes the row, at most a day after its grace period.
     @Transactional(readOnly = true)
-    fun isDuplicateNickname(nickname: String): Boolean {
-        val gracePeriodCutoff = Instant.now().minus(User.WITHDRAWAL_GRACE_PERIOD)
-        return userRepository.existsActiveNickname(nickname, gracePeriodCutoff)
-    }
+    fun isDuplicateNickname(nickname: String): Boolean = userRepository.existsByNickname(nickname)
 
-    // Checks the raw unique constraint, not the grace-period view: the nickname column is
-    // UNIQUE in the DB, so any existing row — including one held by a withdrawn account —
-    // would otherwise surface as a 500 on insert instead of a 409 here.
+    // Checks the raw unique constraint: the nickname column is UNIQUE in the DB, so any existing
+    // row, including one held by a withdrawn account, is taken.
     private fun validateNicknameAvailable(nickname: String) {
         if (userRepository.existsByNickname(nickname)) {
             throw DuplicateNicknameException(nickname)

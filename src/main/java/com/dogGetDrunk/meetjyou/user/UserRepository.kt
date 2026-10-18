@@ -39,14 +39,4 @@ interface UserRepository : JpaRepository<User, Long> {
     @Modifying
     @Query("DELETE FROM UserSocialAccount a WHERE a.user.id IN :userIds")
     fun deleteSocialAccountsByUserIdIn(@Param("userIds") userIds: Collection<Long>): Int
-
-    @Query(
-        """
-        SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END
-        FROM User u
-        WHERE u.nickname = :nickname
-          AND (u.status = com.dogGetDrunk.meetjyou.user.UserStatus.NORMAL OR u.withdrawnAt > :gracePeriodCutoff)
-        """
-    )
-    fun existsActiveNickname(@Param("nickname") nickname: String, @Param("gracePeriodCutoff") gracePeriodCutoff: Instant): Boolean
 }
