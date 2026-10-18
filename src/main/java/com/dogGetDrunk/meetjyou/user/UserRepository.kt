@@ -1,6 +1,8 @@
 package com.dogGetDrunk.meetjyou.user
 
 import jakarta.persistence.LockModeType
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
@@ -13,6 +15,7 @@ import java.util.UUID
 @Repository
 interface UserRepository : JpaRepository<User, Long> {
     fun findByUuid(uuid: UUID): User?
+    fun findAllByStatusNot(status: UserStatus, pageable: Pageable): Page<User>
     fun findByEmail(email: String): User?
 
     @Query(

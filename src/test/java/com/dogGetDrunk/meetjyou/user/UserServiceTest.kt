@@ -33,6 +33,7 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import java.sql.SQLException
+import java.time.Instant
 
 class UserServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
@@ -274,24 +275,82 @@ class UserServiceTest : BehaviorSpec() {
         // ── getAllUsersProfile ───────────────────────────────────────────────
 
         given("getAllUsersProfile 호출 시") {
-            `when`("페이지 요청이 들어오면") {
-                then("userRepository.findAll(pageable)로 페이지네이션되고, preference는 유저 수와 무관하게 배치로 한 번만 조회한다") {
-                    val user = UserFixtures.user()
-                    val pageable = PageRequest.of(0, 20)
-                    val page = PageImpl(listOf(user))
-                    val prefs = listOf(
-                        UserPreference(user, Preference(type = PreferenceType.GENDER, name = "SOME_VALUE")),
-                        UserPreference(user, Preference(type = PreferenceType.AGE, name = "SOME_VALUE")),
-                    )
+            val pageable = PageRequest.of(0, 20)
+            fun stubPage(vararg users: User) {
+                every {
+                    userRepository.findAllByStatusNot(UserStatus.PURGED, pageable)
+                } returns PageImpl(users.toList())
+            }
 
-                    every { userRepository.findAll(pageable) } returns page
-                    every { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) } returns prefs
+            `when`("페이지 요청이 들어오면") {
+                then("PURGED를 뺀 유저만 조회하고, preference는 유저 수와 무관하게 배치로 한 번만 읽는다") {
+                    val user = UserFixtures.user()
+                    stubPage(user)
+                    every { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) } returns requiredPrefs(user)
 
                     val result = sut.getAllUsersProfile(pageable)
 
                     result.content.single().uuid shouldBe user.uuid
-                    verify(exactly = 1) { userRepository.findAll(pageable) }
+                    verify(exactly = 1) { userRepository.findAllByStatusNot(UserStatus.PURGED, pageable) }
                     verify(exactly = 1) { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) }
+                }
+            }
+
+            `when`("빈 페이지면") {
+                then("preference를 조회하지 않는다") {
+                    stubPage()
+
+                    sut.getAllUsersProfile(pageable).content shouldBe emptyList()
+                    verify(exactly = 0) { userPreferenceRepository.findAllByUser_IdIn(any()) }
+                }
+            }
+
+            `when`("유저에게 personality가 없으면") {
+                then("단건 조회와 같은 규칙으로 PreferenceNotFoundException을 던진다") {
+                    val user = UserFixtures.user()
+                    val withoutPersonality = requiredPrefs(user)
+                        .filterNot { it.preference.type == PreferenceType.PERSONALITY }
+                    stubPage(user)
+                    every { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) } returns withoutPersonality
+
+                    shouldThrow<PreferenceNotFoundException> { sut.getAllUsersProfile(pageable) }
+                }
+            }
+        }
+
+        // ── getPublicUserProfile ─────────────────────────────────────────────
+
+        given("getPublicUserProfile 호출 시") {
+            `when`("정상(NORMAL) 유저면") {
+                then("프로필을 준다") {
+                    val user = UserFixtures.user()
+                    every { userRepository.findByUuid(user.uuid) } returns user
+                    every { userPreferenceRepository.findAllByUser_IdIn(listOf(user.id)) } returns requiredPrefs(user)
+
+                    sut.getPublicUserProfile(user.uuid).uuid shouldBe user.uuid
+                }
+            }
+
+            `when`("탈퇴 요청 후 유예 기간 중(DELETED)이면") {
+                then("선호 정보를 읽지 않고 UserNotFoundException을 던진다") {
+                    val user = UserFixtures.user().apply { withdraw(Instant.now()) }
+                    every { userRepository.findByUuid(user.uuid) } returns user
+
+                    shouldThrow<UserNotFoundException> { sut.getPublicUserProfile(user.uuid) }
+                    verify(exactly = 0) { userPreferenceRepository.findAllByUser_IdIn(any()) }
+                }
+            }
+
+            `when`("탈퇴 완료(PURGED)면") {
+                then("선호 정보를 읽지 않고 UserNotFoundException을 던진다") {
+                    val user = UserFixtures.user().apply {
+                        withdraw(Instant.now())
+                        anonymize()
+                    }
+                    every { userRepository.findByUuid(user.uuid) } returns user
+
+                    shouldThrow<UserNotFoundException> { sut.getPublicUserProfile(user.uuid) }
+                    verify(exactly = 0) { userPreferenceRepository.findAllByUser_IdIn(any()) }
                 }
             }
         }
@@ -490,6 +549,12 @@ class UserServiceTest : BehaviorSpec() {
             }
         }
     }
+
+    private fun requiredPrefs(user: User): List<UserPreference> = listOf(
+        UserPreference(user, Preference(type = PreferenceType.GENDER, name = "M")),
+        UserPreference(user, Preference(type = PreferenceType.AGE, name = "TWENTY")),
+        UserPreference(user, Preference(type = PreferenceType.PERSONALITY, name = "INTROVERTED")),
+    )
 
     private fun uniqueViolation(constraintName: String) = DataIntegrityViolationException(
         "could not execute statement",
