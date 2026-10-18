@@ -11,10 +11,12 @@ import org.springframework.security.oauth2.jwt.JwtDecoder
 @Configuration
 class AppleOidcConfig(
     private val props: AppleOidcProperties,
-    private val appleJwksCache: AppleJwksCache,
 ) {
 
     @Bean
+    fun appleJwksCache(): AppleJwksCache = AppleJwksCache.create(props)
+
+    @Bean
     @Qualifier("appleJwtDecoder")
-    fun appleJwtDecoder(): JwtDecoder = AppleJwtDecoder(props, appleJwksCache)
+    fun appleJwtDecoder(appleJwksCache: AppleJwksCache): JwtDecoder = AppleJwtDecoder(props, appleJwksCache)
 }

@@ -1,63 +1,83 @@
 package com.dogGetDrunk.meetjyou.auth.social.apple
 
-import com.github.benmanes.caffeine.cache.Cache
-import com.github.benmanes.caffeine.cache.Caffeine
-import com.nimbusds.jose.jwk.JWKSet
+import com.nimbusds.jose.KeySourceException
+import com.nimbusds.jose.jwk.JWKMatcher
+import com.nimbusds.jose.jwk.JWKSelector
+import com.nimbusds.jose.jwk.KeyType
 import com.nimbusds.jose.jwk.RSAKey
+import com.nimbusds.jose.jwk.source.JWKSetSource
+import com.nimbusds.jose.jwk.source.JWKSource
+import com.nimbusds.jose.jwk.source.JWKSourceBuilder
+import com.nimbusds.jose.jwk.source.RateLimitReachedException
+import com.nimbusds.jose.jwk.source.URLBasedJWKSetSource
+import com.nimbusds.jose.proc.SecurityContext
+import com.nimbusds.jose.util.DefaultResourceRetriever
 import org.slf4j.LoggerFactory
-import org.springframework.http.HttpStatus
-import org.springframework.stereotype.Component
-import org.springframework.web.client.RestClient
+import java.net.URI
 import java.time.Duration
 
-@Component
+/**
+ * Apple JWKS lookup backed by Nimbus [JWKSourceBuilder].
+ *
+ * The whole key set is cached as one entry, so an expired TTL never drops keys on its own:
+ * - refresh failure: the last fetched set keeps serving for [OUTAGE_TOLERANCE] (stale-while-error)
+ * - unknown kid: re-fetch at most twice per [RATE_LIMIT_INTERVAL], so forged kids can't amplify calls to Apple
+ */
 class AppleJwksCache(
-    private val props: AppleOidcProperties,
+    private val jwkSource: JWKSource<SecurityContext>,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val rest = RestClient.builder()
-        .baseUrl(props.jwksUri)
-        .build()
-
-    private val cache: Cache<String, RSAKey> = Caffeine.newBuilder()
-        .expireAfterWrite(Duration.ofMinutes(props.jwkCacheTtlMinutes))
-        .maximumSize(32)
-        .build()
-
+    /**
+     * Returns null for an unknown kid (caller rejects the token as 401).
+     * Throws [IllegalStateException] when no key set is available at all, so a provider outage
+     * surfaces as a server error instead of being disguised as an invalid token.
+     */
     fun getRsaKeyByKid(kid: String): RSAKey? {
-        cache.getIfPresent(kid)?.let { return it }
-
-        refreshAllKeys()
-
-        return cache.getIfPresent(kid)
+        val selector = JWKSelector(JWKMatcher.Builder().keyID(kid).keyType(KeyType.RSA).build())
+        val matches = try {
+            jwkSource.get(selector, null)
+        } catch (e: RateLimitReachedException) {
+            log.warn("Apple JWKS refresh rate-limited for unknown kid={} reason={}", kid, e.message)
+            return null
+        } catch (e: KeySourceException) {
+            throw IllegalStateException("Failed to fetch Apple JWKs", e)
+        }
+        return matches.firstOrNull() as? RSAKey
     }
 
-    private fun refreshAllKeys() {
-        val response = rest.get()
-            .retrieve()
-            .onStatus({ s -> s.is4xxClientError || s.is5xxServerError }) { _, response ->
-                log.error("Apple JWKs 조회 실패: HTTP ${response.statusCode}")
-                throw IllegalStateException("Failed to fetch Apple JWKs")
-            }
-            .toEntity(String::class.java)
+    companion object {
+        val OUTAGE_TOLERANCE: Duration = Duration.ofHours(24)
+        val RATE_LIMIT_INTERVAL: Duration = Duration.ofSeconds(30)
+        private val CACHE_REFRESH_TIMEOUT: Duration = Duration.ofSeconds(15)
+        private val HTTP_TIMEOUT: Duration = Duration.ofSeconds(3)
+        private const val HTTP_SIZE_LIMIT_BYTES = 50 * 1024
 
-        check(response.statusCode == HttpStatus.OK && !response.body.isNullOrBlank()) {
-            "Failed to fetch Apple JWKs: empty body"
+        fun create(props: AppleOidcProperties): AppleJwksCache {
+            val retriever = DefaultResourceRetriever(
+                HTTP_TIMEOUT.toMillis().toInt(),
+                HTTP_TIMEOUT.toMillis().toInt(),
+                HTTP_SIZE_LIMIT_BYTES,
+            )
+            val origin = URLBasedJWKSetSource<SecurityContext>(URI(props.jwksUri).toURL(), retriever)
+            return create(origin, Duration.ofMinutes(props.jwkCacheTtlMinutes))
         }
 
-        val jwkSet = JWKSet.parse(response.body)
-        var loaded = 0
-        for (jwk in jwkSet.keys) {
-            val rsa = jwk as? RSAKey
-            val kid = rsa?.keyID
-            if (rsa != null && kid != null) {
-                cache.put(kid, rsa)
-                loaded++
-            }
+        // Origin and durations are injectable so tests can simulate outages without real time or network.
+        fun create(
+            origin: JWKSetSource<SecurityContext>,
+            cacheTtl: Duration,
+            outageTolerance: Duration = OUTAGE_TOLERANCE,
+            rateLimitInterval: Duration = RATE_LIMIT_INTERVAL,
+        ): AppleJwksCache {
+            val source = JWKSourceBuilder.create(origin)
+                .cache(cacheTtl.toMillis(), CACHE_REFRESH_TIMEOUT.toMillis())
+                .refreshAheadCache(false)
+                .rateLimited(rateLimitInterval.toMillis())
+                .outageTolerant(outageTolerance.toMillis())
+                .build()
+            return AppleJwksCache(source)
         }
-
-        log.debug("Refreshed Apple JWKS. loadedKeys={}", loaded)
     }
 }
