@@ -3,10 +3,12 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshToken
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
+import com.dogGetDrunk.meetjyou.auth.refreshtoken.findChainHeadForUpdate
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.auth.social.socialTokenOf
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.RefreshTokenReuseDetectedException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
@@ -117,36 +119,42 @@ class UserAuthService(
         log.info("Withdrawn user restored by logging in within grace period. uuid: {}", user.uuid)
     }
 
-    @Transactional
+    /**
+     * Every token row is read with a locking query, so concurrent requests on the same chain are
+     * serialized and each one decides on what the previous one committed: two rotations of one
+     * token can never both pass the validity check. A detected reuse commits its revocation even
+     * though the request fails.
+     */
+    @Transactional(noRollbackFor = [RefreshTokenReuseDetectedException::class])
     fun refreshToken(rawRefreshToken: String): TokenResponse {
-        if (!jwtProvider.isRefreshToken(rawRefreshToken)) {
-            throw InvalidJwtException(message = "Invalid refresh token")
-        }
-
-        val jti = jwtProvider.getJti(rawRefreshToken)
-        val record = refreshTokenRepository.findByJti(jti)
-            ?: throw InvalidJwtException(message = "Refresh token record not found")
-
+        val record = lockPresentedRecord(rawRefreshToken)
         val activeRecord = resolveActiveRecord(record)
 
         val userUuid = jwtProvider.getUserUuid(rawRefreshToken)
         // The signed userUuid claim must name the record's owner. Compared by uuid, not the old
-        // email subject: a social account may come without an email.
-        if (record.user.uuid != userUuid) {
+        // email subject: a social account may come without an email. Once it matches, the owner
+        // is the user (user_id is a NOT NULL FK and user rows are never hard-deleted).
+        val user = record.user
+        if (user.uuid != userUuid) {
             throw IncorrectJwtSubjectException(
                 userUuid.toString(),
                 message = "Refresh token record belongs to another user",
             )
         }
-        val user = userRepository.findByUuid(userUuid)
-            ?: throw UserNotFoundException(userUuid, message = "User not found during token refresh")
-
         if (!user.isActive()) {
             throw UserWithdrawnException(user.uuid.toString(), message = "Withdrawn user attempted to refresh token")
         }
 
         log.info("Refresh token rotated. uuid: {}", user.uuid)
         return issueTokenPair(user, rotatedFrom = activeRecord)
+    }
+
+    private fun lockPresentedRecord(rawRefreshToken: String): RefreshToken {
+        if (!jwtProvider.isRefreshToken(rawRefreshToken)) {
+            throw InvalidJwtException(message = "Invalid refresh token")
+        }
+        return refreshTokenRepository.findForUpdateByJti(jwtProvider.getJti(rawRefreshToken))
+            ?: throw InvalidJwtException(message = "Refresh token record not found")
     }
 
     /**
@@ -164,31 +172,39 @@ class UserAuthService(
         if (record.revoked) {
             log.warn("Refresh token reuse detected outside rotation grace window. uuid: {}", record.user.uuid)
             refreshTokenRepository.revokeAllByUser(record.user)
+            throw RefreshTokenReuseDetectedException(message = "Revoked refresh token reused")
         }
         throw InvalidJwtException(message = "Refresh token is revoked or expired")
     }
 
+    // The replacement is locked too: a grace retry and a refresh of the replacement itself would
+    // otherwise both rotate from it, each reading it as still valid.
     private fun resolveGraceRetryRecord(record: RefreshToken): RefreshToken? {
         if (!record.revoked) return null
         val revokedAt = record.revokedAt ?: return null
         if (Duration.between(revokedAt, Instant.now()) > Duration.ofSeconds(rotationOverlapSeconds)) return null
 
-        val replacement = record.replacedByJti?.let { refreshTokenRepository.findByJti(it) } ?: return null
+        val replacement = record.replacedByJti?.let { refreshTokenRepository.findForUpdateByJti(it) } ?: return null
         return replacement.takeIf { it.isValid }
     }
 
+    /**
+     * Ends the session the token belongs to, not just the presented token: if it was already
+     * rotated (a refresh racing the logout, or a lost refresh response), the token that replaced
+     * it would otherwise stay usable. Rows already revoked are left untouched so the chain links
+     * survive for reuse detection.
+     */
     @Transactional
     fun logout(rawRefreshToken: String) {
-        if (!jwtProvider.isRefreshToken(rawRefreshToken)) {
-            throw InvalidJwtException(message = "Invalid refresh token")
+        val record = lockPresentedRecord(rawRefreshToken)
+        val head = refreshTokenRepository.findChainHeadForUpdate(record)
+        if (head == null) {
+            log.warn("Rotation chain too long on logout, revoking all sessions. uuid: {}", record.user.uuid)
+            refreshTokenRepository.revokeAllByUser(record.user)
+            return
         }
-
-        val jti = jwtProvider.getJti(rawRefreshToken)
-        val record = refreshTokenRepository.findByJti(jti)
-            ?: throw InvalidJwtException(message = "Refresh token record not found")
-
-        record.revoke()
-        log.info("User logged out, refresh token revoked. jti: {}", jti)
+        if (!head.revoked) head.revoke()
+        log.info("User logged out, refresh token revoked. jti: {}", head.jti)
     }
 
     private fun issueTokenPair(user: User, rotatedFrom: RefreshToken? = null): TokenResponse {
