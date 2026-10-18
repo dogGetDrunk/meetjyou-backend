@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.preference.Age
@@ -27,8 +28,11 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
+import org.hibernate.exception.ConstraintViolationException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
+import java.sql.SQLException
 
 class UserServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
@@ -74,7 +78,7 @@ class UserServiceTest : BehaviorSpec() {
 
             `when`("정상적으로 호출되면") {
                 then("검증된 principal의 식별자로 소셜 계정을 유저에 달아 함께 저장한다") {
-                    every { userRepository.save(any()) } answers { firstArg() }
+                    every { userRepository.saveAndFlush(any<User>()) } answers { firstArg() }
                     every { preferenceRepository.findAllByTypeAndNameIn(any(), any()) } answers {
                         secondArg<List<String>>().map { name -> Preference(type = firstArg(), name = name) }
                     }
@@ -87,6 +91,33 @@ class UserServiceTest : BehaviorSpec() {
                     account.provider shouldBe AuthProvider.GOOGLE
                     account.externalId shouldBe "google-sub-1"
                     account.email shouldBe "verified@gmail.com"
+                    verify(exactly = 1) { termsService.saveUserTerms(created, any()) }
+                }
+            }
+
+            `when`("동시 가입에 져서 닉네임 unique 위반이 나면") {
+                then("500이 될 원본 예외 대신 DuplicateNicknameException을 던진다") {
+                    every { userRepository.saveAndFlush(any<User>()) } throws uniqueViolation("user.uk_user_nickname")
+
+                    shouldThrow<DuplicateNicknameException> { sut.createUser(request, principal) }
+                }
+            }
+
+            `when`("동시 가입에 져서 같은 소셜 계정의 unique 위반이 나면") {
+                then("UserAlreadyExistsException을 던진다") {
+                    every { userRepository.saveAndFlush(any<User>()) } throws
+                        uniqueViolation("user.uk_user_external_id")
+
+                    shouldThrow<UserAlreadyExistsException> { sut.createUser(request, principal) }
+                }
+            }
+
+            `when`("매핑하지 않은 제약 위반이 나면") {
+                then("버그를 409로 숨기지 않도록 원본 예외를 그대로 던진다") {
+                    every { userRepository.saveAndFlush(any<User>()) } throws
+                        uniqueViolation("user.some_other_constraint")
+
+                    shouldThrow<DataIntegrityViolationException> { sut.createUser(request, principal) }
                 }
             }
         }
@@ -342,12 +373,25 @@ class UserServiceTest : BehaviorSpec() {
                 }
             }
 
+            `when`("중복 검사는 통과했지만 동시에 같은 닉네임을 가져간 요청에 지면") {
+                then("flush 시점의 unique 위반을 DuplicateNicknameException으로 바꿔 던진다") {
+                    every { currentUserProvider.user } returns user
+                    every { userRepository.existsByNickname("taken") } returns false
+                    every { userRepository.flush() } throws uniqueViolation("user.uk_user_nickname")
+
+                    shouldThrow<DuplicateNicknameException> {
+                        sut.updateUser(request)
+                    }
+                }
+            }
+
             `when`("자기 자신의 기존 닉네임을 그대로 보내면") {
                 then("중복 검사를 건너뛴다") {
                     every { currentUserProvider.user } returns user
                     runCatching { sut.updateUser(request.copy(nickname = user.nickname)) }
 
                     verify(exactly = 0) { userRepository.existsByNickname(any()) }
+                    verify(exactly = 0) { userRepository.flush() }
                 }
             }
         }
@@ -444,4 +488,9 @@ class UserServiceTest : BehaviorSpec() {
             }
         }
     }
+
+    private fun uniqueViolation(constraintName: String) = DataIntegrityViolationException(
+        "could not execute statement",
+        ConstraintViolationException("Duplicate entry", SQLException("Duplicate entry"), constraintName),
+    )
 }

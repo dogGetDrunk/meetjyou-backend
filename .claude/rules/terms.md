@@ -6,7 +6,7 @@ paths:
 
 # Terms Module
 
-- Required-terms consent is enforced only at registration (`UserAuthService` → `validateRequiredTermsAgreement`)
+- Required-terms consent is enforced only at registration (`UserService.createUser` → `validateRequiredTermsAgreement`)
 - `TermsReconsentEvent` only sends a push (notification outbox) — it does not block API access for users who haven't re-consented
 - Active terms = `status = ACTIVE` **and** `effectiveAt <= now`
 - **Open issue:** publishing sets the previous version INACTIVE immediately; if the new version's `effectiveAt` is in the future, that terms type disappears until then and required-consent validation silently skips it

@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.preference.Preference
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
@@ -19,6 +20,7 @@ import com.dogGetDrunk.meetjyou.user.dto.UserPreferenceData
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import com.dogGetDrunk.meetjyou.user.dto.normalizeOrNull
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -39,13 +41,19 @@ class UserService(
 
     companion object {
         private const val PREFERENCE_NOT_FOUND = "Preference not found in DB"
+        private val IDENTITY_CONSTRAINTS =
+            setOf(UserUniqueConstraints.EXTERNAL_ID, UserUniqueConstraints.SOCIAL_IDENTITY)
     }
 
+    /** Creates the user with its social account, preferences and terms agreement. */
     @Transactional
     fun createUser(request: RegistrationRequest, principal: SocialPrincipal): User {
+        val agreedTerms = termsService.validateRequiredTermsAgreement(request.agreedTermsUuids)
         validateNicknameAvailable(request.nickname)
 
-        val createdUser = userRepository.save(buildUser(request, principal))
+        val createdUser = translateUniqueViolation(request.nickname, principal) {
+            userRepository.saveAndFlush(buildUser(request, principal))
+        }
 
         saveUserPreference(createdUser, request.gender.name, PreferenceType.GENDER)
         saveUserPreference(createdUser, request.age.name, PreferenceType.AGE)
@@ -54,6 +62,7 @@ class UserService(
         saveUserPreferences(createdUser, request.travelStyles.map { it.name }, PreferenceType.TRAVEL_STYLE)
         saveUserPreferences(createdUser, request.diet.map { it.name }, PreferenceType.DIET)
         saveUserPreferences(createdUser, request.etc.map { it.name }, PreferenceType.ETC)
+        termsService.saveUserTerms(createdUser, agreedTerms)
 
         log.info("User saved successfully. uuid: {}, email: {}", createdUser.uuid, createdUser.email)
 
@@ -88,8 +97,9 @@ class UserService(
         val user = currentUserProvider.user
         if (request.nickname != user.nickname) {
             validateNicknameAvailable(request.nickname)
+            user.nickname = request.nickname
+            translateUniqueViolation(request.nickname, principal = null) { userRepository.flush() }
         }
-        user.nickname = request.nickname
         user.bio = request.bio.normalizeOrNull()
 
         updateUserPreference(user, request.gender.name, PreferenceType.GENDER)
@@ -156,6 +166,37 @@ class UserService(
     private fun validateNicknameAvailable(nickname: String) {
         if (userRepository.existsByNickname(nickname)) {
             throw DuplicateNicknameException(nickname)
+        }
+    }
+
+    /**
+     * Concurrent requests can all pass validateNicknameAvailable; the unique indexes decide. [block]
+     * must flush, so a violation surfaces here and not at a later query or the commit, where it
+     * would end as a 500. The loser gets a 409; an unknown constraint is rethrown as is, because
+     * it is a bug, not a duplicate.
+     */
+    private fun <T> translateUniqueViolation(nickname: String, principal: SocialPrincipal?, block: () -> T): T =
+        try {
+            block()
+        } catch (e: DataIntegrityViolationException) {
+            throw duplicateExceptionFor(e, nickname, principal)
+        }
+
+    private fun duplicateExceptionFor(
+        e: DataIntegrityViolationException,
+        nickname: String,
+        principal: SocialPrincipal?,
+    ): RuntimeException {
+        val constraint = e.violatedConstraintName()
+        log.info("Concurrent request lost a unique constraint race. constraint: {}", constraint)
+        return when {
+            constraint == UserUniqueConstraints.NICKNAME -> DuplicateNicknameException(nickname)
+            principal != null && constraint in IDENTITY_CONSTRAINTS -> UserAlreadyExistsException(
+                principal.authProvider.name,
+                principal.authProvider,
+                message = "Concurrent sign-up for the same social identity",
+            )
+            else -> e
         }
     }
 

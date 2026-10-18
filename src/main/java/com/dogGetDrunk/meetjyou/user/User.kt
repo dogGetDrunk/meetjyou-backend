@@ -9,6 +9,8 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.OneToMany
+import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.Check
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
@@ -19,6 +21,13 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
+// Named as in V40: a violation is mapped to a 409 by name (UserUniqueConstraints).
+@Table(
+    uniqueConstraints = [
+        UniqueConstraint(name = UserUniqueConstraints.NICKNAME, columnNames = ["nickname"]),
+        UniqueConstraint(name = UserUniqueConstraints.EXTERNAL_ID, columnNames = ["external_id"]),
+    ],
+)
 // Mirrors V38 so the H2 test schema (generated from entities) enforces it too.
 @Check(name = "chk_user_withdrawn_at", constraints = "status = 'NORMAL' OR withdrawn_at IS NOT NULL")
 class User(
