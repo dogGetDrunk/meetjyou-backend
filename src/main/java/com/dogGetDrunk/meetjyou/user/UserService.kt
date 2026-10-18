@@ -1,7 +1,6 @@
 package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
-import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
@@ -120,19 +119,24 @@ class UserService(
         return BasicUserResponse.of(user, loadPreferences(user.id))
     }
 
+    // Withdrawn users have no public profile: hidden from the withdrawal request on (DELETED),
+    // and their personal data is gone once purged.
     @Transactional(readOnly = true)
     fun getPublicUserProfile(uuid: UUID): PublicUserResponse {
-        val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
+        val user = userRepository.findByUuid(uuid)?.takeIf { it.isActive() } ?: throw UserNotFoundException(uuid)
         return PublicUserResponse.of(user, loadPreferences(user.id))
     }
 
+    // Admin view keeps DELETED users (restore requests) but skips PURGED rows, which hold no personal data.
     @Transactional(readOnly = true)
     fun getAllUsersProfile(pageable: Pageable): Page<BasicUserResponse> {
-        val users = userRepository.findAll(pageable)
-        if (users.isEmpty) return users.map { BasicUserResponse.of(it, emptyList()) }
-        val prefsMap = userPreferenceRepository.findAllByUser_IdIn(users.content.map { it.id })
-            .groupBy { it.user.id }
-        return users.map { BasicUserResponse.of(it, prefsMap[it.id] ?: emptyList()) }
+        val users = userRepository.findAllByStatusNot(UserStatus.PURGED, pageable)
+        val prefsMap = if (users.isEmpty) {
+            emptyMap()
+        } else {
+            userPreferenceRepository.findAllByUser_IdIn(users.content.map { it.id }).groupBy { it.user.id }
+        }
+        return users.map { BasicUserResponse.of(it, UserPreferenceData.from(prefsMap[it.id] ?: emptyList())) }
     }
 
     @Transactional
@@ -238,23 +242,6 @@ class UserService(
     }
 
     // Single batch query instead of one findPreference(Name)?ByUserIdAndType call per preference type.
-    private fun loadPreferences(userId: Long): UserPreferenceData {
-        val userPrefs = userPreferenceRepository.findAllByUser_IdIn(listOf(userId))
-        fun name(type: PreferenceType) = userPrefs
-            .firstOrNull { it.preference.type == type }?.preference?.name
-            ?: throw PreferenceNotFoundException(type.name)
-        fun nameList(type: PreferenceType) = userPrefs
-            .filter { it.preference.type == type }.map { it.preference.name }
-        fun requiredNameList(type: PreferenceType) = nameList(type)
-            .ifEmpty { throw PreferenceNotFoundException(type.name) }
-
-        return UserPreferenceData(
-            gender = name(PreferenceType.GENDER),
-            age = name(PreferenceType.AGE),
-            personalities = requiredNameList(PreferenceType.PERSONALITY),
-            travelStyles = nameList(PreferenceType.TRAVEL_STYLE),
-            diet = nameList(PreferenceType.DIET),
-            etc = nameList(PreferenceType.ETC),
-        )
-    }
+    private fun loadPreferences(userId: Long): UserPreferenceData =
+        UserPreferenceData.from(userPreferenceRepository.findAllByUser_IdIn(listOf(userId)))
 }
