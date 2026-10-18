@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyRepository
+import com.dogGetDrunk.meetjyou.notification.preference.UserNotificationPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.core.spec.IsolationMode
@@ -17,7 +19,15 @@ class WithdrawnUserPurgeServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val userPreferenceRepository = mockk<UserPreferenceRepository>(relaxed = true)
     private val userSessionRevoker = mockk<UserSessionRevoker>(relaxed = true)
-    private val sut = WithdrawnUserPurgeService(userRepository, userPreferenceRepository, userSessionRevoker)
+    private val notificationPreferenceRepository = mockk<UserNotificationPreferenceRepository>(relaxed = true)
+    private val idempotencyKeyRepository = mockk<IdempotencyKeyRepository>(relaxed = true)
+    private val sut = WithdrawnUserPurgeService(
+        userRepository,
+        userPreferenceRepository,
+        userSessionRevoker,
+        notificationPreferenceRepository,
+        idempotencyKeyRepository,
+    )
 
     private val now = Instant.parse("2026-10-14T00:00:00Z")
 
@@ -57,6 +67,8 @@ class WithdrawnUserPurgeServiceTest : BehaviorSpec() {
                     verify { userRepository.deleteSocialAccountsByUserIdIn(listOf(expired.id)) }
                     verify { userPreferenceRepository.deleteAllByUserIdIn(listOf(expired.id)) }
                     verify { userSessionRevoker.deleteAll(listOf(expired.id)) }
+                    verify { notificationPreferenceRepository.deleteAllByUserIdIn(listOf(expired.id)) }
+                    verify { idempotencyKeyRepository.deleteAllByUserIdIn(listOf(expired.id)) }
                 }
             }
         }
@@ -70,6 +82,8 @@ class WithdrawnUserPurgeServiceTest : BehaviorSpec() {
 
                     verify(exactly = 0) { userRepository.deleteSocialAccountsByUserIdIn(any()) }
                     verify(exactly = 0) { userSessionRevoker.deleteAll(any()) }
+                    verify(exactly = 0) { notificationPreferenceRepository.deleteAllByUserIdIn(any()) }
+                    verify(exactly = 0) { idempotencyKeyRepository.deleteAllByUserIdIn(any()) }
                 }
             }
         }
