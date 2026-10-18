@@ -288,7 +288,6 @@
     <ID>ThrowsCount:PostService.kt$PostService$private fun resolvePlanReference(planUuid: UUID?, isPlanPublic: Boolean?): Pair&lt;Plan, Boolean&gt;?</ID>
     <ID>ThrowsCount:TermsService.kt$TermsService$@Transactional(readOnly = true) fun validateRequiredTermsAgreement(agreedTermsUuids: List&lt;UUID&gt;): List&lt;Terms&gt;</ID>
     <ID>ThrowsCount:UserAuthService.kt$UserAuthService$@Transactional fun loginViaSocial(request: LoginRequest, nonce: String? = null): TokenResponse</ID>
-    <ID>ThrowsCount:UserAuthService.kt$UserAuthService$@Transactional fun refreshToken(rawRefreshToken: String): TokenResponse</ID>
     <ID>TooGenericExceptionCaught:AppleJwtDecoder.kt$AppleJwtDecoder$e: Exception</ID>
     <ID>TooGenericExceptionCaught:AppleVerifier.kt$AppleVerifier$e: Exception</ID>
     <ID>TooGenericExceptionCaught:DiscordAlertService.kt$DiscordAlertService$ex: Exception</ID>

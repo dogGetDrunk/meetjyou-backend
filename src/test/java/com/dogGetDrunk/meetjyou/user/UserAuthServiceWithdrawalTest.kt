@@ -91,9 +91,8 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
                     val record = RefreshToken(jti = "jti-1", user = withdrawnUser, expiresAt = LocalDateTime.now().plusDays(1))
                     every { jwtProvider.isRefreshToken("raw-refresh-token") } returns true
                     every { jwtProvider.getJti("raw-refresh-token") } returns "jti-1"
-                    every { refreshTokenRepository.findByJti("jti-1") } returns record
+                    every { refreshTokenRepository.findForUpdateByJti("jti-1") } returns record
                     every { jwtProvider.getUserUuid("raw-refresh-token") } returns withdrawnUser.uuid
-                    every { userRepository.findByUuid(withdrawnUser.uuid) } returns withdrawnUser
 
                     shouldThrow<UserWithdrawnException> {
                         sut.refreshToken("raw-refresh-token")
