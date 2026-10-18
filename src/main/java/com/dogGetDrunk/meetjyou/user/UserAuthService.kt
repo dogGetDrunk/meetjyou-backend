@@ -11,10 +11,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtExceptio
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.RefreshTokenReuseDetectedException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
-import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
-import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
-import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -27,58 +24,12 @@ import java.time.Instant
 class UserAuthService(
     private val socialVerifierRegistry: SocialVerifierRegistry,
     private val userRepository: UserRepository,
-    private val userService: UserService,
     private val jwtProvider: JwtProvider,
-    private val termsService: TermsService,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val tokenPairIssuer: TokenPairIssuer,
     @Value("\${jwt.rotation-overlap-seconds}") private val rotationOverlapSeconds: Long,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
-
-    @Transactional
-    fun registerViaSocial(request: RegistrationRequest, nonce: String? = null): TokenResponse {
-        log.info("Register via social request received. provider: {}", request.authProvider)
-
-        val agreedTerms = termsService.validateRequiredTermsAgreement(request.agreedTermsUuids)
-
-        val token = socialTokenOf(request.idToken, request.accessToken)
-
-        val principal = socialVerifierRegistry
-            .get(request.authProvider)
-            .verifyAndExtract(token, nonce)
-
-        userRepository.findBySocialAccount(principal.authProvider, principal.subject)?.let { existing ->
-            return resolveDuplicateRegistration(existing, request.authProvider)
-        }
-
-        val user = userService.createUser(request, principal)
-        termsService.saveUserTerms(user, agreedTerms)
-
-        log.info("User registered successfully. uuid: {}, provider: {}", user.uuid, principal.authProvider)
-
-        return issueTokenPair(user)
-    }
-
-    /**
-     * A lost response can make the client redo the whole social-login round trip (fresh nonce,
-     * fresh idToken) and resubmit registration for an account that was already created by the
-     * first attempt. If that account was created just now, treat it as the same retry and log the
-     * caller into it instead of failing — matching the refresh-token rotation grace window. An
-     * account created outside the window is a genuine pre-existing account, not a retry.
-     */
-    private fun resolveDuplicateRegistration(existing: User, authProvider: AuthProvider): TokenResponse {
-        if (Duration.between(existing.createdAt, Instant.now()) > Duration.ofSeconds(rotationOverlapSeconds)) {
-            throw UserAlreadyExistsException(
-                authProvider.name,
-                message = "User already exists for provider $authProvider"
-            )
-        }
-        if (!existing.isActive()) {
-            throw UserWithdrawnException(existing.uuid.toString(), message = "Withdrawn user attempted to register")
-        }
-        log.info("Registration retried within grace window after a likely lost response. uuid: {}", existing.uuid)
-        return issueTokenPair(existing)
-    }
 
     @Transactional
     fun loginViaSocial(request: LoginRequest, nonce: String? = null): TokenResponse {
@@ -100,7 +51,7 @@ class UserAuthService(
 
         log.info("User logged in successfully. uuid: {}, provider: {}", user.uuid, principal.authProvider)
 
-        return issueTokenPair(user)
+        return tokenPairIssuer.issue(user)
     }
 
     /**
@@ -146,7 +97,7 @@ class UserAuthService(
         }
 
         log.info("Refresh token rotated. uuid: {}", user.uuid)
-        return issueTokenPair(user, rotatedFrom = activeRecord)
+        return tokenPairIssuer.issue(user, rotatedFrom = activeRecord)
     }
 
     private fun lockPresentedRecord(rawRefreshToken: String): RefreshToken {
@@ -205,19 +156,5 @@ class UserAuthService(
         }
         if (!head.revoked) head.revoke()
         log.info("User logged out, refresh token revoked. jti: {}", head.jti)
-    }
-
-    private fun issueTokenPair(user: User, rotatedFrom: RefreshToken? = null): TokenResponse {
-        val accessToken = jwtProvider.generateAccessToken(user.uuid, user.role)
-        val generated = jwtProvider.generateRefreshToken(user.uuid)
-        rotatedFrom?.revoke(generated.jti.toString())
-        refreshTokenRepository.save(
-            RefreshToken(
-                jti = generated.jti.toString(),
-                user = user,
-                expiresAt = generated.expiresAt,
-            )
-        )
-        return TokenResponse(user.uuid, accessToken, generated.token)
     }
 }

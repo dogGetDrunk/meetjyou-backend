@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserAlreadyExistsException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.preference.Age
@@ -27,8 +28,11 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
+import org.hibernate.exception.ConstraintViolationException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
+import java.sql.SQLException
 
 class UserServiceTest : BehaviorSpec() {
     private val userRepository = mockk<UserRepository>(relaxed = true)
@@ -74,7 +78,7 @@ class UserServiceTest : BehaviorSpec() {
 
             `when`("정상적으로 호출되면") {
                 then("검증된 principal의 식별자로 소셜 계정을 유저에 달아 함께 저장한다") {
-                    every { userRepository.save(any()) } answers { firstArg() }
+                    every { userRepository.saveAndFlush(any<User>()) } answers { firstArg() }
                     every { preferenceRepository.findAllByTypeAndNameIn(any(), any()) } answers {
                         secondArg<List<String>>().map { name -> Preference(type = firstArg(), name = name) }
                     }
@@ -87,6 +91,33 @@ class UserServiceTest : BehaviorSpec() {
                     account.provider shouldBe AuthProvider.GOOGLE
                     account.externalId shouldBe "google-sub-1"
                     account.email shouldBe "verified@gmail.com"
+                    verify(exactly = 1) { termsService.saveUserTerms(created, any()) }
+                }
+            }
+
+            `when`("동시 가입에 져서 닉네임 unique 위반이 나면") {
+                then("500이 될 원본 예외 대신 DuplicateNicknameException을 던진다") {
+                    every { userRepository.saveAndFlush(any<User>()) } throws uniqueViolation("user.uk_user_nickname")
+
+                    shouldThrow<DuplicateNicknameException> { sut.createUser(request, principal) }
+                }
+            }
+
+            `when`("동시 가입에 져서 같은 소셜 계정의 unique 위반이 나면") {
+                then("UserAlreadyExistsException을 던진다") {
+                    every { userRepository.saveAndFlush(any<User>()) } throws
+                        uniqueViolation("user.uk_user_external_id")
+
+                    shouldThrow<UserAlreadyExistsException> { sut.createUser(request, principal) }
+                }
+            }
+
+            `when`("매핑하지 않은 제약 위반이 나면") {
+                then("버그를 409로 숨기지 않도록 원본 예외를 그대로 던진다") {
+                    every { userRepository.saveAndFlush(any<User>()) } throws
+                        uniqueViolation("user.some_other_constraint")
+
+                    shouldThrow<DataIntegrityViolationException> { sut.createUser(request, principal) }
                 }
             }
         }
@@ -295,20 +326,22 @@ class UserServiceTest : BehaviorSpec() {
             }
         }
 
-        // ── isDuplicateNickname (30일 유예기간) ─────────────────────────────────
+        // ── isDuplicateNickname ─────────────────────────────────────────────
+        // Must agree with what sign-up / update enforce (the raw UNIQUE column): a "available"
+        // answer the next request then rejects with a 409 is the bug this guards.
 
         given("isDuplicateNickname 호출 시") {
-            `when`("existsActiveNickname이 true를 반환하면") {
-                then("true를 반환한다") {
-                    every { userRepository.existsActiveNickname("nickname", any()) } returns true
+            `when`("닉네임을 가진 행이 있으면(탈퇴 유예가 끝났지만 purge 전인 계정 포함)") {
+                then("가입·변경과 같은 기준으로 중복(true)이라고 답한다") {
+                    every { userRepository.existsByNickname("nickname") } returns true
 
                     sut.isDuplicateNickname("nickname") shouldBe true
                 }
             }
 
-            `when`("existsActiveNickname이 false를 반환하면 (탈퇴 30일 경과 등)") {
-                then("false를 반환한다") {
-                    every { userRepository.existsActiveNickname("nickname", any()) } returns false
+            `when`("닉네임을 가진 행이 없으면") {
+                then("사용 가능(false)이라고 답한다") {
+                    every { userRepository.existsByNickname("nickname") } returns false
 
                     sut.isDuplicateNickname("nickname") shouldBe false
                 }
@@ -342,12 +375,25 @@ class UserServiceTest : BehaviorSpec() {
                 }
             }
 
+            `when`("중복 검사는 통과했지만 동시에 같은 닉네임을 가져간 요청에 지면") {
+                then("flush 시점의 unique 위반을 DuplicateNicknameException으로 바꿔 던진다") {
+                    every { currentUserProvider.user } returns user
+                    every { userRepository.existsByNickname("taken") } returns false
+                    every { userRepository.flush() } throws uniqueViolation("user.uk_user_nickname")
+
+                    shouldThrow<DuplicateNicknameException> {
+                        sut.updateUser(request)
+                    }
+                }
+            }
+
             `when`("자기 자신의 기존 닉네임을 그대로 보내면") {
                 then("중복 검사를 건너뛴다") {
                     every { currentUserProvider.user } returns user
                     runCatching { sut.updateUser(request.copy(nickname = user.nickname)) }
 
                     verify(exactly = 0) { userRepository.existsByNickname(any()) }
+                    verify(exactly = 0) { userRepository.flush() }
                 }
             }
         }
@@ -444,4 +490,9 @@ class UserServiceTest : BehaviorSpec() {
             }
         }
     }
+
+    private fun uniqueViolation(constraintName: String) = DataIntegrityViolationException(
+        "could not execute statement",
+        ConstraintViolationException("Duplicate entry", SQLException("Duplicate entry"), constraintName),
+    )
 }

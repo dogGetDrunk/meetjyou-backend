@@ -27,7 +27,8 @@ import java.util.UUID
 @RequestMapping("/auth")
 @Tag(name = "User authentication controller", description = "유저 인증 관련 API")
 class UserAuthController(
-    private val userAuthService: UserAuthService
+    private val userAuthService: UserAuthService,
+    private val socialRegistrationService: SocialRegistrationService,
 ) {
     @Operation(summary = "유저 회원가입", description = "이메일로 회원 가입한다.")
     @ApiResponses(
@@ -54,7 +55,7 @@ class UserAuthController(
     @PostMapping("/registration")
     fun register(@Valid @RequestBody request: RegistrationRequest, session: HttpSession): ResponseEntity<TokenResponse> {
         val nonce = session.getAttribute(SESSION_SOCIAL_NONCE) as String?
-        val response = userAuthService.registerViaSocial(request, nonce)
+        val response = socialRegistrationService.register(request, nonce)
         session.removeAttribute(SESSION_SOCIAL_NONCE)
         return ResponseEntity.created(URI.create("/${response.uuid}"))
             .body(response)
