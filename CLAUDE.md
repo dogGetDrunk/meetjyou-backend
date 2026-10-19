@@ -36,7 +36,7 @@ SPRING_PROFILES_ACTIVE=dev,db,secrets \
 - No wildcard imports
 - Logs & comments in English (docs/commits in Korean)
 - Magic numbers / repeated strings → constants
-- Enforced in `./gradlew build`: detekt (`config/detekt/detekt.yml`, existing findings frozen in `baseline.xml` — don't add to it), Konsist `ConventionTest` (`!!`, `requireNotNull`, controller DTO `.of()`, service `SecurityUtil`), and a skipped-test guard (a skipped test fails the build)
+- Enforced in `./gradlew build`: detekt (`config/detekt/detekt.yml`, existing findings frozen in `baseline.xml` — don't add to it), Konsist `ConventionTest` (`!!`, `requireNotNull`, controller DTO `.of()`, service `SecurityUtil`, SQL that sets autocommit/isolation/read-only — the driver caches them via `useLocalSessionState`), and a skipped-test guard (a skipped test fails the build)
 
 ## Testing
 
