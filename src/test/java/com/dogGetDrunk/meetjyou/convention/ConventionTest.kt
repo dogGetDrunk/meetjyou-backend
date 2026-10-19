@@ -46,6 +46,20 @@ class ConventionTest : BehaviorSpec({
             val migrationOffenders = migrationFiles().filter { containsSessionStateSql(it.readLines()) }.map { it.path }
             (codeOffenders + migrationOffenders).shouldBeEmpty()
         }
+        // The scan above only sees SQL written in this repo. A stored procedure, function, trigger
+        // or event changes session state inside MySQL, where neither this test nor the driver can
+        // see it, so block routines outright. If one is ever needed, review its body for session
+        // state SQL before relaxing this rule. Likewise, if JdbcTemplate or assembled native SQL
+        // shows up, add a Connector/J queryInterceptor that rejects session state SQL at runtime.
+        Then("저장 프로시저·함수·트리거·이벤트를 만들거나 호출하지 않는다 (useLocalSessionState)") {
+            val codeOffenders = productionFiles
+                .filter { file -> codeLines(file).any { ROUTINE_CALL.containsMatchIn(it) } }
+                .map { it.path }
+            val migrationOffenders = migrationFiles()
+                .filter { file -> file.readLines().any { ROUTINE_DEFINITION.containsMatchIn(it) } }
+                .map { it.path }
+            (codeOffenders + migrationOffenders).shouldBeEmpty()
+        }
     }
 
     Given("서비스") {
@@ -72,6 +86,16 @@ private val SESSION_STATE_SQL = listOf(
     Regex("""${SET_SCOPE}autocommit\b""", RegexOption.IGNORE_CASE),
     Regex("""${SET_SCOPE}TRANSACTION\s+(?:ISOLATION|READ)\b""", RegexOption.IGNORE_CASE),
     Regex("""${SET_SCOPE}transaction_(?:isolation|read_only)\b""", RegexOption.IGNORE_CASE),
+)
+
+private val ROUTINE_DEFINITION = Regex(
+    """\bCREATE\s+(?:DEFINER\s*=\s*\S+\s+)?(?:PROCEDURE|FUNCTION|TRIGGER|EVENT)\b""",
+    RegexOption.IGNORE_CASE,
+)
+// "CALL name(" rather than a bare CALL, so English comments ("this call would...") don't match.
+private val ROUTINE_CALL = Regex(
+    """\bCALL\s+[\w.`]+\s*\(|@Procedure\b|\bcreateStoredProcedureQuery\b|@NamedStoredProcedureQuery\b""",
+    RegexOption.IGNORE_CASE,
 )
 
 private fun containsSessionStateSql(lines: List<String>): Boolean =
