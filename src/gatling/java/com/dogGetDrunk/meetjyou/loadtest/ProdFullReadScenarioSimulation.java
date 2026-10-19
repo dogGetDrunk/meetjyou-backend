@@ -65,6 +65,11 @@ import static io.gatling.javaapi.http.HttpDsl.*;
 // sweep's total run time exceeds the token's TTL — see fetchToken()/before() for why.
 //
 // Run: ./gradlew gatlingRun --simulation com.dogGetDrunk.meetjyou.loadtest.ProdFullReadScenarioSimulation -DSECRET=<LOAD_TEST_TOKEN_SECRET>
+//
+// The token endpoint is off in production by default (GitHub secret LOAD_TEST_TOKEN_ENABLED=false).
+// To run: on the app host set LOAD_TEST_TOKEN_ENABLED=true in ~/meetjyou/.env and run
+// `docker compose up -d --no-deps spring_boot`. Turn it back off the same way afterwards; the next
+// deploy also rewrites .env from the GitHub secret, so a forgotten switch resets itself.
 public class ProdFullReadScenarioSimulation extends Simulation {
 
     private static final String BASE_URL = System.getProperty("BASE_URL", "https://meetjyou.duckdns.org");
