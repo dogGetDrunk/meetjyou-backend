@@ -31,6 +31,15 @@ spring:
                                   # 확인됨 — VU 램프업 중 유휴 커넥션 2개로는 부족해 매번 신규 물리 커넥션을 맺는 게 원인일 가능성 검증
       connection-timeout: 5000    # 풀 고갈 시 30초 대기 대신 5초 내 빠른 실패
       connection-test-query: SELECT 1
+      # Each Spring read-only transaction otherwise costs extra round trips to MySQL
+      # (SET SESSION TRANSACTION READ ONLY/READ WRITE, SELECT @@session.transaction_read_only).
+      # On the CPU-capped DB VM those round trips set the throughput ceiling (issue #154).
+      # Trade-off: MySQL no longer sees read-only transactions, so it won't reject a stray write
+      # inside one; Hibernate still skips flushing in read-only transactions.
+      # useLocalSessionState is safe because no code changes session state with raw SQL.
+      data-source-properties:
+        readOnlyPropagatesToServer: false
+        useLocalSessionState: true
   servlet:
     multipart:
       enabled: true
