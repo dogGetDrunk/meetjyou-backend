@@ -256,6 +256,11 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
         return restTemplate.exchange(url("/users/me"), HttpMethod.DELETE, entity, String::class.java).status()
     }
 
+    private fun adminUserListStatus(accessToken: String): HttpStatus {
+        val entity = HttpEntity<Void>(jsonHeaders(null, accessToken))
+        return restTemplate.exchange(url("/users"), HttpMethod.GET, entity, String::class.java).status()
+    }
+
     // Moves the withdrawal back past the grace period instead of waiting for it.
     private fun expireWithdrawal(uuid: UUID) {
         val user = userRepository.findByUuid(uuid) ?: error("User not saved")
@@ -409,6 +414,33 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
                     val restored = userRepository.findByUuid(tokens.uuid) ?: error("User not saved")
                     restored.status shouldBe UserStatus.NORMAL
                     restored.withdrawnAt shouldBe null
+                }
+            }
+        }
+
+        // JwtAuthFilter caches active users (AuthenticatedUserCache). The request right before each
+        // change loads the entry, so a missed eviction shows up as the old state for up to the TTL.
+        given("인증 유저 캐시가 채워진 상태에서") {
+            `when`("탈퇴하면") {
+                then("같은 access token의 다음 요청이 바로 401을 받는다") {
+                    val tokens = signUpWithGoogle(subject = "google-sub-cache-withdraw", email = "cache-w@gmail.com")
+                    getMyProfileStatus(tokens.accessToken) shouldBe HttpStatus.OK
+
+                    withdrawStatus(tokens.accessToken) shouldBe HttpStatus.OK
+
+                    getMyProfileStatus(tokens.accessToken) shouldBe HttpStatus.UNAUTHORIZED
+                }
+            }
+            `when`("엔티티로 role을 ADMIN으로 바꾸면") {
+                then("다음 요청부터 바로 관리자 API를 쓸 수 있다") {
+                    val tokens = signUpWithGoogle(subject = "google-sub-cache-role", email = "cache-r@gmail.com")
+                    adminUserListStatus(tokens.accessToken) shouldBe HttpStatus.FORBIDDEN
+
+                    val user = userRepository.findByUuid(tokens.uuid) ?: error("User not saved")
+                    user.role = Role.ADMIN
+                    userRepository.save(user)
+
+                    adminUserListStatus(tokens.accessToken) shouldBe HttpStatus.OK
                 }
             }
         }

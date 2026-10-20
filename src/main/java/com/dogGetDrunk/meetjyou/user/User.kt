@@ -1,8 +1,10 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.auth.jwt.UserAuthCacheEvictionListener
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityListeners
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
@@ -21,6 +23,7 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
+@EntityListeners(UserAuthCacheEvictionListener::class)
 // Named as in V40: a violation is mapped to a 409 by name (UserUniqueConstraints).
 @Table(
     uniqueConstraints = [

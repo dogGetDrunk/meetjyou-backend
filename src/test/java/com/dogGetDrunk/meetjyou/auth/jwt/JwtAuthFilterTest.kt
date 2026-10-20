@@ -23,7 +23,7 @@ class JwtAuthFilterTest : BehaviorSpec() {
     private val jwtProvider = mockk<JwtProvider>()
     private val userRepository = mockk<UserRepository>()
     private val objectMapper = ObjectMapper().registerKotlinModule()
-    private val filter = JwtAuthFilter(jwtProvider, objectMapper, userRepository)
+    private lateinit var filter: JwtAuthFilter
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
@@ -31,6 +31,8 @@ class JwtAuthFilterTest : BehaviorSpec() {
         beforeEach {
             clearAllMocks()
             SecurityContextHolder.clearContext()
+            // A fresh cache per test: Kotest may run several leaves on one spec instance.
+            filter = JwtAuthFilter(jwtProvider, objectMapper, AuthenticatedUserCache(userRepository))
         }
 
         given("유효한 access token으로 요청이 들어올 때") {

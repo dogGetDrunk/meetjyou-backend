@@ -62,6 +62,16 @@ class ConventionTest : BehaviorSpec({
         }
     }
 
+    // JwtAuthFilter caches active users, and UserAuthCacheEvictionListener evicts on entity
+    // updates. A bulk JPQL/SQL update or delete of the user table skips entity listeners, so a
+    // withdrawn user or revoked ADMIN would keep access until the cache TTL. Migrations are exempt:
+    // they run before the app serves requests, when the cache is empty.
+    Given("프로덕션 코드") {
+        Then("user 테이블을 벌크 UPDATE·DELETE하지 않는다 (인증 유저 캐시 무효화)") {
+            productionFiles.assertFalse { file -> codeLines(file).any { USER_BULK_WRITE.containsMatchIn(it) } }
+        }
+    }
+
     Given("서비스") {
         Then("SecurityUtil을 직접 쓰지 않는다 (CurrentUserProvider 사용)") {
             productionFiles.withNameEndingWith(SERVICE_SUFFIX)
@@ -78,6 +88,11 @@ private const val LINE_COMMENT = "//"
 private val NOT_NULL_ASSERTION = Regex("""!!""")
 private val NULL_CHECK_CALL = Regex("""\b(requireNotNull|checkNotNull)\s*\(""")
 private val DTO_FACTORY_CALL = Regex("""\b[A-Z]\w*(Response|Dto)\.of\(""")
+
+private val USER_BULK_WRITE = Regex(
+    """\b(?:update|delete(?:\s+from)?)\s+`?(?:User|system_user)`?\b""",
+    RegexOption.IGNORE_CASE,
+)
 
 private const val MIGRATION_DIR = "src/main/resources/db/migration"
 private const val SQL_EXTENSION = "sql"
