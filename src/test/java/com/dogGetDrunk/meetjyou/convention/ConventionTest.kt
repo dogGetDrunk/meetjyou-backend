@@ -5,6 +5,9 @@ import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.ext.list.withNameEndingWith
 import com.lemonappdev.konsist.api.verify.assertFalse
 import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldNotBeEmpty
+import java.io.File
 
 /**
  * Enforces CLAUDE.md conventions that detekt cannot check without type resolution.
@@ -30,6 +33,35 @@ class ConventionTest : BehaviorSpec({
         }
     }
 
+    // application.yml sets useLocalSessionState=true: Connector/J trusts its cached autocommit,
+    // isolation and read-only values instead of asking MySQL. SQL that changes them behind the
+    // driver's back leaves the cache wrong, e.g. a pooled connection the driver thinks is
+    // autocommit while MySQL holds an open transaction. Flyway shares the app DataSource, so
+    // migrations count too. Change session state only through the JDBC/Spring APIs.
+    Given("프로덕션 코드와 Flyway 마이그레이션") {
+        Then("SQL로 autocommit·트랜잭션 격리 수준·접근 모드를 바꾸지 않는다 (useLocalSessionState)") {
+            val codeOffenders = productionFiles.filter { containsSessionStateSql(codeLines(it)) }.map { it.path }
+            // An empty scan (wrong working directory) would pass vacuously.
+            migrationFiles().shouldNotBeEmpty()
+            val migrationOffenders = migrationFiles().filter { containsSessionStateSql(it.readLines()) }.map { it.path }
+            (codeOffenders + migrationOffenders).shouldBeEmpty()
+        }
+        // The scan above only sees SQL written in this repo. A stored procedure, function, trigger
+        // or event changes session state inside MySQL, where neither this test nor the driver can
+        // see it, so block routines outright. If one is ever needed, review its body for session
+        // state SQL before relaxing this rule. Likewise, if JdbcTemplate or assembled native SQL
+        // shows up, add a Connector/J queryInterceptor that rejects session state SQL at runtime.
+        Then("저장 프로시저·함수·트리거·이벤트를 만들거나 호출하지 않는다 (useLocalSessionState)") {
+            val codeOffenders = productionFiles
+                .filter { file -> codeLines(file).any { ROUTINE_CALL.containsMatchIn(it) } }
+                .map { it.path }
+            val migrationOffenders = migrationFiles()
+                .filter { file -> file.readLines().any { ROUTINE_DEFINITION.containsMatchIn(it) } }
+                .map { it.path }
+            (codeOffenders + migrationOffenders).shouldBeEmpty()
+        }
+    }
+
     Given("서비스") {
         Then("SecurityUtil을 직접 쓰지 않는다 (CurrentUserProvider 사용)") {
             productionFiles.withNameEndingWith(SERVICE_SUFFIX)
@@ -46,6 +78,31 @@ private const val LINE_COMMENT = "//"
 private val NOT_NULL_ASSERTION = Regex("""!!""")
 private val NULL_CHECK_CALL = Regex("""\b(requireNotNull|checkNotNull)\s*\(""")
 private val DTO_FACTORY_CALL = Regex("""\b[A-Z]\w*(Response|Dto)\.of\(""")
+
+private const val MIGRATION_DIR = "src/main/resources/db/migration"
+private const val SQL_EXTENSION = "sql"
+private const val SET_SCOPE = """\bSET\s+(?:(?:SESSION|LOCAL|GLOBAL)\s+)?(?:@@(?:session\.|global\.)?)?"""
+private val SESSION_STATE_SQL = listOf(
+    Regex("""${SET_SCOPE}autocommit\b""", RegexOption.IGNORE_CASE),
+    Regex("""${SET_SCOPE}TRANSACTION\s+(?:ISOLATION|READ)\b""", RegexOption.IGNORE_CASE),
+    Regex("""${SET_SCOPE}transaction_(?:isolation|read_only)\b""", RegexOption.IGNORE_CASE),
+)
+
+private val ROUTINE_DEFINITION = Regex(
+    """\bCREATE\s+(?:DEFINER\s*=\s*\S+\s+)?(?:PROCEDURE|FUNCTION|TRIGGER|EVENT)\b""",
+    RegexOption.IGNORE_CASE,
+)
+// "CALL name(" rather than a bare CALL, so English comments ("this call would...") don't match.
+private val ROUTINE_CALL = Regex(
+    """\bCALL\s+[\w.`]+\s*\(|@Procedure\b|\bcreateStoredProcedureQuery\b|@NamedStoredProcedureQuery\b""",
+    RegexOption.IGNORE_CASE,
+)
+
+private fun containsSessionStateSql(lines: List<String>): Boolean =
+    lines.any { line -> SESSION_STATE_SQL.any { it.containsMatchIn(line) } }
+
+private fun migrationFiles(): List<File> =
+    File(MIGRATION_DIR).walkTopDown().filter { it.isFile && it.extension == SQL_EXTENSION }.toList()
 
 private fun codeLines(file: KoFileDeclaration): List<String> =
     file.text.lines().map { it.substringBefore(LINE_COMMENT) }
