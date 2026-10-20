@@ -32,12 +32,21 @@ class SecurityConfig(
     private val objectMapper: ObjectMapper,
 ) {
 
+    /**
+     * Only the endpoints the deploy health check and the metrics scraper use are open; every other
+     * actuator endpoint is denied even if it gets added to management.endpoints.web.exposure.include.
+     * Network isolation (port bound to 127.0.0.1 in docker-compose.yml) is the first layer, this is the second.
+     */
     @Bean
     @Order(1)
     fun managementSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .securityMatcher(EndpointRequest.toAnyEndpoint())
-            .authorizeHttpRequests { it.anyRequest().permitAll() }
+            .authorizeHttpRequests {
+                it.requestMatchers(EndpointRequest.to(HEALTH_ENDPOINT, METRICS_ENDPOINT, PROMETHEUS_ENDPOINT))
+                    .permitAll()
+                it.anyRequest().denyAll()
+            }
             .csrf { it.disable() }
         return http.build()
     }
@@ -101,3 +110,7 @@ class SecurityConfig(
         return http.build()
     }
 }
+
+private const val HEALTH_ENDPOINT = "health"
+private const val METRICS_ENDPOINT = "metrics"
+private const val PROMETHEUS_ENDPOINT = "prometheus"
