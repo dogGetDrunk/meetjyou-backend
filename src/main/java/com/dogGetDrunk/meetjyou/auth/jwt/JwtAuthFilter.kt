@@ -5,8 +5,6 @@ import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.config.ApiVersionConfig.Companion.V1
-import com.dogGetDrunk.meetjyou.user.User
-import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -25,7 +23,7 @@ import java.util.UUID
 class JwtAuthFilter(
     private val jwtProvider: JwtProvider,
     private val objectMapper: ObjectMapper,
-    private val userRepository: UserRepository,
+    private val authenticatedUserCache: AuthenticatedUserCache,
 ) : OncePerRequestFilter() {
 
     val log = LoggerFactory.getLogger(JwtAuthFilter::class.java)
@@ -77,22 +75,25 @@ class JwtAuthFilter(
 
         val userUuid = jwtProvider.getUserUuid(token)
         val user = resolveActiveUser(userUuid)
-        // Role comes from the DB row already loaded here, not the token claim, so a revoked
-        // ADMIN loses access on the next request instead of when the access token expires.
+        // Role comes from the DB row, not the token claim, so a revoked ADMIN loses access well
+        // before the access token expires: on the next request for in-app changes, within
+        // AuthenticatedUserCache.TTL for SQL changes.
         val authentication = buildAuthentication(user, request)
 
         SecurityContextHolder.getContext().authentication = authentication
     }
 
-    private fun resolveActiveUser(userUuid: UUID): User {
-        val user = userRepository.findByUuid(userUuid)
-        if (user == null || !user.isActive()) {
-            throw UserWithdrawnException(userUuid.toString(), message = "Withdrawn or unknown user attempted to use an access token")
-        }
-        return user
-    }
+    private fun resolveActiveUser(userUuid: UUID): AuthenticatedUser =
+        authenticatedUserCache.findActive(userUuid)
+            ?: throw UserWithdrawnException(
+                userUuid.toString(),
+                message = "Withdrawn or unknown user attempted to use an access token",
+            )
 
-    private fun buildAuthentication(user: User, request: HttpServletRequest): UsernamePasswordAuthenticationToken {
+    private fun buildAuthentication(
+        user: AuthenticatedUser,
+        request: HttpServletRequest,
+    ): UsernamePasswordAuthenticationToken {
         val principal = CustomUserPrincipal(
             uuid = user.uuid,
             authorities = listOf(SimpleGrantedAuthority(user.role.name)),
