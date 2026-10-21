@@ -18,9 +18,11 @@ import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.support.SqlPausePoint
+import com.dogGetDrunk.meetjyou.support.firstLostDeadlock
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.PartyRole
 import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
@@ -29,6 +31,7 @@ import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.mockk.every
 import io.mockk.mockk
 import java.sql.Connection
@@ -59,7 +62,9 @@ import org.testcontainers.utility.DockerImageName
  * user_party, chat) where one path takes the party row lock first and the other touches the rows
  * without it, in a different order. Each scenario stops the "holder" right before one SQL
  * statement (SqlPausePoint) and lets the "contender" run until it waits on a lock, which is the
- * narrow real-world interleaving made deterministic.
+ * narrow real-world interleaving made deterministic. These deadlocks are accepted (rare overlaps)
+ * and handled as a 409; the scenarios pin that the loser fails with the mapped exception type and
+ * leaves no partial state.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -288,7 +293,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
 
         given("멤버가 파티를 나가는 중일 때") {
             `when`("호스트가 같은 파티를 동시에 삭제하면") {
-                then("교착 없이 나가기가 먼저 끝나고 파티는 삭제된다") {
+                then("교착으로 한쪽이 409 대상 예외로 통째로 롤백되고, 이긴 쪽 변경만 남는다") {
                     val seed = seed()
                     // Leave flushes user_party early (auto-flush on the chat room lookup) and
                     // deletes its chat_participant row last, at commit.
@@ -300,16 +305,22 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     report(outcome)
 
                     outcome.contenderWaitedOnLock shouldBe true
-                    outcome.holder.exceptionOrNull().shouldBeNull()
-                    outcome.contender.exceptionOrNull().shouldBeNull()
-                    partyRepository.findByUuid(seed.partyUuid).shouldBeNull()
+                    val leaveLost = firstLostDeadlock(outcome.holder, outcome.contender)
+                    if (leaveLost) {
+                        partyRepository.findByUuid(seed.partyUuid).shouldBeNull()
+                        chatRoomRepository.findByParty_Uuid(seed.partyUuid).shouldBeNull()
+                    } else {
+                        val party = partyRepository.findByUuid(seed.partyUuid) ?: error("party missing")
+                        party.joined shouldBe 1
+                        tx.execute { userPartyRepository.findByParty_UuidAndUser_Uuid(seed.partyUuid, seed.member.uuid)?.memberStatus } shouldBe MemberStatus.LEFT
+                    }
                 }
             }
         }
 
         given("호스트가 게시글의 여행 계획서를 다른 것으로 바꾸는 중일 때") {
             `when`("같은 호스트가 기존 계획서를 동시에 삭제하면") {
-                then("교착 없이 둘 다 성공하고 게시글·파티는 새 계획서를 가리킨다") {
+                then("교착으로 한쪽이 409 대상 예외로 통째로 롤백되고, 이긴 쪽 변경만 남는다") {
                     val seed = seed()
                     val request = switchPlanRequest(seed)
                     // The edit's flush writes post, then party; it stops between the two.
@@ -321,10 +332,18 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     report(outcome)
 
                     outcome.contenderWaitedOnLock shouldBe true
-                    outcome.holder.exceptionOrNull().shouldBeNull()
-                    outcome.contender.exceptionOrNull().shouldBeNull()
-                    tx.execute { postRepository.findByUuid(seed.postUuid)?.plan?.uuid } shouldBe seed.newPlan
-                    planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                    val editLost = firstLostDeadlock(outcome.holder, outcome.contender)
+                    val linked = tx.execute {
+                        val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
+                        post.plan?.uuid to post.party.plan?.uuid
+                    }
+                    if (editLost) {
+                        linked shouldBe (null to null)
+                        planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                    } else {
+                        linked shouldBe (seed.newPlan to seed.newPlan)
+                        planRepository.findByUuid(seed.oldPlan) shouldNotBe null
+                    }
                 }
             }
         }

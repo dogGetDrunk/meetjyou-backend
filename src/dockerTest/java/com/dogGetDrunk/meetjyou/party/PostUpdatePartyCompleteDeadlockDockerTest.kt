@@ -1,7 +1,6 @@
 package com.dogGetDrunk.meetjyou.party
 
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
-import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.Plan
@@ -13,6 +12,7 @@ import com.dogGetDrunk.meetjyou.post.PostStatus
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
+import com.dogGetDrunk.meetjyou.support.firstLostDeadlock
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
@@ -22,9 +22,8 @@ import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
-import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import java.sql.Connection
@@ -57,8 +56,9 @@ import org.testcontainers.utility.DockerImageName
  * two row locks in opposite order. H2 has no InnoDB deadlock detection, so this needs MySQL.
  *
  * The interleaving is forced: completion takes the party lock and stays open, the edit runs until
- * it waits on the party row, then completion commits and needs the post row. Unfixed, InnoDB
- * picks completion as the deadlock victim (Error 1213), so the party is not completed.
+ * it waits on the party row, then completion commits and needs the post row. The deadlock is
+ * accepted (rare, unnatural overlap) and handled as a 409 instead of restructuring lock order:
+ * this pins that the loser fails with the mapped exception type and leaves no partial state.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -256,20 +256,27 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
             every { currentUserProvider.uuid } answers { currentUserUuid.get() }
         }
 
-        given("호스트가 파티 완료를 요청해 파티 행 잠금이 잡혀 있을 때") {
+        given("호스트가 파티 완료를 요청해 파티 행 잠금이 잡혀 있을 때 (#165, 교착 허용)") {
             `when`("같은 호스트가 plan을 바꾸는 게시글 수정을 동시에 보내면") {
-                then("교착 없이 완료가 성공하고, 수정은 완료된 파티를 보고 거절된다") {
+                then("교착으로 한쪽이 409 대상 예외로 통째로 롤백되고, 이긴 쪽 변경만 남는다") {
                     val seed = seed()
                     val outcome = race(seed, planChangeRequest(seed))
                     log.info("completion={} / edit={}", describe(outcome.completion), describe(outcome.edit))
                     log.info("InnoDB latest deadlock:{}", latestDeadlockReport().ifBlank { " none" })
 
                     outcome.editWaitedOnLock shouldBe true
-                    outcome.completion.exceptionOrNull().shouldBeNull()
-                    outcome.edit.exceptionOrNull().shouldBeInstanceOf<InvalidInputException>()
-                    val stored = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
-                    stored.status shouldBe PostStatus.RECRUITMENT_COMPLETED
-                    stored.title shouldBe "Old title"
+                    val completionLost = firstLostDeadlock(outcome.completion, outcome.edit)
+                    val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
+                    val party = partyRepository.findByUuid(seed.partyUuid) ?: error("party missing")
+                    if (completionLost) {
+                        party.progressStatus shouldNotBe PartyProgressStatus.COMPLETED
+                        post.status shouldBe PostStatus.RECRUITING
+                        post.title shouldBe "New title"
+                    } else {
+                        party.progressStatus shouldBe PartyProgressStatus.COMPLETED
+                        post.status shouldBe PostStatus.RECRUITMENT_COMPLETED
+                        post.title shouldBe "Old title"
+                    }
                 }
             }
         }
