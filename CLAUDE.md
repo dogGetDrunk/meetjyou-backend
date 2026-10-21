@@ -42,6 +42,7 @@ SPRING_PROFILES_ACTIVE=dev,db,secrets \
 
 - New features ship with unit + integration tests
 - Run full `./gradlew test` before finalizing any change; report actual output
+- dockerTest lock-wait detection: poll `performance_schema.data_lock_waits`, never `information_schema.innodb_trx.trx_state` (cached view, misses real waits → flaky CI)
 
 ## Verification Workflow
 
