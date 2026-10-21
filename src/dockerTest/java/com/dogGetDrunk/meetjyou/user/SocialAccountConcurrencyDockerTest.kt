@@ -43,7 +43,7 @@ import org.testcontainers.utility.DockerImageName
  * Runs SocialAccountService against a real MySQL, two transactions at a time. H2 neither locks
  * nor snapshots like InnoDB, so the unlink race and the unique-constraint race can only be
  * checked here. Each scenario is made deterministic: the "holder" transaction does its work and
- * stays open until the "contender" is seen waiting on a lock in information_schema.innodb_trx.
+ * stays open until the "contender" is seen waiting on a lock in performance_schema.data_lock_waits.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -128,12 +128,13 @@ class SocialAccountConcurrencyDockerTest : BehaviorSpec() {
         }
     }
 
-    // information_schema.innodb_trx needs the PROCESS privilege, which the app user lacks.
+    // performance_schema needs more than the app user's privileges. data_lock_waits, not
+    // innodb_trx.trx_state: the latter is a cached view and missed a real wait in CI (#200).
     private fun awaitLockWait(maxMillis: Long): Boolean =
         DriverManager.getConnection(mysql.jdbcUrl, ROOT_USER, mysql.password).use { root ->
             val deadline = System.currentTimeMillis() + maxMillis
             while (System.currentTimeMillis() < deadline) {
-                if (countLockWaits(root) == 1) return@use true
+                if (countLockWaits(root) >= 1) return@use true
                 Thread.sleep(POLL_INTERVAL_MILLIS)
             }
             false
@@ -168,7 +169,7 @@ class SocialAccountConcurrencyDockerTest : BehaviorSpec() {
         private const val LOCK_WAIT_TIMEOUT_MILLIS = 10_000L
         private const val NO_LOCK_EXPECTED_WAIT_MILLIS = 2_000L
         private const val POLL_INTERVAL_MILLIS = 50L
-        private const val COUNT_LOCK_WAITS = "SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'"
+        private const val COUNT_LOCK_WAITS = "SELECT COUNT(*) FROM performance_schema.data_lock_waits"
         private const val SELECT_PROVIDERS =
             "SELECT a.provider FROM user_social_account a JOIN `user` u ON u.id = a.user_id WHERE u.uuid = ?"
     }

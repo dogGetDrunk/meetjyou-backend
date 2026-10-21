@@ -38,7 +38,7 @@ import org.testcontainers.utility.DockerImageName
  * Runs refresh-token rotation and logout against a real MySQL, two transactions at a time. H2
  * neither locks nor snapshots like InnoDB, so these races can only be checked here. The holder
  * transaction does its work and stays open until the contender is seen waiting on a lock in
- * information_schema.innodb_trx, which makes every interleaving deterministic.
+ * performance_schema.data_lock_waits, which makes every interleaving deterministic.
  *
  * UserAuthService is a Spring bean here (not built by hand) so its own @Transactional rules,
  * rollback rules included, apply to the contender exactly as in production.
@@ -147,12 +147,13 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
         }
     }
 
-    // information_schema.innodb_trx needs the PROCESS privilege, which the app user lacks.
+    // performance_schema needs more than the app user's privileges. data_lock_waits, not
+    // innodb_trx.trx_state: the latter is a cached view and missed a real wait in CI (#200).
     private fun awaitLockWait(maxMillis: Long): Boolean =
         DriverManager.getConnection(mysql.jdbcUrl, ROOT_USER, mysql.password).use { root ->
             val deadline = System.currentTimeMillis() + maxMillis
             while (System.currentTimeMillis() < deadline) {
-                if (countLockWaits(root) == 1) return@use true
+                if (countLockWaits(root) >= 1) return@use true
                 Thread.sleep(POLL_INTERVAL_MILLIS)
             }
             false
@@ -189,7 +190,7 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
         private const val TIMEOUT_SECONDS = 30L
         private const val LOCK_WAIT_TIMEOUT_MILLIS = 10_000L
         private const val POLL_INTERVAL_MILLIS = 50L
-        private const val COUNT_LOCK_WAITS = "SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'"
+        private const val COUNT_LOCK_WAITS = "SELECT COUNT(*) FROM performance_schema.data_lock_waits"
         private const val COUNT_VALID_TOKENS =
             "SELECT COUNT(*) FROM refresh_token WHERE user_id = ? AND revoked = FALSE AND expires_at > NOW()"
         private const val SELECT_REPLACED_BY = "SELECT replaced_by_jti FROM refresh_token WHERE jti = ?"
