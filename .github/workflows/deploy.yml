@@ -104,6 +104,7 @@ jobs:
             GOOGLE_ISSUER=${{ secrets.GOOGLE_ISSUER }}
             GOOGLE_CLIENT_ID_ANDROID=${{ secrets.GOOGLE_CLIENT_ID_ANDROID }}
             GOOGLE_CLIENT_ID_WEB=${{ secrets.GOOGLE_CLIENT_ID_WEB }}
+            GOOGLE_CLIENT_ID_IOS=${{ secrets.GOOGLE_CLIENT_ID_IOS }}
             APPLE_ISSUER=${{ secrets.APPLE_ISSUER }}
             APPLE_JWKS_URI=${{ secrets.APPLE_JWKS_URI }}
             APPLE_CLIENT_ID=${{ secrets.APPLE_CLIENT_ID }}
