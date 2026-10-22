@@ -97,6 +97,9 @@ enum class ErrorCode(
     // Idempotency
     IDEMPOTENCY_KEY_REUSED("Idempotency key reused with a different request body"),
 
+    // Concurrency
+    CONCURRENT_REQUEST_CONFLICT("Conflicting concurrent request, please retry"),
+
     // Server
     INTERNAL_SERVER_ERROR("Internal server error"),
 

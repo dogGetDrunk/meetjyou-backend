@@ -42,6 +42,7 @@ SPRING_PROFILES_ACTIVE=dev,db,secrets \
 
 - New features ship with unit + integration tests
 - Run full `./gradlew test` before finalizing any change; report actual output
+- dockerTest lock-wait detection: poll `performance_schema.data_lock_waits`, never `information_schema.innodb_trx.trx_state` (cached view, misses real waits → flaky CI)
 
 ## Verification Workflow
 
@@ -83,6 +84,11 @@ String concatenation via template literals only — no `+` operator.
 
 ### @Transactional
 Read-only methods require `@Transactional(readOnly = true)`. Write methods use `@Transactional`.
+
+### Concurrency bugs
+- Rare races from unnatural request overlaps (e.g. lock-order deadlocks) → handle after the fact, don't restructure locking: full rollback + 409 `CONCURRENT_REQUEST_CONFLICT` (`PessimisticLockingFailureException` in `GlobalExceptionHandler`), Discord alert kept to measure frequency
+- Structural prevention (e.g. party-row-first lock) only once alerts show it actually happens — #199, accepted cases in `.claude/rules/party.md`
+- Not covered by this: races that corrupt data without an error (lost update, stale-snapshot overwrite) — a 409 never fires for them, so judge those separately
 
 ### UUID columns
 Every entity UUID column (business key or FK) carries `@JdbcTypeCode(Types.VARCHAR)`. H2 tests don't catch a missing one — the column type silently diverges from MySQL.

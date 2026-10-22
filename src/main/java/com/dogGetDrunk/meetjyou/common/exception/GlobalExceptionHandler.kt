@@ -10,6 +10,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NotFoundExcep
 import jakarta.servlet.http.HttpServletRequest
 import org.apache.catalina.connector.ClientAbortException
 import org.slf4j.LoggerFactory
+import org.springframework.dao.PessimisticLockingFailureException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.HttpStatusCode
@@ -222,6 +223,33 @@ class GlobalExceptionHandler(
         val status = HttpStatus.FORBIDDEN
         val errorResponse = ErrorResponse(status.value(), ErrorCode.ACCESS_DENIED)
         return ResponseEntity(errorResponse, status)
+    }
+
+    /**
+     * A row-lock deadlock (MySQL 1213) or lock wait timeout (1205), translated by Spring into a
+     * PessimisticLockingFailureException subtype. Rare, unnatural request overlaps (#165) are
+     * accepted instead of restructuring lock order: the transaction is fully rolled back and state
+     * changes are retry-idempotent, so the client can simply retry. Still alerted, so the
+     * frequency stays visible if the "rare" assumption needs revisiting.
+     */
+    @ExceptionHandler(PessimisticLockingFailureException::class)
+    fun handlePessimisticLockingFailure(
+        e: PessimisticLockingFailureException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        log.warn("Handling PessimisticLockingFailureException.", e)
+
+        val errorCode = ErrorCode.CONCURRENT_REQUEST_CONFLICT
+        discordAlertService.sendAlert(
+            request = request,
+            status = HttpStatus.CONFLICT.value(),
+            exceptionClass = e.javaClass.simpleName,
+            summary = "[${errorCode.name}] ${errorCode.message}",
+            detail = e.mostSpecificCause.message
+        )
+
+        val status = HttpStatus.CONFLICT
+        return ResponseEntity(ErrorResponse(status.value(), errorCode), status)
     }
 
     public override fun handleNoResourceFoundException(

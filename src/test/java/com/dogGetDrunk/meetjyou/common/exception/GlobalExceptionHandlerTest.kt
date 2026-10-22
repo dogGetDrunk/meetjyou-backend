@@ -8,7 +8,9 @@ import io.mockk.mockk
 import io.mockk.verify
 import jakarta.servlet.http.HttpServletRequest
 import java.io.IOException
+import java.sql.SQLTransactionRollbackException
 import org.apache.catalina.connector.ClientAbortException
+import org.springframework.dao.CannotAcquireLockException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -99,6 +101,38 @@ class GlobalExceptionHandlerTest : BehaviorSpec({
                 val method = resolver.resolveMethod(ClientAbortException(IOException("Broken pipe")))
 
                 method?.name shouldBe "handleClientAbortException"
+            }
+        }
+    }
+
+    given("두 트랜잭션이 역순으로 행을 잠가 MySQL이 교착으로 한쪽을 롤백하면") {
+        // Same exception chain the dockerTest deadlock scenarios produce (MySQL 1213, SQLState 40001).
+        val cause = SQLTransactionRollbackException(
+            "Deadlock found when trying to get lock; try restarting transaction",
+            "40001",
+            1213,
+        )
+        val exception = CannotAcquireLockException("could not execute statement", cause)
+
+        `when`("handlePessimisticLockingFailure를 호출하면") {
+            then("500이 아닌 409와 CONCURRENT_REQUEST_CONFLICT를 반환하고, 빈도 관측용 알림은 보낸다") {
+                clearMocks(discordAlertService)
+
+                val response = sut.handlePessimisticLockingFailure(exception, request)
+
+                response.statusCode shouldBe HttpStatus.CONFLICT
+                response.body?.errorCode shouldBe ErrorCode.CONCURRENT_REQUEST_CONFLICT.name
+                verify(exactly = 1) {
+                    discordAlertService.sendAlert(any(), HttpStatus.CONFLICT.value(), any(), any(), any())
+                }
+            }
+        }
+
+        `when`("예외 해석기가 핸들러를 고르면") {
+            then("catch-all 500 핸들러가 아니라 교착 전용 핸들러로 라우팅된다") {
+                val resolver = ExceptionHandlerMethodResolver(GlobalExceptionHandler::class.java)
+
+                resolver.resolveMethodByThrowable(exception)?.name shouldBe "handlePessimisticLockingFailure"
             }
         }
     }
