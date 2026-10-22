@@ -7,6 +7,7 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.common.exception.business.user.LastSocialAccountUnlinkException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.SocialAccountAlreadyLinkedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.support.assertWaitedOnLock
 import com.dogGetDrunk.meetjyou.user.dto.LinkSocialAccountRequest
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
@@ -205,7 +206,7 @@ class SocialAccountConcurrencyDockerTest : BehaviorSpec() {
 
                     providersOf(uuid) shouldBe listOf(AuthProvider.GOOGLE)
                     contention.contender.exceptionOrNull().shouldBeInstanceOf<LastSocialAccountUnlinkException>()
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
         }
@@ -225,7 +226,7 @@ class SocialAccountConcurrencyDockerTest : BehaviorSpec() {
                     contention.contender.exceptionOrNull().shouldBeInstanceOf<SocialAccountAlreadyLinkedException>()
                     providersOf(first) shouldContainExactlyInAnyOrder listOf(AuthProvider.KAKAO, AuthProvider.GOOGLE)
                     providersOf(second) shouldBe listOf(AuthProvider.KAKAO)
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
         }

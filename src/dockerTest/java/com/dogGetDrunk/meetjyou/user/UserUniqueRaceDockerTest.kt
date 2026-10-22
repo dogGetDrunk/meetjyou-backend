@@ -13,6 +13,7 @@ import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.preference.Personality
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
+import com.dogGetDrunk.meetjyou.support.assertWaitedOnLock
 import com.dogGetDrunk.meetjyou.terms.TermsService
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
@@ -302,7 +303,7 @@ class UserUniqueRaceDockerTest : BehaviorSpec() {
                     contention.contender.exceptionOrNull().shouldBeInstanceOf<DuplicateNicknameException>()
                     countUsersWithNickname(nickname) shouldBe 1
                     countSocialAccounts(loserSubject) shouldBe 0
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
         }
@@ -323,7 +324,7 @@ class UserUniqueRaceDockerTest : BehaviorSpec() {
                     contention.contender.getOrThrow().uuid shouldBe winner.uuid
                     countUsersWithNickname(nickname) shouldBe 1
                     countSocialAccounts(subject) shouldBe 1
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
 
@@ -342,7 +343,7 @@ class UserUniqueRaceDockerTest : BehaviorSpec() {
                     contention.contender.getOrThrow().uuid shouldBe winner.uuid
                     countUsersWithNickname(loserNickname) shouldBe 0
                     countSocialAccounts(subject) shouldBe 1
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
         }
@@ -368,7 +369,7 @@ class UserUniqueRaceDockerTest : BehaviorSpec() {
 
                     contention.contender.exceptionOrNull().shouldBeInstanceOf<DuplicateNicknameException>()
                     countUsersWithNickname(nickname) shouldBe 1
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
         }

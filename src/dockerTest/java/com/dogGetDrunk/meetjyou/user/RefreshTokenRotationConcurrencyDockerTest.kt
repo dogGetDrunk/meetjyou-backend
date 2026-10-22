@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshToken
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
+import com.dogGetDrunk.meetjyou.support.assertWaitedOnLock
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
@@ -215,7 +216,7 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
 
                     contention.contender.getOrThrow()
                     validTokenCount(user) shouldBe 1
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
         }
@@ -234,7 +235,7 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
 
                     contention.contender.getOrThrow()
                     validTokenCount(user) shouldBe 1
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
 
@@ -251,7 +252,7 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
 
                     contention.contender.exceptionOrNull().shouldBeInstanceOf<CustomJwtException>()
                     validTokenCount(user) shouldBe 0
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                 }
             }
         }
@@ -284,7 +285,7 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
 
                     contention.contender.getOrThrow()
                     validTokenCount(user) shouldBe 0
-                    contention.contenderWaitedOnLock shouldBe true
+                    assertWaitedOnLock(contention.contenderWaitedOnLock, contention.contender)
                     replacedByOf(a) shouldBe jdbc.queryForObject(SELECT_HEAD_JTI, String::class.java, user.id)
                 }
             }
