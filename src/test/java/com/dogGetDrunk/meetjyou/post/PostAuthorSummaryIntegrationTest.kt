@@ -6,6 +6,7 @@ import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyRepository
 import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
+import com.dogGetDrunk.meetjyou.post.dto.PostAuthorSummary
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.Role
 import com.dogGetDrunk.meetjyou.user.User
@@ -166,7 +167,7 @@ class PostAuthorSummaryIntegrationTest : BehaviorSpec() {
                     }
                     authors.getValue(withdrawnPost.toString()).let {
                         it.get("uuid").asText() shouldBe withdrawn.uuid.toString()
-                        it.get("nickname").isNull shouldBe true
+                        it.get("nickname").asText() shouldBe PostAuthorSummary.WITHDRAWN_NICKNAME
                         it.get("hasProfileImage").asBoolean() shouldBe false
                         it.get("isWithdrawn").asBoolean() shouldBe true
                     }
@@ -187,7 +188,7 @@ class PostAuthorSummaryIntegrationTest : BehaviorSpec() {
                     val detail = getJson("/posts/$postUuid", viewer).get("author")
 
                     for (author in listOf(byAuthor, detail)) {
-                        author.get("nickname").isNull shouldBe true
+                        author.get("nickname").asText() shouldBe PostAuthorSummary.WITHDRAWN_NICKNAME
                         author.get("hasProfileImage").asBoolean() shouldBe false
                         author.get("isWithdrawn").asBoolean() shouldBe true
                     }

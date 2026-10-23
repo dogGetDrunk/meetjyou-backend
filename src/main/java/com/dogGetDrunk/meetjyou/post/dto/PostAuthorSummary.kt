@@ -10,16 +10,21 @@ import java.util.UUID
  */
 data class PostAuthorSummary(
     val uuid: UUID,
-    val nickname: String?,
+    val nickname: String,
     val hasProfileImage: Boolean,
     val isWithdrawn: Boolean,
 ) {
     companion object {
+        // Non-null on purpose: a client that misses the withdrawn case still renders sane text
+        // instead of failing to decode the whole page. The space keeps it out of the nickname
+        // pattern, so no real user can register it.
+        const val WITHDRAWN_NICKNAME = "탈퇴한 사용자"
+
         fun of(author: User): PostAuthorSummary {
             val active = author.isActive()
             return PostAuthorSummary(
                 uuid = author.uuid,
-                nickname = author.nickname.takeIf { active },
+                nickname = if (active) author.nickname else WITHDRAWN_NICKNAME,
                 hasProfileImage = active && author.hasProfileImage,
                 isWithdrawn = !active,
             )

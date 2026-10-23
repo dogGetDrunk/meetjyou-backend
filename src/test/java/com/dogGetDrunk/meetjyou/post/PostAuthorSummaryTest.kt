@@ -31,7 +31,7 @@ class PostAuthorSummaryTest : BehaviorSpec({
 
                 PostAuthorSummary.of(author) shouldBe PostAuthorSummary(
                     uuid = author.uuid,
-                    nickname = null,
+                    nickname = PostAuthorSummary.WITHDRAWN_NICKNAME,
                     hasProfileImage = false,
                     isWithdrawn = true,
                 )
@@ -47,7 +47,7 @@ class PostAuthorSummaryTest : BehaviorSpec({
 
                 PostAuthorSummary.of(author) shouldBe PostAuthorSummary(
                     uuid = author.uuid,
-                    nickname = null,
+                    nickname = PostAuthorSummary.WITHDRAWN_NICKNAME,
                     hasProfileImage = false,
                     isWithdrawn = true,
                 )
