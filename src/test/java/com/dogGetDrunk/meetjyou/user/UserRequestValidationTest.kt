@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.user
 import com.dogGetDrunk.meetjyou.preference.Age
 import com.dogGetDrunk.meetjyou.preference.Gender
 import com.dogGetDrunk.meetjyou.preference.Personality
+import com.dogGetDrunk.meetjyou.post.dto.PostAuthorSummary
 import com.dogGetDrunk.meetjyou.user.dto.RegistrationRequest
 import com.dogGetDrunk.meetjyou.user.dto.UserUpdateRequest
 import io.kotest.core.spec.style.BehaviorSpec
@@ -104,6 +105,23 @@ class UserRequestValidationTest : BehaviorSpec({
             Then("기존 규칙대로 검증 실패") {
                 val request = buildRegistration(null).copy(nickname = "ㅋㅋ닉네임")
                 validator.validate(request).any { it.propertyPath.toString() == "nickname" } shouldBe true
+            }
+        }
+    }
+
+    // Post responses show this placeholder for withdrawn authors; a real user holding it would be
+    // indistinguishable from a withdrawn one.
+    Given("닉네임이 탈퇴 작성자 표시 문구와 같을 때") {
+        val nickname = PostAuthorSummary.WITHDRAWN_NICKNAME
+        When("가입·수정 요청을 검증하면") {
+            Then("둘 다 검증 실패") {
+                val requests = listOf(
+                    buildRegistration(null).copy(nickname = nickname),
+                    buildRequest(listOf(Personality.INTROVERTED)).copy(nickname = nickname),
+                )
+                for (request in requests) {
+                    validator.validate(request).any { it.propertyPath.toString() == "nickname" } shouldBe true
+                }
             }
         }
     }
