@@ -17,7 +17,7 @@ data class UserUpdateRequest(
     @field:Pattern(regexp = "^[a-zA-Z0-9가-힣]+$")
     val nickname: String,
     @field:Size(max = 30)
-    @field:Pattern(regexp = "^[a-zA-Z0-9가-힣\\s]*$")
+    @field:Pattern(regexp = BIO_PATTERN)
     val bio: String?,
     val gender: Gender,
     val age: Age,
