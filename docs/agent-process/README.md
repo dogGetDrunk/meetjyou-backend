@@ -8,7 +8,7 @@
 
 | 장치 | 내용 |
 |---|---|
-| `.claude/settings.json` permissions | PR 생성·머지 `ask`, 자격증명 조회 명령 `deny` (G5·G6) |
+| `.claude/settings.json` permissions | 자격증명 조회 명령 `deny` (G5). PR 생성·머지 `ask`(G6)는 2026-10-24 제거 — CLAUDE.md Git Workflow의 PR 생성·머지 무확인 정책과 상충 |
 | detekt | `config/detekt/detekt.yml`, 기존 위반은 `baseline.xml`에 동결 — 추가 금지 |
 | Konsist `ConventionTest` | `!!`, `requireNotNull`, 컨트롤러의 DTO `.of()`, 서비스의 `SecurityUtil` 직접 호출 금지 |
 | skip 테스트 차단 | skip된 테스트가 1개라도 있으면 빌드 실패 (G10) |
@@ -17,7 +17,7 @@
 
 ## 한계 (프로젝트 고유)
 
-- **권한 규칙은 세션 종류를 구분하지 못함**: "background job에서만 커밋·푸시 무확인"은 permission으로 표현 불가. 기준은 CLAUDE.md Git Workflow(명시 요청 시에만)와 사용자의 예외 합의. 커밋되는 장치는 PR 생성·머지 ask뿐
+- **프로젝트 `ask`는 로컬 `allow`로 못 덮음**: 권한 규칙은 범위 무관 deny → ask → allow 순 판정. 개인 환경에서만 확인을 끄는 방법이 없어, 커밋·PR 정책은 CLAUDE.md Git Workflow가 기준
 
 ## 갭 기록
 

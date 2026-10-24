@@ -1,9 +1,5 @@
 {
   "permissions": {
-    "ask": [
-      "Bash(gh pr create *)",
-      "Bash(gh pr merge *)"
-    ],
     "deny": [
       "Bash(git credential*)",
       "Bash(gh auth token *)",
