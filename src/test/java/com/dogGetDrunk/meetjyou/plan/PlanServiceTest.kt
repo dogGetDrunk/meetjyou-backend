@@ -6,9 +6,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDen
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyRepository
-import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
@@ -26,6 +24,7 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.mockk.verifyOrder
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import java.time.Instant
@@ -327,41 +326,20 @@ class PlanServiceTest : BehaviorSpec() {
             }
 
             `when`("파티와 모집글이 이 계획서를 참조하고 있으면") {
-                then("FK 참조를 해제한 뒤 Plan을 삭제한다") {
-                    val party = Party(
-                        itinStart = Instant.parse("2026-05-01T00:00:00Z"),
-                        itinFinish = Instant.parse("2026-05-05T00:00:00Z"),
-                        destination = "Seoul",
-                        joined = 1,
-                        capacity = 4,
-                        name = "Trip",
-                    ).apply { this.plan = plan }
-                    val post = Post(
-                        party = party,
-                        isInstant = false,
-                        title = "title",
-                        content = "content",
-                        itinStart = Instant.parse("2026-05-01T00:00:00Z"),
-                        itinFinish = Instant.parse("2026-05-05T00:00:00Z"),
-                        location = "Seoul",
-                        capacity = 4,
-                    ).apply {
-                        this.plan = plan
-                        this.isPlanPublic = true
-                    }
-
+                then("게시글 → 파티 순으로 FK 참조를 해제한 뒤 Plan을 삭제한다") {
                     every { planRepository.findByUuid(plan.uuid) } returns plan
                     every { currentUserProvider.uuid } returns owner.uuid
-                    every { partyRepository.findAllByPlan_Uuid(plan.uuid) } returns listOf(party)
-                    every { postRepository.findAllByPlan_UuidIn(listOf(plan.uuid)) } returns listOf(post)
+                    every { postRepository.detachPlan(plan) } returns 1
+                    every { partyRepository.detachPlan(plan) } returns 1
 
                     sut.deletePlan(plan.uuid)
 
-                    party.plan shouldBe null
-                    post.plan shouldBe null
-                    post.isPlanPublic shouldBe null
-                    verify(exactly = 1) { markerRepository.deleteAllByPlan(plan) }
-                    verify(exactly = 1) { planRepository.delete(plan) }
+                    verifyOrder {
+                        postRepository.detachPlan(plan)
+                        partyRepository.detachPlan(plan)
+                        markerRepository.deleteAllByPlan(plan)
+                        planRepository.delete(plan)
+                    }
                 }
             }
         }

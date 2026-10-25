@@ -26,3 +26,4 @@ Opting a new create endpoint in:
 - Posts of a COMPLETED party are read-only. A write to post `status` takes the party row lock (`PartyService.lockPartyOfPost`) before loading the post — `completeParty` writes the same column under that lock (see party rules)
 - Plan read access goes through `PlanAccessGuard.validateReadAccess` (owner / public post / JOINED member)
 - No ON DELETE CASCADE on plan FKs — deleting a plan detaches `party.plan`, `post.plan`, `post.isPlanPublic` first
+- That detach is a bulk `UPDATE ... WHERE plan = ?` (`detachPlan`), post before party — never load-and-null the rows: a snapshot read would overwrite a link switched to another plan meanwhile (#201), and post-first matches `updatePost`'s write order (no deadlock)
