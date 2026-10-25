@@ -1,97 +1,104 @@
 package com.dogGetDrunk.meetjyou.common.exception
 
+import org.springframework.http.HttpStatus
+
+/**
+ * The HTTP status lives next to each code, so changing what a failure responds with is a
+ * one-line edit here instead of moving the exception under another base class.
+ */
 enum class ErrorCode(
+    val status: HttpStatus,
     val message: String,
 ) {
     // Business
-    DUPLICATE("Duplicate value"),
-    NOT_FOUND("Value not found"),
-    INVALID_INPUT_VALUE("Invalid input value"),
+    DUPLICATE(HttpStatus.CONFLICT, "Duplicate value"),
+    NOT_FOUND(HttpStatus.NOT_FOUND, "Value not found"),
+    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "Invalid input value"),
 
     // User
-    DUPLICATE_USER("Duplicate email"),
-    DUPLICATE_NICKNAME("Duplicate nickname"),
-    USER_NOT_FOUND("User not found"),
+    DUPLICATE_USER(HttpStatus.CONFLICT, "Duplicate email"),
+    DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "Duplicate nickname"),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
 
     // Social account
-    SOCIAL_ACCOUNT_ALREADY_LINKED("Social account is linked to another user"),
-    SOCIAL_PROVIDER_ALREADY_LINKED("Another account of this provider is already linked"),
-    SOCIAL_ACCOUNT_NOT_LINKED("Social account is not linked"),
-    LAST_SOCIAL_ACCOUNT_UNLINK("Cannot unlink the last social account"),
+    SOCIAL_ACCOUNT_ALREADY_LINKED(HttpStatus.CONFLICT, "Social account is linked to another user"),
+    SOCIAL_PROVIDER_ALREADY_LINKED(HttpStatus.CONFLICT, "Another account of this provider is already linked"),
+    SOCIAL_ACCOUNT_NOT_LINKED(HttpStatus.NOT_FOUND, "Social account is not linked"),
+    LAST_SOCIAL_ACCOUNT_UNLINK(HttpStatus.BAD_REQUEST, "Cannot unlink the last social account"),
 
     // JWT
-    TOKEN_COMMON("The token has an issue"),
-    EXPIRED_TOKEN("The token has expired"),
-    INCORRECT_TOKEN_SUBJECT("The subject in the token is incorrect"),
-    MISSING_AUTHORIZATION_HEADER("This authorization header is invalid"),
-    INVALID_JWT("The JWT is invalid"),
-    USER_WITHDRAWN("This account has been withdrawn"),
+    TOKEN_COMMON(HttpStatus.UNAUTHORIZED, "The token has an issue"),
+    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "The token has expired"),
+    INCORRECT_TOKEN_SUBJECT(HttpStatus.UNAUTHORIZED, "The subject in the token is incorrect"),
+    MISSING_AUTHORIZATION_HEADER(HttpStatus.UNAUTHORIZED, "This authorization header is invalid"),
+    INVALID_JWT(HttpStatus.UNAUTHORIZED, "The JWT is invalid"),
+    USER_WITHDRAWN(HttpStatus.UNAUTHORIZED, "This account has been withdrawn"),
 
     // Auth
-    AUTHENTICATION_FAILED("Authentication failed"),
-    ACCESS_DENIED("Access denied"),
-    UNAUTHENTICATED("Unauthenticated"),
+    AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "Authentication failed"),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "Access denied"),
+    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "Unauthenticated"),
 
     // Version
-    VERSION_NOT_FOUND("Version not found"),
-    DUPLICATE_VERSION("Duplicate version for platform"),
+    VERSION_NOT_FOUND(HttpStatus.NOT_FOUND, "Version not found"),
+    DUPLICATE_VERSION(HttpStatus.CONFLICT, "Duplicate version for platform"),
 
     // Notice
-    NOTICE_NOT_FOUND("Notice not found"),
+    NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "Notice not found"),
 
     // Post
-    POST_NOT_FOUND("Post not found"),
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Post not found"),
 
     // Plan
-    PLAN_NOT_FOUND("Plan not found"),
+    PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "Plan not found"),
 
     // Party
-    PARTY_NOT_FOUND("Party not found"),
-    PARTY_RECRUITMENT_CLOSED("Party recruitment is closed"),
-    PARTY_FULL("Party is at full capacity"),
-    PARTY_JOIN_NOT_ALLOWED("Cannot join this party"),
-    PARTY_SELF_BAN_NOT_ALLOWED("Cannot ban yourself"),
-    PARTY_HOST_BAN_NOT_ALLOWED("Cannot ban the host"),
-    PARTY_INACTIVE_MEMBER_BAN("Target member is not active"),
-    PARTY_HOST_LEAVE_NOT_ALLOWED("Host cannot leave the party"),
-    PARTY_INACTIVE_MEMBER_LEAVE("Member is not active"),
-    PARTY_JOIN_ALREADY_MEMBER("User is already a member"),
-    PARTY_JOIN_BANNED("Banned users cannot rejoin"),
-    PARTY_JOIN_REQUEST_NOT_FOUND("No pending join request found"),
-    PARTY_JOIN_REJECTED_COOLDOWN("Cannot rejoin within 24 hours of rejection"),
-    PARTY_JOIN_CANCEL_NOT_ALLOWED("Only pending join requests can be cancelled"),
+    PARTY_NOT_FOUND(HttpStatus.NOT_FOUND, "Party not found"),
+    PARTY_RECRUITMENT_CLOSED(HttpStatus.BAD_REQUEST, "Party recruitment is closed"),
+    PARTY_FULL(HttpStatus.BAD_REQUEST, "Party is at full capacity"),
+    PARTY_JOIN_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Cannot join this party"),
+    PARTY_SELF_BAN_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Cannot ban yourself"),
+    PARTY_HOST_BAN_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Cannot ban the host"),
+    PARTY_INACTIVE_MEMBER_BAN(HttpStatus.BAD_REQUEST, "Target member is not active"),
+    PARTY_HOST_LEAVE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Host cannot leave the party"),
+    PARTY_INACTIVE_MEMBER_LEAVE(HttpStatus.BAD_REQUEST, "Member is not active"),
+    PARTY_JOIN_ALREADY_MEMBER(HttpStatus.BAD_REQUEST, "User is already a member"),
+    PARTY_JOIN_BANNED(HttpStatus.BAD_REQUEST, "Banned users cannot rejoin"),
+    PARTY_JOIN_REQUEST_NOT_FOUND(HttpStatus.BAD_REQUEST, "No pending join request found"),
+    PARTY_JOIN_REJECTED_COOLDOWN(HttpStatus.BAD_REQUEST, "Cannot rejoin within 24 hours of rejection"),
+    PARTY_JOIN_CANCEL_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Only pending join requests can be cancelled"),
 
     // Chat
-    CHATROOM_NOT_FOUND("Chat room not found"),
-    CHATROOM_ACCESS_DENIED("Chat room access denied"),
-    EMPTY_CHAT_MESSAGE("Chat message is empty"),
-    CHAT_MESSAGE_TOO_LONG("Chat message is too long"),
-    CHAT_MESSAGE_NOT_FOUND("Chat message not found"),
+    CHATROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Chat room not found"),
+    CHATROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Chat room access denied"),
+    EMPTY_CHAT_MESSAGE(HttpStatus.BAD_REQUEST, "Chat message is empty"),
+    CHAT_MESSAGE_TOO_LONG(HttpStatus.BAD_REQUEST, "Chat message is too long"),
+    CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "Chat message not found"),
 
     // Push token
-    PUSH_TOKEN_NOT_FOUND("Push token not found"),
+    PUSH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "Push token not found"),
 
     // Preference
-    PREFERENCE_NOT_FOUND("Preference not found"),
+    PREFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "Preference not found"),
 
     // Terms
-    INVALID_TERMS_UUID("Invalid terms UUID"),
-    TERMS_NOT_FOUND("Terms not found"),
-    INACTIVE_TERMS_ACCESS("Inactive terms cannot be accessed"),
-    INVALID_TERMS_AGREEMENT("Invalid terms agreement"),
-    MISSING_REQUIRED_TERMS_AGREEMENT("Missing required terms agreement"),
-    TERMS_CONTENT_VERIFICATION_FAILED("Terms content object could not be verified"),
-    DUPLICATE_TERMS_VERSION("Duplicate terms version for type"),
+    INVALID_TERMS_UUID(HttpStatus.BAD_REQUEST, "Invalid terms UUID"),
+    TERMS_NOT_FOUND(HttpStatus.NOT_FOUND, "Terms not found"),
+    INACTIVE_TERMS_ACCESS(HttpStatus.BAD_REQUEST, "Inactive terms cannot be accessed"),
+    INVALID_TERMS_AGREEMENT(HttpStatus.BAD_REQUEST, "Invalid terms agreement"),
+    MISSING_REQUIRED_TERMS_AGREEMENT(HttpStatus.BAD_REQUEST, "Missing required terms agreement"),
+    TERMS_CONTENT_VERIFICATION_FAILED(HttpStatus.BAD_REQUEST, "Terms content object could not be verified"),
+    DUPLICATE_TERMS_VERSION(HttpStatus.CONFLICT, "Duplicate terms version for type"),
 
     // Idempotency
-    IDEMPOTENCY_KEY_REUSED("Idempotency key reused with a different request body"),
+    IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, "Idempotency key reused with a different request body"),
 
     // Concurrency
-    CONCURRENT_REQUEST_CONFLICT("Conflicting concurrent request, please retry"),
+    CONCURRENT_REQUEST_CONFLICT(HttpStatus.CONFLICT, "Conflicting concurrent request, please retry"),
 
     // Server
-    INTERNAL_SERVER_ERROR("Internal server error"),
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error"),
 
     // Rate limit
-    RATE_LIMIT_EXCEEDED("Too many requests"),
+    RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "Too many requests"),
 }

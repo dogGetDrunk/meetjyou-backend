@@ -1,6 +1,12 @@
 package com.dogGetDrunk.meetjyou.common.exception
 
 import com.dogGetDrunk.meetjyou.common.discord.DiscordAlertService
+import com.dogGetDrunk.meetjyou.common.exception.business.auth.UnauthenticatedException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomExpiredJwtException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyFullException
+import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.DuplicateNicknameException
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
@@ -9,6 +15,7 @@ import io.mockk.verify
 import jakarta.servlet.http.HttpServletRequest
 import java.io.IOException
 import java.sql.SQLTransactionRollbackException
+import java.util.UUID
 import org.apache.catalina.connector.ClientAbortException
 import org.springframework.dao.CannotAcquireLockException
 import org.springframework.http.HttpHeaders
@@ -38,6 +45,41 @@ class GlobalExceptionHandlerTest : BehaviorSpec({
 
                 response.statusCode shouldBe HttpStatus.FORBIDDEN
                 response.body?.errorCode shouldBe ErrorCode.ACCESS_DENIED.name
+            }
+        }
+    }
+
+    given("기반 클래스마다 다른 도메인 예외가 발생하면") {
+        val uuid = UUID.randomUUID()
+        val cases = listOf(
+            PartyFullException(uuid) to HttpStatus.BAD_REQUEST,
+            PostNotFoundException(uuid) to HttpStatus.NOT_FOUND,
+            DuplicateNicknameException("dup") to HttpStatus.CONFLICT,
+            PostUpdateAccessDeniedException(uuid, uuid) to HttpStatus.FORBIDDEN,
+            UnauthenticatedException(uuid.toString()) to HttpStatus.UNAUTHORIZED,
+            CustomExpiredJwtException(null) to HttpStatus.UNAUTHORIZED,
+        )
+
+        `when`("예외 해석기가 핸들러를 고르면") {
+            then("모두 단일 BusinessException 핸들러로 라우팅된다") {
+                val resolver = ExceptionHandlerMethodResolver(GlobalExceptionHandler::class.java)
+
+                cases.forEach { (exception, _) ->
+                    (exception::class.simpleName to resolver.resolveMethodByThrowable(exception)?.name) shouldBe
+                        (exception::class.simpleName to "handleBusinessException")
+                }
+            }
+        }
+
+        `when`("handleBusinessException을 호출하면") {
+            then("기반 클래스별 기존 상태와 같은 상태·본문으로 응답한다") {
+                cases.forEach { (exception, expected) ->
+                    val response = sut.handleBusinessException(exception, request)
+
+                    response.statusCode shouldBe expected
+                    response.body?.status shouldBe expected.value()
+                    response.body?.errorCode shouldBe exception.errorCode.name
+                }
             }
         }
     }
