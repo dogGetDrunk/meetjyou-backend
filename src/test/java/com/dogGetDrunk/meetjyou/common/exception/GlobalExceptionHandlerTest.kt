@@ -13,21 +13,25 @@ import io.mockk.clearMocks
 import io.mockk.mockk
 import io.mockk.verify
 import jakarta.servlet.http.HttpServletRequest
-import java.io.IOException
-import java.sql.SQLTransactionRollbackException
-import java.util.UUID
 import org.apache.catalina.connector.ClientAbortException
+import org.hibernate.exception.ConstraintViolationException
 import org.springframework.dao.CannotAcquireLockException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.authorization.AuthorizationDeniedException
 import org.springframework.security.authorization.AuthorizationResult
+import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.context.request.ServletWebRequest
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver
 import org.springframework.web.servlet.resource.NoResourceFoundException
+import java.io.IOException
+import java.sql.SQLIntegrityConstraintViolationException
+import java.sql.SQLTransactionRollbackException
+import java.util.UUID
 
 class GlobalExceptionHandlerTest : BehaviorSpec({
 
@@ -51,20 +55,21 @@ class GlobalExceptionHandlerTest : BehaviorSpec({
 
     given("기반 클래스마다 다른 도메인 예외가 발생하면") {
         val uuid = UUID.randomUUID()
+        // One per base class; which status each code maps to is pinned by ErrorCodeStatusTest.
         val cases = listOf(
-            PartyFullException(uuid) to HttpStatus.BAD_REQUEST,
-            PostNotFoundException(uuid) to HttpStatus.NOT_FOUND,
-            DuplicateNicknameException("dup") to HttpStatus.CONFLICT,
-            PostUpdateAccessDeniedException(uuid, uuid) to HttpStatus.FORBIDDEN,
-            UnauthenticatedException(uuid.toString()) to HttpStatus.UNAUTHORIZED,
-            CustomExpiredJwtException(null) to HttpStatus.UNAUTHORIZED,
+            PartyFullException(uuid),
+            PostNotFoundException(uuid),
+            DuplicateNicknameException("dup"),
+            PostUpdateAccessDeniedException(uuid, uuid),
+            UnauthenticatedException(uuid.toString()),
+            CustomExpiredJwtException(null),
         )
 
         `when`("예외 해석기가 핸들러를 고르면") {
             then("모두 단일 BusinessException 핸들러로 라우팅된다") {
                 val resolver = ExceptionHandlerMethodResolver(GlobalExceptionHandler::class.java)
 
-                cases.forEach { (exception, _) ->
+                cases.forEach { exception ->
                     (exception::class.simpleName to resolver.resolveMethodByThrowable(exception)?.name) shouldBe
                         (exception::class.simpleName to "handleBusinessException")
                 }
@@ -72,13 +77,73 @@ class GlobalExceptionHandlerTest : BehaviorSpec({
         }
 
         `when`("handleBusinessException을 호출하면") {
-            then("기반 클래스별 기존 상태와 같은 상태·본문으로 응답한다") {
-                cases.forEach { (exception, expected) ->
+            then("기반 클래스와 무관하게 ErrorCode의 상태·본문으로 응답한다") {
+                cases.forEach { exception ->
                     val response = sut.handleBusinessException(exception, request)
+                    val expected = exception.errorCode.status
 
                     response.statusCode shouldBe expected
                     response.body?.status shouldBe expected.value()
                     response.body?.errorCode shouldBe exception.errorCode.name
+                }
+            }
+        }
+    }
+
+    given("동시 요청이 unique 인덱스 경합에서 지면") {
+        fun violation(constraint: String) = DataIntegrityViolationException(
+            "could not execute statement",
+            ConstraintViolationException("Duplicate entry", SQLIntegrityConstraintViolationException(), constraint),
+        )
+
+        `when`("매핑된 제약(참가 신청 중복 uk_user_party)이면") {
+            then("500이 아닌 409 CONCURRENT_REQUEST_CONFLICT와 빈도 관측 알림을 보낸다") {
+                clearMocks(discordAlertService)
+
+                val response = sut.handleDataIntegrityViolation(violation("user_party.uk_user_party"), request)
+
+                response.statusCode shouldBe HttpStatus.CONFLICT
+                response.body?.errorCode shouldBe ErrorCode.CONCURRENT_REQUEST_CONFLICT.name
+                verify(exactly = 1) {
+                    discordAlertService.sendObservationAlert(
+                        any(), HttpStatus.CONFLICT.value(), any(), any(), "uk_user_party",
+                    )
+                }
+            }
+        }
+
+        `when`("관리자 경로 제약(uk_terms_type_version)이면") {
+            then("기존 중복 에러 코드로 409를 반환한다") {
+                val response = sut.handleDataIntegrityViolation(violation("terms.uk_terms_type_version"), request)
+
+                response.statusCode shouldBe HttpStatus.CONFLICT
+                response.body?.errorCode shouldBe ErrorCode.DUPLICATE_TERMS_VERSION.name
+            }
+        }
+
+        `when`("매핑되지 않은 제약(FK 등)이면") {
+            then("버그로 보고 500으로 남긴다") {
+                val response = sut.handleDataIntegrityViolation(violation("fk_post_view_logs_post"), request)
+
+                response.statusCode shouldBe HttpStatus.INTERNAL_SERVER_ERROR
+            }
+        }
+    }
+
+    given("Spring 내장 예외가 405·415·413으로 처리되면") {
+        `when`("handleExceptionInternal을 호출하면") {
+            then("일괄 INVALID_INPUT_VALUE가 아닌 상태에 맞는 errorCode를 준다") {
+                val exception = HttpRequestMethodNotSupportedException("PATCH")
+                listOf(
+                    HttpStatus.METHOD_NOT_ALLOWED to ErrorCode.METHOD_NOT_ALLOWED,
+                    HttpStatus.UNSUPPORTED_MEDIA_TYPE to ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+                    HttpStatus.PAYLOAD_TOO_LARGE to ErrorCode.PAYLOAD_TOO_LARGE,
+                    HttpStatus.BAD_REQUEST to ErrorCode.INVALID_INPUT_VALUE,
+                ).forEach { (status, code) ->
+                    val response = sut.handleExceptionInternal(exception, null, HttpHeaders(), status, webRequest)
+
+                    response.statusCode shouldBe status
+                    (response.body as ErrorResponse).errorCode shouldBe code.name
                 }
             }
         }

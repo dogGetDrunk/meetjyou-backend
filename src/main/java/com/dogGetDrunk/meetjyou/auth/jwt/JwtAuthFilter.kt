@@ -3,7 +3,7 @@ package com.dogGetDrunk.meetjyou.auth.jwt
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
-import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.config.ApiVersionConfig.Companion.V1
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain

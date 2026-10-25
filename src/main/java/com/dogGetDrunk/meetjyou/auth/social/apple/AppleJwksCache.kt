@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.auth.social.apple
 
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.business.ExternalServiceException
 import com.nimbusds.jose.KeySourceException
 import com.nimbusds.jose.jwk.JWKMatcher
 import com.nimbusds.jose.jwk.JWKSelector
@@ -31,8 +33,8 @@ class AppleJwksCache(
 
     /**
      * Returns null for an unknown kid (caller rejects the token as 401).
-     * Throws [IllegalStateException] when no key set is available at all, so a provider outage
-     * surfaces as a server error instead of being disguised as an invalid token.
+     * Throws [ExternalServiceException] (503) when no key set is available at all, so a provider
+     * outage surfaces as such instead of being disguised as an invalid token.
      */
     fun getRsaKeyByKid(kid: String): RSAKey? {
         val selector = JWKSelector(JWKMatcher.Builder().keyID(kid).keyType(KeyType.RSA).build())
@@ -42,12 +44,13 @@ class AppleJwksCache(
             log.warn("Apple JWKS refresh rate-limited for unknown kid={} reason={}", kid, e.message)
             return null
         } catch (e: KeySourceException) {
-            throw IllegalStateException("Failed to fetch Apple JWKs", e)
+            throw ExternalServiceException(ErrorCode.SOCIAL_PROVIDER_UNAVAILABLE, APPLE_JWKS, e)
         }
         return matches.firstOrNull() as? RSAKey
     }
 
     companion object {
+        private const val APPLE_JWKS = "apple-jwks"
         val OUTAGE_TOLERANCE: Duration = Duration.ofHours(24)
         val RATE_LIMIT_INTERVAL: Duration = Duration.ofSeconds(30)
         private val CACHE_REFRESH_TIMEOUT: Duration = Duration.ofSeconds(15)

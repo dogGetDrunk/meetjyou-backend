@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.auth.social.apple
 
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.business.ExternalServiceException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
@@ -57,18 +59,20 @@ class AppleJwksCacheTest : BehaviorSpec() {
 
                     Thread.sleep(PAST_OUTAGE_TOLERANCE_MILLIS)
 
-                    shouldThrow<IllegalStateException> { cache.getRsaKeyByKid(KID_1) }
+                    shouldThrow<ExternalServiceException> { cache.getRsaKeyByKid(KID_1) }.errorCode shouldBe
+                        ErrorCode.SOCIAL_PROVIDER_UNAVAILABLE
                 }
             }
         }
 
         given("키 셋을 한 번도 받지 못한 상태에서") {
             `when`("Apple JWKS 조회가 실패하면") {
-                then("토큰 오류로 위장하지 않고 서버 오류로 실패한다") {
+                then("토큰 오류로 위장하지 않고 공급자 장애(503)로 실패한다") {
                     val origin = FakeOrigin(JWKSet(KEY_1.toPublicJWK())).apply { failing = true }
                     val cache = AppleJwksCache.create(origin, LONG_TTL)
 
-                    shouldThrow<IllegalStateException> { cache.getRsaKeyByKid(KID_1) }
+                    shouldThrow<ExternalServiceException> { cache.getRsaKeyByKid(KID_1) }.errorCode shouldBe
+                        ErrorCode.SOCIAL_PROVIDER_UNAVAILABLE
                 }
             }
         }

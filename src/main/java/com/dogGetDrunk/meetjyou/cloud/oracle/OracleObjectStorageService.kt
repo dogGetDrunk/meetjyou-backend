@@ -5,6 +5,8 @@ import com.dogGetDrunk.meetjyou.config.OracleProps
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.oracle.bmc.model.BmcException
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.business.ExternalServiceException
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.objectstorage.model.CreatePreauthenticatedRequestDetails
 import com.oracle.bmc.objectstorage.requests.CreatePreauthenticatedRequestRequest
@@ -147,8 +149,17 @@ class OracleObjectStorageService(
             .createPreauthenticatedRequestDetails(details)
             .build()
 
-        val response = objectStorageClient.createPreauthenticatedRequest(request)
-        return response.preauthenticatedRequest ?: error("Failed to create OCI PAR.")
+        val response = try {
+            objectStorageClient.createPreauthenticatedRequest(request)
+        } catch (e: BmcException) {
+            throw ExternalServiceException(ErrorCode.IMAGE_STORAGE_UNAVAILABLE, objectKey, e)
+        }
+        return response.preauthenticatedRequest
+            ?: throw ExternalServiceException(
+                ErrorCode.IMAGE_STORAGE_UNAVAILABLE,
+                objectKey,
+                IllegalStateException("OCI returned no PAR"),
+            )
     }
 
     private fun buildParName(

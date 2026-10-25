@@ -66,6 +66,10 @@ val uuid = currentUserProvider.uuid   // UUID only, no DB hit
 val party = partyRepository.findByUuid(uuid) ?: throw PartyNotFoundException(uuid)
 ```
 
+### Error responses
+- HTTP status lives on `ErrorCode(status, message)`, one handler for every `BusinessException` — never pick a base class for its status. `ErrorCodeStatusTest` pins every code's status: a change edits that table on purpose
+- Rejected for the current state (full, closed, already member) → 409, malformed input → 400, outside dependency down → `ExternalServiceException` (503)
+
 ### DTO conversion
 Service returns DTOs via companion `.of()` factory. Controllers never call `.of()` themselves.
 ```kotlin
@@ -88,6 +92,7 @@ Read-only methods require `@Transactional(readOnly = true)`. Write methods use `
 ### Concurrency bugs
 - Rare races from unnatural request overlaps (e.g. lock-order deadlocks) → handle after the fact, don't restructure locking: full rollback + 409 `CONCURRENT_REQUEST_CONFLICT` (`PessimisticLockingFailureException` in `GlobalExceptionHandler`), Discord alert kept to measure frequency
 - Structural prevention (e.g. party-row-first lock) only once alerts show it actually happens — #199, accepted cases in `.claude/rules/party.md`
+- Lost unique-index races on paths without their own translation → `UniqueConstraintConflicts` (constraint name → `ErrorCode`, 409 + observation alert); an unmapped name stays a 500. A new unique index on such a path needs an entry
 - Not covered by this: races that corrupt data without an error (lost update, stale-snapshot overwrite) — a 409 never fires for them, so judge those separately
 
 ### UUID columns

@@ -422,13 +422,13 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
         // change loads the entry, so a missed eviction shows up as the old state for up to the TTL.
         given("인증 유저 캐시가 채워진 상태에서") {
             `when`("탈퇴하면") {
-                then("같은 access token의 다음 요청이 바로 401을 받는다") {
+                then("같은 access token의 다음 요청이 바로 403(탈퇴)을 받는다") {
                     val tokens = signUpWithGoogle(subject = "google-sub-cache-withdraw", email = "cache-w@gmail.com")
                     getMyProfileStatus(tokens.accessToken) shouldBe HttpStatus.OK
 
                     withdrawStatus(tokens.accessToken) shouldBe HttpStatus.OK
 
-                    getMyProfileStatus(tokens.accessToken) shouldBe HttpStatus.UNAUTHORIZED
+                    getMyProfileStatus(tokens.accessToken) shouldBe HttpStatus.FORBIDDEN
                 }
             }
             `when`("엔티티로 role을 ADMIN으로 바꾸면") {
@@ -452,7 +452,7 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
                     withdrawStatus(old.accessToken) shouldBe HttpStatus.OK
                     expireWithdrawal(old.uuid)
 
-                    loginWithGoogle(SUB_PURGE, "purge@gmail.com") shouldBe HttpStatus.UNAUTHORIZED
+                    loginWithGoogle(SUB_PURGE, "purge@gmail.com") shouldBe HttpStatus.FORBIDDEN
 
                     withdrawnUserPurgeScheduler.purgeExpiredWithdrawals()
 
@@ -555,14 +555,14 @@ class AuthSecurityReproIntegrationTest : BehaviorSpec() {
 
         given("Kakao JWK set을 가져오지 못하는 provider 장애 상황에서") {
             `when`("가입을 요청하면") {
-                then("토큰 오류(401)로 위장되지 않고 서버 오류로 응답한다") {
+                then("토큰 오류(401)로 위장되지 않고 공급자 장애(503)로 응답한다") {
                     val (_, cookie) = issueNonce()
                     val outage = JwtException("Couldn't retrieve remote JWK set")
                     `when`(kakaoJwtDecoder.decode(anyString())).thenThrow(outage)
 
                     val response = register(AuthProvider.KAKAO, "kakao@example.com", cookie)
 
-                    response.status() shouldBe HttpStatus.INTERNAL_SERVER_ERROR
+                    response.status() shouldBe HttpStatus.SERVICE_UNAVAILABLE
                 }
             }
         }

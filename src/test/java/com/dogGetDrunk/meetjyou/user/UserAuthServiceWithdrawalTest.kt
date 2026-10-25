@@ -7,7 +7,7 @@ import com.dogGetDrunk.meetjyou.auth.social.IdToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifier
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
-import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.user.dto.LoginRequest
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.assertions.throwables.shouldThrow

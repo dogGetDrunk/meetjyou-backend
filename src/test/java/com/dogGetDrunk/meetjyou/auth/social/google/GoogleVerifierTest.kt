@@ -2,6 +2,8 @@ package com.dogGetDrunk.meetjyou.auth.social.google
 
 import com.dogGetDrunk.meetjyou.auth.social.AccessToken
 import com.dogGetDrunk.meetjyou.auth.social.IdToken
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.business.ExternalServiceException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
@@ -16,6 +18,7 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
+import java.io.IOException
 
 class GoogleVerifierTest : BehaviorSpec() {
 
@@ -96,6 +99,17 @@ class GoogleVerifierTest : BehaviorSpec() {
                     shouldThrow<InvalidJwtException> {
                         sut.verifyAndExtract(IdToken("invalid.id.token"), nonce = "test-nonce")
                     }
+                }
+            }
+
+            `when`("Google 공개키를 가져오지 못하면(IOException)") {
+                then("토큰 오류가 아닌 공급자 장애(ExternalServiceException, 503)로 던진다") {
+                    every { googleIdTokenVerifier.verify("valid.id.token") } throws IOException("certs unreachable")
+
+                    val e = shouldThrow<ExternalServiceException> {
+                        sut.verifyAndExtract(IdToken("valid.id.token"), "test-nonce")
+                    }
+                    e.errorCode shouldBe ErrorCode.SOCIAL_PROVIDER_UNAVAILABLE
                 }
             }
 

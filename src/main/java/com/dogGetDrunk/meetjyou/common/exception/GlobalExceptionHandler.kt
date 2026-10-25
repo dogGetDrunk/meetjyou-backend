@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 import jakarta.servlet.http.HttpServletRequest
 import org.apache.catalina.connector.ClientAbortException
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.dao.PessimisticLockingFailureException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -85,8 +86,8 @@ class GlobalExceptionHandler(
      * Provider id_tokens decoded by Spring's NimbusJwtDecoder (Kakao) fail with Spring Security's
      * exceptions rather than our CustomJwtException. Only BadJwtException (expired, malformed,
      * bad signature, failed claim validation) is the client's fault and maps to 401. Its parent
-     * JwtException also covers provider-side failures such as an unreachable JWK set; those stay
-     * on the 500 catch-all so an outage is not reported to clients as a bad token.
+     * JwtException also covers provider-side failures such as an unreachable JWK set; KakaoVerifier
+     * turns those into ExternalServiceException (503) so an outage is not reported as a bad token.
      */
     @ExceptionHandler(BadJwtException::class)
     fun handleProviderJwtException(
@@ -152,6 +153,30 @@ class GlobalExceptionHandler(
 
         val status = HttpStatus.CONFLICT
         return ResponseEntity(ErrorResponse(errorCode), status)
+    }
+
+    /**
+     * A unique-index race on a path without its own translation (see [UniqueConstraintConflicts]).
+     * Lost races get their 409 and, like deadlocks, an observation alert so the frequency stays
+     * visible; anything unmapped is a bug and goes through the 500 catch-all.
+     */
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleDataIntegrityViolation(
+        e: DataIntegrityViolationException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val errorCode = UniqueConstraintConflicts.errorCodeFor(e)
+            ?: return handleUnexpectedException(e, request)
+        log.warn("Concurrent request lost a unique constraint race. constraint: {}", e.violatedConstraintName())
+
+        discordAlertService.sendObservationAlert(
+            request = request,
+            status = errorCode.status.value(),
+            exceptionClass = e.javaClass.simpleName,
+            summary = "[${errorCode.name}] ${errorCode.message}",
+            detail = e.violatedConstraintName(),
+        )
+        return ResponseEntity(ErrorResponse(errorCode), errorCode.status)
     }
 
     public override fun handleNoResourceFoundException(
@@ -250,10 +275,21 @@ class GlobalExceptionHandler(
         // e.message can carry parser internals (DTO class names, field paths); it stays in the log only.
         val errorResponse = ErrorResponse(
             httpStatus.value(),
-            ErrorCode.INVALID_INPUT_VALUE.name,
+            builtInErrorCode(httpStatus).name,
             httpStatus.reasonPhrase,
         )
         return ResponseEntity(errorResponse, httpStatus)
+    }
+
+    // Spring decides the status; this only gives clients a code matching it instead of a blanket
+    // INVALID_INPUT_VALUE on a 405 or 415.
+    private fun builtInErrorCode(status: HttpStatus): ErrorCode = when {
+        status == HttpStatus.NOT_FOUND -> ErrorCode.NOT_FOUND
+        status == HttpStatus.METHOD_NOT_ALLOWED -> ErrorCode.METHOD_NOT_ALLOWED
+        status == HttpStatus.UNSUPPORTED_MEDIA_TYPE -> ErrorCode.UNSUPPORTED_MEDIA_TYPE
+        status == HttpStatus.PAYLOAD_TOO_LARGE -> ErrorCode.PAYLOAD_TOO_LARGE
+        status.is5xxServerError -> ErrorCode.INTERNAL_SERVER_ERROR
+        else -> ErrorCode.INVALID_INPUT_VALUE
     }
 
     private fun alert(request: WebRequest, status: Int, exceptionClass: String, summary: String, detail: String?) {

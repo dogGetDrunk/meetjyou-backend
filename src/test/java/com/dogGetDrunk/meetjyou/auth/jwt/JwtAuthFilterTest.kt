@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.auth.jwt
 
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.user.Role
 import com.dogGetDrunk.meetjyou.user.UserRepository
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -75,7 +77,7 @@ class JwtAuthFilterTest : BehaviorSpec() {
 
             listOf(UserStatus.DELETED, UserStatus.PURGED).forEach { inactive ->
                 `when`("계정 status가 ${inactive}이면") {
-                    then("401을 반환하고 체인을 통과시키지 않는다") {
+                    then("401이 아닌 403 USER_WITHDRAWN을 반환하고 체인을 통과시키지 않는다") {
                         user.status = inactive
                         every { jwtProvider.extractToken(any()) } returns "valid.token"
                         every { jwtProvider.validateAccessTokenOrThrow("valid.token") } returns Unit
@@ -90,14 +92,15 @@ class JwtAuthFilterTest : BehaviorSpec() {
                         filter.doFilter(request, response, chain)
 
                         passed shouldBe false
-                        response.status shouldBe 401
+                        response.status shouldBe 403
+                        response.contentAsString shouldContain ErrorCode.USER_WITHDRAWN.name
                         SecurityContextHolder.getContext().authentication shouldBe null
                     }
                 }
             }
 
             `when`("토큰의 유저를 찾을 수 없으면") {
-                then("401을 반환하고 체인을 통과시키지 않는다") {
+                then("탈퇴로 간주해 403을 반환하고 체인을 통과시키지 않는다") {
                     every { jwtProvider.extractToken(any()) } returns "valid.token"
                     every { jwtProvider.validateAccessTokenOrThrow("valid.token") } returns Unit
                     every { jwtProvider.getUserUuid("valid.token") } returns user.uuid
@@ -111,7 +114,7 @@ class JwtAuthFilterTest : BehaviorSpec() {
                     filter.doFilter(request, response, chain)
 
                     passed shouldBe false
-                    response.status shouldBe 401
+                    response.status shouldBe 403
                 }
             }
         }
