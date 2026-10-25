@@ -86,18 +86,19 @@ class SocialAccountService(
      * was read before it.
      */
     @Transactional
-    fun unlink(provider: AuthProvider) {
+    /** Returns the unlinked identity's provider subject, e.g. for revoking it with Apple. */
+    fun unlink(provider: AuthProvider): String {
         val user = currentUserProvider.user
         val accounts = userRepository.findSocialAccountsForUpdate(user.id)
-        if (accounts.none { it.provider == provider }) {
-            throw SocialAccountNotLinkedException(provider)
-        }
+        val target = accounts.firstOrNull { it.provider == provider }
+            ?: throw SocialAccountNotLinkedException(provider)
         if (accounts.size <= MIN_LINKED_ACCOUNTS) {
             throw LastSocialAccountUnlinkException(provider)
         }
 
         user.removeSocialAccount(provider)
         log.info("Social account unlinked. uuid: {}, provider: {}", user.uuid, provider)
+        return target.externalId
     }
 
     companion object {

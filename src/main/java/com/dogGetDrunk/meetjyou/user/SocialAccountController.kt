@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 
 // Not under /auth/: JwtAuthFilter skips that prefix, and these endpoints need the signed-in user.
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 @Tag(name = "소셜 계정 연결 API")
 class SocialAccountController(
     private val socialAccountService: SocialAccountService,
+    private val accountExitService: AccountExitService,
 ) {
     @Operation(summary = "연결된 소셜 계정 목록", description = "내 계정에 연결된 소셜 계정을 연결한 순서대로 조회합니다.")
     @GetMapping
@@ -63,7 +65,10 @@ class SocialAccountController(
         return ResponseEntity.status(status).body(result.account)
     }
 
-    @Operation(summary = "소셜 계정 연결 해제", description = "마지막 남은 소셜 계정은 해제할 수 없습니다.")
+    @Operation(
+        summary = "소셜 계정 연결 해제",
+        description = "마지막 남은 소셜 계정은 해제할 수 없습니다. APPLE 해제 시: ${AccountExitService.APPLE_CODE_HEADER_DOC}",
+    )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "204", description = "해제됨"),
@@ -84,8 +89,12 @@ class SocialAccountController(
         ]
     )
     @DeleteMapping("/{provider}")
-    fun unlink(@PathVariable provider: AuthProvider): ResponseEntity<Void> {
-        socialAccountService.unlink(provider)
+    fun unlink(
+        @PathVariable provider: AuthProvider,
+        @RequestHeader(AccountExitService.APPLE_AUTHORIZATION_CODE_HEADER, required = false)
+        appleAuthorizationCode: String?,
+    ): ResponseEntity<Void> {
+        accountExitService.unlinkSocialAccount(provider, appleAuthorizationCode)
         return ResponseEntity.noContent().build()
     }
 }

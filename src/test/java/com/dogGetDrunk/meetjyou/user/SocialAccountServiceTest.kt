@@ -136,13 +136,14 @@ class SocialAccountServiceTest : BehaviorSpec() {
 
         given("카카오·구글이 연결된 유저가") {
             `when`("구글을 해제하면") {
-                then("잠금 조회한 행 기준으로 구글만 제거한다") {
+                then("잠금 조회한 행 기준으로 구글만 제거하고, 해제한 계정의 sub를 돌려준다") {
                     val user = userWith(AuthProvider.KAKAO, AuthProvider.GOOGLE)
                     every { userRepository.findSocialAccountsForUpdate(user.id) } returns user.socialAccounts.toList()
 
-                    sut.unlink(AuthProvider.GOOGLE)
+                    val unlinkedSubject = sut.unlink(AuthProvider.GOOGLE)
 
                     user.socialAccounts.map { it.provider } shouldContainExactly listOf(AuthProvider.KAKAO)
+                    unlinkedSubject shouldBe "GOOGLE-sub"
                 }
             }
 
