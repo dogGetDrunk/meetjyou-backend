@@ -245,10 +245,10 @@ class SocialAccountIntegrationTest : BehaviorSpec() {
             }
 
             `when`("유일한 구글 계정을 해제하면") {
-                then("400을 받고 구글 로그인 수단이 남는다") {
+                then("409(상태 충돌)를 받고 구글 로그인 수단이 남는다") {
                     val tokens = signUpWithGoogle("google-last")
 
-                    unlink(tokens.accessToken, AuthProvider.GOOGLE) shouldBe HttpStatus.BAD_REQUEST
+                    unlink(tokens.accessToken, AuthProvider.GOOGLE) shouldBe HttpStatus.CONFLICT
                     unlink(tokens.accessToken, AuthProvider.APPLE) shouldBe HttpStatus.NOT_FOUND
                     myProviders(tokens.accessToken) shouldContainExactly listOf(AuthProvider.GOOGLE)
                 }

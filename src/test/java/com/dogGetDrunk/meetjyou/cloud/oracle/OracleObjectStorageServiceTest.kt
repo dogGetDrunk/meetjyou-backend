@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.cloud.oracle
 
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.business.ExternalServiceException
 import com.dogGetDrunk.meetjyou.config.OracleProps
 import com.oracle.bmc.model.BmcException
 import com.oracle.bmc.objectstorage.ObjectStorageClient
@@ -49,6 +51,18 @@ class OracleObjectStorageServiceTest : BehaviorSpec() {
 
                     result.httpMethod shouldBe "PUT"
                     result.url shouldBe "https://objectstorage.ap-seoul-1.oraclecloud.com/p/token/n/test-namespace/b/test-bucket/o/image/user/profile/x-original.jpg"
+                }
+            }
+        }
+
+        given("OCI가 PAR 발급에 실패하면") {
+            `when`("createUploadPar를 호출하면") {
+                then("일반 500이 아닌 이미지 저장소 장애(ExternalServiceException, 503)로 던진다") {
+                    every { objectStorageClient.createPreauthenticatedRequest(any<CreatePreauthenticatedRequestRequest>()) } throws
+                        BmcException(503, "Service unavailable", "ServiceUnavailable", "req-id")
+
+                    val e = shouldThrow<ExternalServiceException> { sut.createUploadPar("image/post/x-original.jpg") }
+                    e.errorCode shouldBe ErrorCode.IMAGE_STORAGE_UNAVAILABLE
                 }
             }
         }

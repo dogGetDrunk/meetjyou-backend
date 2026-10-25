@@ -2,6 +2,8 @@ package com.dogGetDrunk.meetjyou.auth.social.kakao
 
 import com.dogGetDrunk.meetjyou.auth.social.AccessToken
 import com.dogGetDrunk.meetjyou.auth.social.IdToken
+import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
+import com.dogGetDrunk.meetjyou.common.exception.business.ExternalServiceException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.InvalidJwtException
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import io.kotest.assertions.throwables.shouldThrow
@@ -14,15 +16,21 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.security.oauth2.jwt.BadJwtException
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.header
 import org.springframework.test.web.client.match.MockRestRequestMatchers.method
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import org.springframework.test.web.client.response.MockRestResponseCreators.withException
+import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 import org.springframework.web.client.RestClient
+import java.io.IOException
 import java.time.Instant
 
 class KakaoVerifierTest : BehaviorSpec() {
@@ -76,6 +84,27 @@ class KakaoVerifierTest : BehaviorSpec() {
                 }
             }
 
+            `when`("토큰 자체가 거절되면(BadJwtException)") {
+                then("클라이언트 오류 그대로 전파한다") {
+                    every { kakaoJwtDecoder.decode(any()) } throws BadJwtException("Jwt expired")
+
+                    shouldThrow<BadJwtException> {
+                        sut.verifyAndExtract(IdToken("expired.id.token"), nonce = "test-nonce")
+                    }
+                }
+            }
+
+            `when`("Kakao JWK set을 가져오지 못하면") {
+                then("공급자 장애(ExternalServiceException, 503)로 던진다") {
+                    every { kakaoJwtDecoder.decode(any()) } throws JwtException("Couldn't retrieve remote JWK set")
+
+                    val e = shouldThrow<ExternalServiceException> {
+                        sut.verifyAndExtract(IdToken("valid.id.token"), nonce = "test-nonce")
+                    }
+                    e.errorCode shouldBe ErrorCode.SOCIAL_PROVIDER_UNAVAILABLE
+                }
+            }
+
             `when`("email claim이 없으면(이메일 제공 미동의)") {
                 then("email 없이 SocialPrincipal을 반환한다") {
                     val jwt = buildJwt(subject = "kakao-sub-123", email = null, nonce = "test-nonce")
@@ -111,6 +140,46 @@ class KakaoVerifierTest : BehaviorSpec() {
                     expectTokenInfo(appId = OTHER_APP_ID)
 
                     shouldThrow<InvalidJwtException> {
+                        sut.verifyAndExtract(AccessToken(ACCESS_TOKEN), nonce = null)
+                    }
+                }
+            }
+
+            `when`("Kakao가 401로 토큰을 거절하면(만료·잘못된 토큰)") {
+                then("500이 아닌 InvalidJwtException(401)을 던진다") {
+                    kakaoApi.reset()
+                    stubKakaoUris()
+                    kakaoApi.expect(requestTo(TOKEN_INFO_URI)).andRespond(withStatus(HttpStatus.UNAUTHORIZED))
+
+                    shouldThrow<InvalidJwtException> {
+                        sut.verifyAndExtract(AccessToken(ACCESS_TOKEN), nonce = null)
+                    }
+                }
+            }
+
+            listOf(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.TOO_MANY_REQUESTS).forEach { status ->
+                `when`("Kakao가 ${status.value()}로 응답하면") {
+                    then("공급자 장애(ExternalServiceException, 503)로 던진다") {
+                        kakaoApi.reset()
+                        stubKakaoUris()
+                        kakaoApi.expect(requestTo(TOKEN_INFO_URI)).andRespond(withStatus(status))
+
+                        val e = shouldThrow<ExternalServiceException> {
+                            sut.verifyAndExtract(AccessToken(ACCESS_TOKEN), nonce = null)
+                        }
+                        e.errorCode shouldBe ErrorCode.SOCIAL_PROVIDER_UNAVAILABLE
+                    }
+                }
+            }
+
+            `when`("Kakao에 연결하지 못하면") {
+                then("공급자 장애(ExternalServiceException, 503)로 던진다") {
+                    kakaoApi.reset()
+                    stubKakaoUris()
+                    kakaoApi.expect(requestTo(TOKEN_INFO_URI))
+                        .andRespond(withException(IOException("Connection refused")))
+
+                    shouldThrow<ExternalServiceException> {
                         sut.verifyAndExtract(AccessToken(ACCESS_TOKEN), nonce = null)
                     }
                 }
