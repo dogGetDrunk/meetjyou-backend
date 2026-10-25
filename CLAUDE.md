@@ -19,6 +19,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### After a PR merges
 로컬을 main으로 전환하고 pull할 것: `git checkout main && git pull origin main`
 
+### Next task
+- "다음 할 일"의 출처 = 팀 노션 스프린트 보드의 내 태스크 → 연결된 GitHub 이슈. 대화 기억·세션 요약 기반 추천 금지
+- 답할 때 출처(보드 태스크명 + 이슈 번호) 명시. 보드와 연결 안 된 열린 이슈는 "보드 미연결"로 따로 표시
+
 ## Commands
 
 ```bash
