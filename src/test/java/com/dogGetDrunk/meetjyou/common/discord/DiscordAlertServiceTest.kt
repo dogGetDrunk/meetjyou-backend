@@ -73,6 +73,20 @@ class DiscordAlertServiceTest : BehaviorSpec({
         }
     }
 
+    given("요청은 성공시키고 삼킨 실패를 알릴 때 (HTTP 요청 정보 없음)") {
+        `when`("sendOperationalAlert를 호출하면") {
+            then("요청 경로 대신 작업 이름으로 Discord에 전송한다") {
+                receivedCount.set(0)
+
+                sut.sendOperationalAlert("Apple revoke WITHDRAWAL", "AppleAuthApiException", "revoke failed")
+
+                eventually(2.seconds) {
+                    receivedCount.get() shouldBe 1
+                }
+            }
+        }
+    }
+
     given("행 락 교착이 409로 응답되면") {
         // Real service, not a mock: the handler test only proved sendAlert was called, while the
         // service itself dropped every status < 500, so no deadlock alert ever reached Discord.

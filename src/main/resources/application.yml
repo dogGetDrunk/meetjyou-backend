@@ -132,6 +132,11 @@ auth:
     client-id: ${APPLE_CLIENT_ID}
     clock-skew-seconds: ${APPLE_CLOCK_SKEW_SECONDS}
     jwk-cache-ttl-minutes: ${APPLE_JWK_CACHE_TTL_MINUTES}
+    # Revocation credentials (#171); leave all three empty to disable token revocation.
+    team-id: ${APPLE_TEAM_ID:}
+    key-id: ${APPLE_KEY_ID:}
+    # .p8 contents; PEM headers and line breaks optional (single line fits the .env file).
+    private-key: ${APPLE_PRIVATE_KEY:}
 
 dev:
   bypass:

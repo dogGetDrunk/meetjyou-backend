@@ -29,7 +29,6 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.web.ErrorResponse
-import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -220,28 +219,6 @@ class UserController(
         @PageableDefault(size = 10, sort = ["updatedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
     ): Page<PlanSummaryResponse> {
         return planService.getMyPlans(pageable)
-    }
-
-    @Operation(summary = "회원 탈퇴", description = "현재는 DELETE, 추후 PATCH로 변경될 수 있음.")
-    @ApiResponses(
-        value = [
-            ApiResponse(
-                responseCode = "200",
-                description = "회원 탈퇴 성공"
-            ), ApiResponse(
-                responseCode = "401",
-                description = "유효하지 않은 액세스 토큰입니다.",
-                content = arrayOf(
-                    Content(
-                        mediaType = "application/json",
-                        schema = Schema(implementation = com.dogGetDrunk.meetjyou.common.exception.ErrorResponse::class)
-                    )
-                )
-            )]
-    )
-    @DeleteMapping("/me")
-    fun withdraw() {
-        userService.withdrawUser()
     }
 
     @Operation(summary = "내 파티 목록 조회", description = "현재 로그인한 사용자가 참여 중인 파티 목록을 채팅방 정보와 함께 조회합니다.")

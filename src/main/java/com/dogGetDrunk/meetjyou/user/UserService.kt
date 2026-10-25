@@ -81,8 +81,9 @@ class UserService(
         return user
     }
 
+    /** Returns the user's linked Apple `sub` (null if none) so the caller can revoke it with Apple. */
     @Transactional
-    fun withdrawUser() {
+    fun withdrawUser(): String? {
         val uuid = currentUserProvider.uuid
         val user = userRepository.findByUuid(uuid) ?: throw UserNotFoundException(uuid)
 
@@ -90,6 +91,7 @@ class UserService(
         user.withdraw(Instant.now())
         userSessionRevoker.revokeAll(user)
         log.info("User withdrawal completed (user uuid: {})", uuid)
+        return user.socialAccounts.firstOrNull { it.provider == AuthProvider.APPLE }?.externalId
     }
 
     @Transactional

@@ -110,6 +110,9 @@ jobs:
             APPLE_CLIENT_ID=${{ secrets.APPLE_CLIENT_ID }}
             APPLE_CLOCK_SKEW_SECONDS=${{ secrets.APPLE_CLOCK_SKEW_SECONDS }}
             APPLE_JWK_CACHE_TTL_MINUTES=${{ secrets.APPLE_JWK_CACHE_TTL_MINUTES }}
+            APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}
+            APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}
+            APPLE_PRIVATE_KEY=${{ secrets.APPLE_PRIVATE_KEY }}
             DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}
             LOAD_TEST_TOKEN_ENABLED=${{ secrets.LOAD_TEST_TOKEN_ENABLED }}
             LOAD_TEST_TOKEN_SECRET=${{ secrets.LOAD_TEST_TOKEN_SECRET }}

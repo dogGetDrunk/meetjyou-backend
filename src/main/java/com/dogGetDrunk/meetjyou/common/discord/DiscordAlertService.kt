@@ -33,7 +33,7 @@ class DiscordAlertService(props: DiscordProperties) {
             log.debug("Skipping Discord alert for client error: {} {}", status, exceptionClass)
             return
         }
-        deliver(request, status, exceptionClass, summary, detail)
+        deliver(request.location(), status, exceptionClass, summary, detail)
     }
 
     /**
@@ -46,10 +46,24 @@ class DiscordAlertService(props: DiscordProperties) {
         exceptionClass: String,
         summary: String,
         detail: String? = null
-    ) = deliver(request, status, exceptionClass, summary, detail)
+    ) = deliver(request.location(), status, exceptionClass, summary, detail)
+
+    /**
+     * For failures that are swallowed on purpose so the user's request still succeeds (e.g. a
+     * best-effort call to an outside service), where no exception reaches the global handler.
+     * [source] names the operation and stands in for the request path.
+     */
+    fun sendOperationalAlert(
+        source: String,
+        exceptionClass: String,
+        summary: String,
+        detail: String? = null
+    ) = deliver(source, OPERATIONAL_STATUS, exceptionClass, summary, detail)
+
+    private fun HttpServletRequest.location(): String = "$method $requestURI"
 
     private fun deliver(
-        request: HttpServletRequest,
+        location: String,
         status: Int,
         exceptionClass: String,
         summary: String,
@@ -57,14 +71,14 @@ class DiscordAlertService(props: DiscordProperties) {
     ) {
         val client = restClient ?: return
 
-        val dedupKey = "$status:$exceptionClass:${request.method}:${request.requestURI}"
+        val dedupKey = "$status:$exceptionClass:$location"
         if (dedupCache.getIfPresent(dedupKey) != null) {
             log.debug("Skipping duplicate Discord alert: {}", dedupKey)
             return
         }
         dedupCache.put(dedupKey, true)
 
-        val payload = buildPayload(request, status, exceptionClass, summary, detail)
+        val payload = buildPayload(location, status, exceptionClass, summary, detail)
 
         CompletableFuture.runAsync {
             try {
@@ -80,7 +94,7 @@ class DiscordAlertService(props: DiscordProperties) {
     }
 
     private fun buildPayload(
-        request: HttpServletRequest,
+        location: String,
         status: Int,
         exceptionClass: String,
         summary: String,
@@ -90,7 +104,7 @@ class DiscordAlertService(props: DiscordProperties) {
         val title = if (status >= SERVER_ERROR_MIN_STATUS) "서버 에러 ($status)" else "관측 알림 ($status)"
 
         val fields = mutableListOf(
-            mapOf("name" to "Path", "value" to "${request.method} ${request.requestURI}", "inline" to false),
+            mapOf("name" to "Path", "value" to location, "inline" to false),
             mapOf("name" to "Exception", "value" to exceptionClass, "inline" to false),
             mapOf("name" to "Summary", "value" to summary.take(1024), "inline" to false)
         )
@@ -113,5 +127,8 @@ class DiscordAlertService(props: DiscordProperties) {
 
     private companion object {
         const val SERVER_ERROR_MIN_STATUS = 500
+
+        // Shown as a server error: the user saw success, but an operation needs attention.
+        const val OPERATIONAL_STATUS = 500
     }
 }

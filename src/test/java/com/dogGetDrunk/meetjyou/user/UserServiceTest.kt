@@ -376,6 +376,22 @@ class UserServiceTest : BehaviorSpec() {
                 }
             }
 
+            `when`("애플 계정이 연결된 회원이면") {
+                then("애플 측 연동 해제에 쓸 수 있게 애플 sub를 돌려준다") {
+                    user.addSocialAccount(AuthProvider.APPLE, "apple-sub-1", null)
+
+                    sut.withdrawUser() shouldBe "apple-sub-1"
+                }
+            }
+
+            `when`("애플 계정이 없는 회원이면") {
+                then("null을 돌려준다") {
+                    user.addSocialAccount(AuthProvider.KAKAO, "kakao-sub-1", null)
+
+                    sut.withdrawUser() shouldBe null
+                }
+            }
+
             `when`("유저가 존재하지 않으면") {
                 then("UserNotFoundException을 던진다") {
                     every { userRepository.findByUuid(user.uuid) } returns null
