@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.config
 
 import com.dogGetDrunk.meetjyou.chat.connection.ChatOutboundInterceptor
+import com.dogGetDrunk.meetjyou.chat.connection.ChatStompErrorHandler
 import com.dogGetDrunk.meetjyou.chat.connection.ChatStompInterceptor
 import com.dogGetDrunk.meetjyou.config.property.WebSocketProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -17,17 +18,20 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 class WebSocketConfig(
     private val chatStompInterceptor: ChatStompInterceptor,
     private val chatOutboundInterceptor: ChatOutboundInterceptor,
+    private val chatStompErrorHandler: ChatStompErrorHandler,
     private val webSocketProperties: WebSocketProperties,
 ) : WebSocketMessageBrokerConfigurer {
 
     override fun configureMessageBroker(registry: MessageBrokerRegistry) {
-        registry.enableSimpleBroker("/sub")
+        // /queue carries per-session replies (@SendToUser), e.g. /user/queue/errors for a failed SEND.
+        registry.enableSimpleBroker("/sub", "/queue")
         registry.setApplicationDestinationPrefixes("/pub")
     }
 
     override fun registerStompEndpoints(registry: StompEndpointRegistry) {
         registry.addEndpoint("/ws-chat")
             .setAllowedOriginPatterns(*webSocketProperties.allowedOriginPatterns.toTypedArray())
+        registry.setErrorHandler(chatStompErrorHandler)
     }
 
     override fun configureClientInboundChannel(registration: ChannelRegistration) {

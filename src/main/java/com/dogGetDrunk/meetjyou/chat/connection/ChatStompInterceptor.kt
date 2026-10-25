@@ -2,6 +2,12 @@ package com.dogGetDrunk.meetjyou.chat.connection
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
+import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
+import com.dogGetDrunk.meetjyou.common.exception.business.auth.UnauthenticatedException
+import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
@@ -40,14 +46,14 @@ class ChatStompInterceptor(
         accessor: StompHeaderAccessor,
         message: Message<*>,
     ): Message<*> {
-        val roomUuid = accessor.getFirstNativeHeader("roomUuid")
+        val roomUuid = accessor.getFirstNativeHeader(ROOM_UUID_HEADER)
             ?.let { rawRoomUuid -> runCatching { UUID.fromString(rawRoomUuid) }.getOrNull() }
-            ?: throw IllegalArgumentException("roomUuid header is missing or invalid.")
+            ?: throw InvalidInputException(value = ROOM_UUID_HEADER, message = "roomUuid header is missing or invalid")
 
         val userUuid = resolveUserUuidForConnect(accessor, roomUuid)
         validateActiveUser(userUuid, roomUuid)
         val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
-            ?: throw IllegalArgumentException("Chat room was not found.")
+            ?: throw ChatRoomNotFoundException(roomUuid.toString())
 
         validateMembership(roomUuid, partyUuid, userUuid)
 
@@ -65,20 +71,20 @@ class ChatStompInterceptor(
         message: Message<*>,
     ): Message<*> {
         val destination = accessor.destination
-            ?: throw IllegalArgumentException("STOMP destination is missing.")
+            ?: throw InvalidInputException(value = "destination", message = "STOMP destination is missing")
 
         if (!destination.startsWith(CHAT_SUBSCRIBE_PREFIX)) {
             return message
         }
 
         val roomUuid = extractRoomUuidFromDestination(destination)
-            ?: throw IllegalArgumentException("Chat room UUID in destination is invalid.")
+            ?: throw InvalidInputException(value = destination, message = "Chat room UUID in destination is invalid")
 
         val userUuid = accessor.sessionAttributes?.get("userUuid") as? UUID
-            ?: throw IllegalArgumentException("Authenticated chat session is required for subscription.")
+            ?: throw UnauthenticatedException(destination)
 
         val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
-            ?: throw IllegalArgumentException("Chat room was not found.")
+            ?: throw ChatRoomNotFoundException(roomUuid.toString())
 
         validateMembership(roomUuid, partyUuid, userUuid)
 
@@ -100,19 +106,20 @@ class ChatStompInterceptor(
             ?.removePrefix("Bearer ")
             ?.trim()
 
-        if (!token.isNullOrBlank()) {
-            return runCatching {
-                jwtProvider.validateAccessTokenOrThrow(token)
-                jwtProvider.getUserUuid(token)
-            }
-                .getOrElse {
-                    log.warn("STOMP CONNECT rejected because JWT parsing failed. roomUuid={}", roomUuid)
-                    throw IllegalArgumentException("JWT parsing failed.")
-                }
+        if (token.isNullOrBlank()) {
+            log.warn("STOMP CONNECT rejected because Authorization header was missing. roomUuid={}", roomUuid)
+            throw UnauthenticatedException(roomUuid.toString())
         }
 
-        log.warn("STOMP CONNECT rejected because Authorization header was missing. roomUuid={}", roomUuid)
-        throw IllegalArgumentException("Authentication information is missing.")
+        // Keep the JWT exception as is: an expired token (EXPIRED_TOKEN) tells the app to refresh
+        // and reconnect, a forged one (INVALID_JWT) does not.
+        return try {
+            jwtProvider.validateAccessTokenOrThrow(token)
+            jwtProvider.getUserUuid(token)
+        } catch (e: CustomJwtException) {
+            log.warn("STOMP CONNECT rejected: {}. roomUuid={}", e.errorCode, roomUuid)
+            throw e
+        }
     }
 
     private fun validateActiveUser(userUuid: UUID, roomUuid: UUID) {
@@ -124,7 +131,7 @@ class ChatStompInterceptor(
                     roomUuid,
                     userUuid,
                 )
-                throw IllegalArgumentException("Withdrawn or unknown user.")
+                throw UserWithdrawnException(userUuid.toString(), message = "Withdrawn or unknown user on CONNECT")
             }
     }
 
@@ -142,7 +149,7 @@ class ChatStompInterceptor(
                 partyUuid,
                 userUuid,
             )
-            throw IllegalArgumentException("User does not have permission to access this chat room.")
+            throw ChatRoomAccessDeniedException(roomUuid.toString())
         }
     }
 
@@ -159,5 +166,6 @@ class ChatStompInterceptor(
 
     companion object {
         private const val CHAT_SUBSCRIBE_PREFIX = "/sub/chat/room/"
+        private const val ROOM_UUID_HEADER = "roomUuid"
     }
 }
