@@ -19,6 +19,11 @@ plugins {
 group = "com.example"
 version = "0.0.1-SNAPSHOT"
 
+// Spring Boot's BOM pins Testcontainers 1.20.4, whose docker-java asks Docker Engine 29+ for an API
+// version it no longer serves (400 on /info → "Could not find a valid Docker environment").
+// 1.21.4 is the 1.x release that negotiates the API version; 2.x renames the artifacts.
+extra["testcontainers.version"] = "1.21.4"
+
 // The Gatling simulations under src/gatling are self-contained (java.net.http + Gatling DSL
 // only) and don't reuse any main/test classes. Keeping the default includeMainOutput=true would
 // pull io.spring.dependency-management's project-wide Netty version pin into the gatling
