@@ -31,7 +31,6 @@ import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import io.mockk.every
 import io.mockk.mockk
 import java.sql.Connection
@@ -62,9 +61,10 @@ import org.testcontainers.utility.DockerImageName
  * user_party, chat) where one path takes the party row lock first and the other touches the rows
  * without it, in a different order. Each scenario stops the "holder" right before one SQL
  * statement (SqlPausePoint) and lets the "contender" run until it waits on a lock, which is the
- * narrow real-world interleaving made deterministic. These deadlocks are accepted (rare overlaps)
- * and handled as a 409; the scenarios pin that the loser fails with the mapped exception type and
- * leaves no partial state.
+ * narrow real-world interleaving made deterministic. Accepted deadlocks (rare overlaps) are handled
+ * as a 409; those scenarios pin that the loser fails with the mapped exception type and leaves no
+ * partial state. The plan scenarios pin that deletePlan no longer deadlocks with or overwrites a
+ * concurrent plan switch (#201).
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -207,6 +207,25 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         }
     }
 
+    /** Holder runs until right before [pauseBeforeSql]; intruder then runs to commit before the holder resumes. */
+    private fun interleave(pauseBeforeSql: String, holder: Pair<User, () -> Unit>, intruder: Pair<User, () -> Unit>): Pair<Result<Unit>, Result<Unit>> {
+        val point = SqlPausePoint.Point(pauseBeforeSql)
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val holderDone = executor.submit<Result<Unit>> {
+                SqlPausePoint.arm(point)
+                try { runAs(holder.first, holder.second) } finally { SqlPausePoint.disarm() }
+            }
+            point.reached.await(TIMEOUT_SECONDS, TimeUnit.SECONDS) shouldBe true
+            val intruderResult = runAs(intruder.first, intruder.second)
+            point.release.countDown()
+            return holderDone.get(TIMEOUT_SECONDS, TimeUnit.SECONDS) to intruderResult
+        } finally {
+            point.release.countDown()
+            executor.shutdownNow()
+        }
+    }
+
     private fun runAs(user: User, block: () -> Unit): Result<Unit> = runCatching {
         currentUserUuid.set(user.uuid)
         tx.executeWithoutResult { block() }
@@ -282,6 +301,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         private const val TRANSACTIONS_SECTION = "TRANSACTIONS\n"
         private const val DELETE_CHAT_PARTICIPANT = "delete from chat_participant"
         private const val UPDATE_PARTY = "update party"
+        private const val FIRST_UPDATE = "update "
     }
 
     init {
@@ -320,10 +340,12 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
 
         given("호스트가 게시글의 여행 계획서를 다른 것으로 바꾸는 중일 때") {
             `when`("같은 호스트가 기존 계획서를 동시에 삭제하면") {
-                then("교착으로 한쪽이 409 대상 예외로 통째로 롤백되고, 이긴 쪽 변경만 남는다") {
+                then("삭제는 게시글 행에서 기다렸다가 교착 없이 옛 계획서만 떼어내고, 새 계획서 연결은 남는다") {
                     val seed = seed()
                     val request = switchPlanRequest(seed)
-                    // The edit's flush writes post, then party; it stops between the two.
+                    // The edit's flush writes post, then party; it stops between the two. deletePlan
+                    // detaches post first, so it waits on the post row before touching party — the
+                    // same order as the edit, which removed the deadlock accepted in #165.
                     val outcome = race(
                         pauseBeforeSql = UPDATE_PARTY,
                         holder = seed.host to { postService.updatePost(seed.postUuid, request) },
@@ -332,18 +354,40 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     report(outcome)
 
                     outcome.contenderWaitedOnLock shouldBe true
-                    val editLost = firstLostDeadlock(outcome.holder, outcome.contender)
+                    outcome.holder.exceptionOrNull().shouldBeNull()
+                    outcome.contender.exceptionOrNull().shouldBeNull()
                     val linked = tx.execute {
                         val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
                         post.plan?.uuid to post.party.plan?.uuid
                     }
-                    if (editLost) {
-                        linked shouldBe (null to null)
-                        planRepository.findByUuid(seed.oldPlan).shouldBeNull()
-                    } else {
-                        linked shouldBe (seed.newPlan to seed.newPlan)
-                        planRepository.findByUuid(seed.oldPlan) shouldNotBe null
+                    linked shouldBe (seed.newPlan to seed.newPlan)
+                    planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                }
+            }
+        }
+
+        given("호스트가 기존 계획서를 삭제하는 중일 때 (#201)") {
+            `when`("삭제가 쓰기 직전인 사이에 같은 호스트가 게시글 계획서를 새것으로 바꿔 커밋하면") {
+                then("삭제는 옛 계획서만 떼어내고, 방금 연결한 새 계획서 연결은 남는다") {
+                    val seed = seed()
+                    val request = switchPlanRequest(seed)
+                    // deletePlan has read the old links but written nothing yet, so it holds no row
+                    // lock and the edit commits without waiting.
+                    val (deleteResult, editResult) = interleave(
+                        pauseBeforeSql = FIRST_UPDATE,
+                        holder = seed.host to { planService.deletePlan(seed.oldPlan) },
+                        intruder = seed.host to { postService.updatePost(seed.postUuid, request) },
+                    )
+                    log.info("delete={} / edit={}", describe(deleteResult), describe(editResult))
+
+                    editResult.exceptionOrNull().shouldBeNull()
+                    deleteResult.exceptionOrNull().shouldBeNull()
+                    val linked = tx.execute {
+                        val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
+                        post.plan?.uuid to post.party.plan?.uuid
                     }
+                    linked shouldBe (seed.newPlan to seed.newPlan)
+                    planRepository.findByUuid(seed.oldPlan).shouldBeNull()
                 }
             }
         }

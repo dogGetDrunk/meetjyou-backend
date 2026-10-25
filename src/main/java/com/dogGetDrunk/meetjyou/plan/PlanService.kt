@@ -189,15 +189,12 @@ class PlanService(
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
         }
 
-        // party.plan_id and post.plan_id reference plan without ON DELETE CASCADE,
-        // so linked parties and posts must be detached before the plan row is removed.
-        partyRepository.findAllByPlan_Uuid(planUuid).forEach { party ->
-            party.plan = null
-        }
-        postRepository.findAllByPlan_UuidIn(listOf(planUuid)).forEach { post ->
-            post.plan = null
-            post.isPlanPublic = null
-        }
+        // party.plan_id and post.plan_id reference plan without ON DELETE CASCADE, so linked rows
+        // are detached first. Bulk UPDATEs match on the latest row, not this transaction's snapshot,
+        // so a link switched to another plan meanwhile survives (#201). Post goes first: a concurrent
+        // updatePost writes post then party, so waiting on the post row here keeps the same order.
+        postRepository.detachPlan(plan)
+        partyRepository.detachPlan(plan)
 
         markerRepository.deleteAllByPlan(plan)
         planRepository.delete(plan)
