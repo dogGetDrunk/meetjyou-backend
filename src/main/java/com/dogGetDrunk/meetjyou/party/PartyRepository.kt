@@ -1,10 +1,12 @@
 package com.dogGetDrunk.meetjyou.party
 
+import com.dogGetDrunk.meetjyou.plan.Plan
 import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
@@ -15,7 +17,11 @@ interface PartyRepository : JpaRepository<Party, Long> {
     fun findByUuid(uuid: UUID): Party?
     fun findAllByUuidIn(uuids: List<UUID>): List<Party>
     fun findAllByPlan_Uuid(planUuid: UUID, pageable: Pageable): Page<Party>
-    fun findAllByPlan_Uuid(planUuid: UUID): List<Party>
+
+    // Bulk on purpose, same as PostRepository.detachPlan: skips a party re-linked after the caller's snapshot (#201).
+    @Modifying
+    @Query("UPDATE Party p SET p.plan = null WHERE p.plan = :plan")
+    fun detachPlan(@Param("plan") plan: Plan): Int
     fun existsByPlan_Uuid(planUuid: UUID): Boolean
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
