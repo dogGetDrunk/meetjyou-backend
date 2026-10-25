@@ -2,7 +2,7 @@ package com.dogGetDrunk.meetjyou.auth.jwt
 
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
-import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
+import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.config.ApiVersionConfig.Companion.V1
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -59,10 +59,13 @@ class JwtAuthFilter(
         if (token != null) {
             try {
                 authenticateFromToken(token, request)
-            } catch (e: CustomJwtException) {
-                response.status = HttpServletResponse.SC_UNAUTHORIZED
+            } catch (e: BusinessException) {
+                // Filter-level failures never reach GlobalExceptionHandler, so this mirrors it: any
+                // domain exception, status from its ErrorCode. Catching only the JWT family would let
+                // a non-JWT exception thrown here escape the filter as a 500.
+                response.status = e.errorCode.status.value()
                 response.contentType = MediaType.APPLICATION_JSON_VALUE
-                objectMapper.writeValue(response.writer, ErrorResponse(401, e.errorCode, e.value))
+                objectMapper.writeValue(response.writer, ErrorResponse(e.errorCode, e.value))
                 return
             }
         }

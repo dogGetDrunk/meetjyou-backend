@@ -91,12 +91,10 @@ class SecurityConfig(
             }
             .exceptionHandling { exceptions ->
                 exceptions.authenticationEntryPoint { _, response, _ ->
-                    response.status = HttpServletResponse.SC_UNAUTHORIZED
+                    val errorCode = ErrorCode.MISSING_AUTHORIZATION_HEADER
+                    response.status = errorCode.status.value()
                     response.contentType = MediaType.APPLICATION_JSON_VALUE
-                    objectMapper.writeValue(
-                        response.writer,
-                        ErrorResponse(401, ErrorCode.MISSING_AUTHORIZATION_HEADER)
-                    )
+                    objectMapper.writeValue(response.writer, ErrorResponse(errorCode))
                 }
             }
 

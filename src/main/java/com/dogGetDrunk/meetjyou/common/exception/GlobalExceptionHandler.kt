@@ -1,12 +1,7 @@
 package com.dogGetDrunk.meetjyou.common.exception
 
 import com.dogGetDrunk.meetjyou.common.discord.DiscordAlertService
-import com.dogGetDrunk.meetjyou.common.exception.business.AccessDeniedException
-import com.dogGetDrunk.meetjyou.common.exception.business.DuplicateException
-import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
-import com.dogGetDrunk.meetjyou.common.exception.business.auth.AuthException
-import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
-import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 import jakarta.servlet.http.HttpServletRequest
 import org.apache.catalina.connector.ClientAbortException
 import org.slf4j.LoggerFactory
@@ -55,68 +50,35 @@ class GlobalExceptionHandler(
         alert(request, HttpStatus.BAD_REQUEST.value(), e.javaClass.simpleName, "Validation failed", values.joinToString("\n"))
 
         val httpStatus = HttpStatus.BAD_REQUEST
-        val errorResponse = ErrorResponse(httpStatus.value(), ErrorCode.INVALID_INPUT_VALUE, values)
+        val errorResponse = ErrorResponse(ErrorCode.INVALID_INPUT_VALUE, values)
         return ResponseEntity(errorResponse, httpStatus)
     }
 
-    @ExceptionHandler(DuplicateException::class)
-    fun handleDuplicateException(
-        e: DuplicateException,
+    /**
+     * Every domain exception: the status comes from its [ErrorCode], so adding an exception type
+     * or changing a status never needs a new handler here.
+     */
+    @ExceptionHandler(BusinessException::class)
+    fun handleBusinessException(
+        e: BusinessException,
         request: HttpServletRequest
     ): ResponseEntity<ErrorResponse> {
-        log.info("Handling DuplicateException.", e)
+        val errorCode = e.errorCode
+        if (errorCode.status.is5xxServerError) {
+            log.error("Handling {}.", e.javaClass.simpleName, e)
+        } else {
+            log.info("Handling {}.", e.javaClass.simpleName, e)
+        }
 
         discordAlertService.sendAlert(
             request = request,
-            status = HttpStatus.CONFLICT.value(),
+            status = errorCode.status.value(),
             exceptionClass = e.javaClass.simpleName,
-            summary = "[${e.errorCode.name}] ${e.errorCode.message}",
+            summary = "[${errorCode.name}] ${errorCode.message}",
             detail = e.value
         )
 
-        val status = HttpStatus.CONFLICT
-        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
-        return ResponseEntity(errorResponse, status)
-    }
-
-    @ExceptionHandler(NotFoundException::class)
-    fun handleNotExistException(
-        e: NotFoundException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        log.info("Handling NotFoundException.", e)
-
-        discordAlertService.sendAlert(
-            request = request,
-            status = HttpStatus.NOT_FOUND.value(),
-            exceptionClass = e.javaClass.simpleName,
-            summary = "[${e.errorCode.name}] ${e.errorCode.message}",
-            detail = e.value
-        )
-
-        val status = HttpStatus.NOT_FOUND
-        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
-        return ResponseEntity(errorResponse, status)
-    }
-
-    @ExceptionHandler(CustomJwtException::class)
-    fun handleCustomJwtException(
-        e: CustomJwtException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        log.info("Handling CustomJwtException.", e)
-
-        discordAlertService.sendAlert(
-            request = request,
-            status = HttpStatus.UNAUTHORIZED.value(),
-            exceptionClass = e.javaClass.simpleName,
-            summary = "[${e.errorCode.name}] ${e.errorCode.message}",
-            detail = e.value
-        )
-
-        val status = HttpStatus.UNAUTHORIZED
-        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
-        return ResponseEntity(errorResponse, status)
+        return ResponseEntity(ErrorResponse(errorCode, e.value), errorCode.status)
     }
 
     /**
@@ -142,67 +104,7 @@ class GlobalExceptionHandler(
         )
 
         val status = HttpStatus.UNAUTHORIZED
-        return ResponseEntity(ErrorResponse(status.value(), ErrorCode.INVALID_JWT), status)
-    }
-
-    @ExceptionHandler(AuthException::class)
-    fun handleAuthException(
-        e: AuthException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        log.info("Handling AuthException.", e)
-
-        discordAlertService.sendAlert(
-            request = request,
-            status = HttpStatus.UNAUTHORIZED.value(),
-            exceptionClass = e.javaClass.simpleName,
-            summary = "[${e.errorCode.name}] ${e.errorCode.message}",
-            detail = e.value
-        )
-
-        val status = HttpStatus.UNAUTHORIZED
-        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
-        return ResponseEntity(errorResponse, status)
-    }
-
-    @ExceptionHandler(InvalidInputException::class)
-    fun handleInvalidInputException(
-        e: InvalidInputException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        log.info("Handling InvalidInputException.", e)
-
-        discordAlertService.sendAlert(
-            request = request,
-            status = HttpStatus.BAD_REQUEST.value(),
-            exceptionClass = e.javaClass.simpleName,
-            summary = "[${e.errorCode.name}] ${e.errorCode.message}",
-            detail = e.value
-        )
-
-        val status = HttpStatus.BAD_REQUEST
-        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
-        return ResponseEntity(errorResponse, status)
-    }
-
-    @ExceptionHandler(AccessDeniedException::class)
-    fun handleAccessDeniedException(
-        e: AccessDeniedException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        log.info("Handling AccessDeniedException.", e)
-
-        discordAlertService.sendAlert(
-            request = request,
-            status = HttpStatus.FORBIDDEN.value(),
-            exceptionClass = e.javaClass.simpleName,
-            summary = "[${e.errorCode.name}] ${e.errorCode.message}",
-            detail = e.value
-        )
-
-        val status = HttpStatus.FORBIDDEN
-        val errorResponse = ErrorResponse(status.value(), e.errorCode, e.value)
-        return ResponseEntity(errorResponse, status)
+        return ResponseEntity(ErrorResponse(ErrorCode.INVALID_JWT), status)
     }
 
     @ExceptionHandler(AuthorizationDeniedException::class)
@@ -221,7 +123,7 @@ class GlobalExceptionHandler(
         )
 
         val status = HttpStatus.FORBIDDEN
-        val errorResponse = ErrorResponse(status.value(), ErrorCode.ACCESS_DENIED)
+        val errorResponse = ErrorResponse(ErrorCode.ACCESS_DENIED)
         return ResponseEntity(errorResponse, status)
     }
 
@@ -249,7 +151,7 @@ class GlobalExceptionHandler(
         )
 
         val status = HttpStatus.CONFLICT
-        return ResponseEntity(ErrorResponse(status.value(), errorCode), status)
+        return ResponseEntity(ErrorResponse(errorCode), status)
     }
 
     public override fun handleNoResourceFoundException(
@@ -259,7 +161,7 @@ class GlobalExceptionHandler(
         request: WebRequest
     ): ResponseEntity<Any> {
         val httpStatus = HttpStatus.NOT_FOUND
-        return ResponseEntity(ErrorResponse(httpStatus.value(), ErrorCode.NOT_FOUND), httpStatus)
+        return ResponseEntity(ErrorResponse(ErrorCode.NOT_FOUND), httpStatus)
     }
 
     /**
@@ -320,7 +222,7 @@ class GlobalExceptionHandler(
         )
 
         val status = HttpStatus.INTERNAL_SERVER_ERROR
-        val errorResponse = ErrorResponse(status.value(), ErrorCode.INTERNAL_SERVER_ERROR)
+        val errorResponse = ErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR)
         return ResponseEntity(errorResponse, status)
     }
 

@@ -59,9 +59,9 @@ class AuthRateLimitFilter(
             return
         }
 
-        response.status = 429
+        response.status = ErrorCode.RATE_LIMIT_EXCEEDED.status.value()
         response.contentType = MediaType.APPLICATION_JSON_VALUE
-        objectMapper.writeValue(response.writer, ErrorResponse(429, ErrorCode.RATE_LIMIT_EXCEEDED))
+        objectMapper.writeValue(response.writer, ErrorResponse(ErrorCode.RATE_LIMIT_EXCEEDED))
     }
 
     private fun newBucket(limit: Long): Bucket =
