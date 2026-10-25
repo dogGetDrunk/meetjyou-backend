@@ -64,7 +64,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
             beforeEach {
                 every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
+                every { partyRepository.lockByUuid(party.uuid) } returns party
                 every { userRepository.findByUuid(applicant.uuid) } returns applicant
             }
 
@@ -101,7 +101,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                         capacity = 5,
                         name = party.name,
                     )
-                    every { partyRepository.findByUuidForUpdate(party.uuid) } returns fullParty
+                    every { partyRepository.lockByUuid(party.uuid) } returns fullParty
 
                     shouldThrow<PartyFullException> {
                         sut.approveJoinRequest(party.uuid, applicant.uuid)
@@ -151,7 +151,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                         capacity = 5,
                         name = party.name,
                     )
-                    every { partyRepository.findByUuidForUpdate(party.uuid) } returns fullParty
+                    every { partyRepository.lockByUuid(party.uuid) } returns fullParty
 
                     sut.approveJoinRequest(party.uuid, applicant.uuid)
                 }
