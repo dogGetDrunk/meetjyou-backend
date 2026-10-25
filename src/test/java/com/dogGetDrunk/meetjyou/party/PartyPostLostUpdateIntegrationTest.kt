@@ -214,7 +214,7 @@ class PartyPostLostUpdateIntegrationTest : BehaviorSpec() {
 
                     val completion = CompletableFuture.runAsync {
                         inTransaction {
-                            val party = partyRepository.findByUuidForUpdate(partyUuid) ?: error("party missing")
+                            val party = partyRepository.lockByUuid(partyUuid) ?: error("party missing")
                             locked.countDown()
                             Thread.sleep(LOCK_HOLD_MILLIS)
                             party.complete()

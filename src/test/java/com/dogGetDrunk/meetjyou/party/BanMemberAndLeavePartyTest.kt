@@ -64,7 +64,7 @@ class BanMemberAndLeavePartyTest : BehaviorSpec() {
 
             beforeEach {
                 every { currentUserProvider.uuid } returns host.uuid
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
+                every { partyRepository.lockByUuid(party.uuid) } returns party
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, target.uuid) } returns targetMembership
             }
@@ -76,7 +76,7 @@ class BanMemberAndLeavePartyTest : BehaviorSpec() {
 
                     party.joined shouldBe joinedBefore - 1
                     targetMembership.memberStatus.name shouldBe "BANNED"
-                    verify(exactly = 1) { partyRepository.findByUuidForUpdate(party.uuid) }
+                    verify(exactly = 1) { partyRepository.lockByUuid(party.uuid) }
                 }
             }
 
@@ -115,7 +115,7 @@ class BanMemberAndLeavePartyTest : BehaviorSpec() {
             val memberMembership = UserParty(party, member, PartyRole.MEMBER)
 
             beforeEach {
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
+                every { partyRepository.lockByUuid(party.uuid) } returns party
             }
 
             `when`("일반 멤버가 탈퇴하면") {
@@ -128,7 +128,7 @@ class BanMemberAndLeavePartyTest : BehaviorSpec() {
 
                     party.joined shouldBe joinedBefore - 1
                     memberMembership.memberStatus.name shouldBe "LEFT"
-                    verify(exactly = 1) { partyRepository.findByUuidForUpdate(party.uuid) }
+                    verify(exactly = 1) { partyRepository.lockByUuid(party.uuid) }
                 }
             }
 

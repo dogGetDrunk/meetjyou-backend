@@ -267,7 +267,7 @@ class PartyService(
             else -> throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
         }
 
-        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
+        val party = partyRepository.lockByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         if (party.joined >= party.capacity) {
             throw PartyFullException(partyUuid)
         }
@@ -451,7 +451,7 @@ class PartyService(
         // Locked before the host check so the entity is read fresh: @DynamicUpdate keeps this flush
         // off `joined`, but two concurrent renames write the same `name` column and are serialized
         // here so the response reflects the committed name.
-        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
+        val party = partyRepository.lockByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         if (!verifyPartyHost(partyUuid, userUuid)) {
             throw PartyUpdateAccessDeniedException(partyUuid, userUuid)
         }
@@ -495,7 +495,7 @@ class PartyService(
         // Locked so a concurrent PostService.updatePostStatus (which takes the same lock) can't
         // pass its "not completed" check on a stale read and flip the post back to RECRUITING
         // after this completes it — @DynamicUpdate doesn't help there, both write `status`.
-        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
+        val party = partyRepository.lockByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         val hostMembership = requireActiveHostMembership(partyUuid, userUuid)
 
         if (!hostMembership.isActiveMember()) {
@@ -533,7 +533,7 @@ class PartyService(
             targetUserUuid,
         )
 
-        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
+        val party = partyRepository.lockByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
         requireActiveHostMembership(partyUuid, userUuid)
 
@@ -588,7 +588,7 @@ class PartyService(
         val userUuid = currentUserProvider.uuid
         log.info("Party leave requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
 
-        val party = partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
+        val party = partyRepository.lockByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         validatePartyWritable(party)
 
         val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
@@ -624,12 +624,12 @@ class PartyService(
     }
 
     // Locks the row of the post's party for a caller about to write post state that completeParty
-    // guards with the same lock (see PostService.updatePostStatus). Must run before the post or
-    // party is loaded in the transaction, or the persistence context keeps the stale snapshot.
+    // guards with the same lock (see PostService.updatePostStatus). lockByUuid re-reads the party
+    // under the lock, so the caller's completed-party check sees the committed state.
     @Transactional
     fun lockPartyOfPost(postUuid: UUID) {
         val partyUuid = partyRepository.findUuidByPostUuid(postUuid) ?: throw PostNotFoundException(postUuid)
-        partyRepository.findByUuidForUpdate(partyUuid) ?: throw PartyNotFoundException(partyUuid)
+        partyRepository.lockByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
     }
 
     @Transactional

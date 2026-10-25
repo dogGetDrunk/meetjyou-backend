@@ -120,13 +120,13 @@ class PartyImageAndPlanTest : BehaviorSpec() {
             `when`("게시글의 파티가 있으면") {
                 val party = party()
                 every { partyRepository.findUuidByPostUuid(postUuid) } returns party.uuid
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
+                every { partyRepository.lockByUuid(party.uuid) } returns party
 
                 then("파티 uuid를 스칼라로 찾은 뒤 그 파티 행을 잠근다") {
                     sut.lockPartyOfPost(postUuid)
                     verifyOrder {
                         partyRepository.findUuidByPostUuid(postUuid)
-                        partyRepository.findByUuidForUpdate(party.uuid)
+                        partyRepository.lockByUuid(party.uuid)
                     }
                 }
             }
@@ -136,14 +136,14 @@ class PartyImageAndPlanTest : BehaviorSpec() {
 
                 then("PostNotFoundException을 던지고 잠그지 않는다") {
                     shouldThrow<PostNotFoundException> { sut.lockPartyOfPost(postUuid) }
-                    verify(exactly = 0) { partyRepository.findByUuidForUpdate(any()) }
+                    verify(exactly = 0) { partyRepository.lockByUuid(any()) }
                 }
             }
 
             `when`("파티 행이 사라졌으면") {
                 val partyUuid = UUID.randomUUID()
                 every { partyRepository.findUuidByPostUuid(postUuid) } returns partyUuid
-                every { partyRepository.findByUuidForUpdate(partyUuid) } returns null
+                every { partyRepository.lockByUuid(partyUuid) } returns null
 
                 then("PartyNotFoundException을 던진다") {
                     shouldThrow<PartyNotFoundException> { sut.lockPartyOfPost(postUuid) }
@@ -158,7 +158,7 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                 val plan = PlanFixtures.plan(owner = host)
                 val marker = PlanFixtures.marker(plan)
                 party.plan = plan
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
+                every { partyRepository.lockByUuid(party.uuid) } returns party
                 every { currentUserProvider.uuid } returns host.uuid
                 every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership(party, host)
                 every { markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid) } returns listOf(marker)
@@ -171,7 +171,7 @@ class PartyImageAndPlanTest : BehaviorSpec() {
 
                 then("파티 행 잠금으로 조회하고 잠금 없는 조회는 하지 않는다") {
                     sut.completeParty(party.uuid)
-                    verify(exactly = 1) { partyRepository.findByUuidForUpdate(party.uuid) }
+                    verify(exactly = 1) { partyRepository.lockByUuid(party.uuid) }
                     verify(exactly = 0) { partyRepository.findByUuid(party.uuid) }
                 }
             }

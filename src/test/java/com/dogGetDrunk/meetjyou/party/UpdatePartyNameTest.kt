@@ -65,7 +65,7 @@ class UpdatePartyNameTest : BehaviorSpec() {
             party.plan = plan
 
             beforeEach {
-                every { partyRepository.findByUuidForUpdate(party.uuid) } returns party
+                every { partyRepository.lockByUuid(party.uuid) } returns party
                 every { partyRepository.findByUuid(party.uuid) } returns party
             }
 
@@ -89,12 +89,12 @@ class UpdatePartyNameTest : BehaviorSpec() {
                     party.capacity shouldBe capacity
                     party.destination shouldBe destination
                     party.plan shouldBe plan
-                    verify(exactly = 1) { partyRepository.findByUuidForUpdate(party.uuid) }
+                    verify(exactly = 1) { partyRepository.lockByUuid(party.uuid) }
                     // The locked read must come first: if verifyPartyHost's unlocked findByUuid ran
                     // earlier, the stale entity would stay in the persistence context and its full-column
                     // flush could revert a concurrent `joined` change.
                     verifyOrder {
-                        partyRepository.findByUuidForUpdate(party.uuid)
+                        partyRepository.lockByUuid(party.uuid)
                         partyRepository.findByUuid(party.uuid)
                     }
                 }
@@ -136,7 +136,7 @@ class UpdatePartyNameTest : BehaviorSpec() {
         given("존재하지 않는 파티의 이름을 변경하면") {
             val missingUuid = UUID.randomUUID()
             every { currentUserProvider.uuid } returns UUID.randomUUID()
-            every { partyRepository.findByUuidForUpdate(missingUuid) } returns null
+            every { partyRepository.lockByUuid(missingUuid) } returns null
 
             then("PartyNotFoundException을 던진다") {
                 shouldThrow<PartyNotFoundException> {
