@@ -52,6 +52,15 @@ class GlobalExceptionHandlerTest : BehaviorSpec({
                 response.statusCode shouldBe HttpStatus.BAD_REQUEST
                 (response.body as ErrorResponse).errorCode shouldBe ErrorCode.INVALID_INPUT_VALUE.name
             }
+
+            then("파싱 내부 정보(클래스명·필드 경로)를 응답 메시지에 노출하지 않는다") {
+                val internalDetail = "JSON parse error: Cannot deserialize value of type `${CLASS_IN_PARSE_ERROR}`"
+                val exception = HttpMessageNotReadableException(internalDetail)
+
+                val response = sut.handleExceptionInternal(exception, null, HttpHeaders(), HttpStatus.BAD_REQUEST, webRequest)
+
+                (response.body as ErrorResponse).message shouldBe HttpStatus.BAD_REQUEST.reasonPhrase
+            }
         }
     }
 
@@ -123,7 +132,7 @@ class GlobalExceptionHandlerTest : BehaviorSpec({
                 response.statusCode shouldBe HttpStatus.CONFLICT
                 response.body?.errorCode shouldBe ErrorCode.CONCURRENT_REQUEST_CONFLICT.name
                 verify(exactly = 1) {
-                    discordAlertService.sendAlert(any(), HttpStatus.CONFLICT.value(), any(), any(), any())
+                    discordAlertService.sendObservationAlert(any(), HttpStatus.CONFLICT.value(), any(), any(), any())
                 }
             }
         }
@@ -137,3 +146,5 @@ class GlobalExceptionHandlerTest : BehaviorSpec({
         }
     }
 })
+
+private const val CLASS_IN_PARSE_ERROR = "com.dogGetDrunk.meetjyou.post.dto.CreatePostRequest"
