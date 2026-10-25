@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.common.discord
 
+import com.dogGetDrunk.meetjyou.common.exception.GlobalExceptionHandler
 import com.dogGetDrunk.meetjyou.config.DiscordProperties
 import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.nondeterministic.eventually
@@ -8,7 +9,9 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.dao.CannotAcquireLockException
 import java.net.InetSocketAddress
+import java.sql.SQLTransactionRollbackException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
@@ -48,6 +51,43 @@ class DiscordAlertServiceTest : BehaviorSpec({
                 receivedCount.set(0)
 
                 sut.sendAlert(request, 500, "RuntimeException", "unexpected error")
+
+                eventually(2.seconds) {
+                    receivedCount.get() shouldBe 1
+                }
+            }
+        }
+    }
+
+    given("4xx라도 빈도 관측용으로 강제 전송을 요청하면") {
+        `when`("sendObservationAlert를 호출하면") {
+            then("Discord로 전송한다") {
+                receivedCount.set(0)
+
+                sut.sendObservationAlert(request, 409, "CannotAcquireLockException", "deadlock")
+
+                eventually(2.seconds) {
+                    receivedCount.get() shouldBe 1
+                }
+            }
+        }
+    }
+
+    given("행 락 교착이 409로 응답되면") {
+        // Real service, not a mock: the handler test only proved sendAlert was called, while the
+        // service itself dropped every status < 500, so no deadlock alert ever reached Discord.
+        val handler = GlobalExceptionHandler(sut)
+        val exception = CannotAcquireLockException(
+            "could not execute statement",
+            SQLTransactionRollbackException("Deadlock found when trying to get lock", "40001", 1213),
+        )
+        every { request.requestURI } returns "/api/deadlock"
+
+        `when`("handlePessimisticLockingFailure를 호출하면") {
+            then("빈도 관측용 알림이 실제로 Discord에 도착한다") {
+                receivedCount.set(0)
+
+                handler.handlePessimisticLockingFailure(exception, request)
 
                 eventually(2.seconds) {
                     receivedCount.get() shouldBe 1

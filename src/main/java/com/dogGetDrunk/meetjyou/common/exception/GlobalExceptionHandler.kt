@@ -240,12 +240,12 @@ class GlobalExceptionHandler(
         log.warn("Handling PessimisticLockingFailureException.", e)
 
         val errorCode = ErrorCode.CONCURRENT_REQUEST_CONFLICT
-        discordAlertService.sendAlert(
+        discordAlertService.sendObservationAlert(
             request = request,
             status = HttpStatus.CONFLICT.value(),
             exceptionClass = e.javaClass.simpleName,
             summary = "[${errorCode.name}] ${errorCode.message}",
-            detail = e.mostSpecificCause.message
+            detail = e.mostSpecificCause.message,
         )
 
         val status = HttpStatus.CONFLICT
@@ -345,8 +345,12 @@ class GlobalExceptionHandler(
 
         alert(request, httpStatus.value(), e.javaClass.simpleName, e.message ?: httpStatus.reasonPhrase, null)
 
-        val message = e.message ?: httpStatus.reasonPhrase
-        val errorResponse = ErrorResponse(httpStatus.value(), ErrorCode.INVALID_INPUT_VALUE.name, message)
+        // e.message can carry parser internals (DTO class names, field paths); it stays in the log only.
+        val errorResponse = ErrorResponse(
+            httpStatus.value(),
+            ErrorCode.INVALID_INPUT_VALUE.name,
+            httpStatus.reasonPhrase,
+        )
         return ResponseEntity(errorResponse, httpStatus)
     }
 

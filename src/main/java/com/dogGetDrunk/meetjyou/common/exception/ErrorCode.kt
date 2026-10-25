@@ -11,13 +11,7 @@ enum class ErrorCode(
     // User
     DUPLICATE_USER("Duplicate email"),
     DUPLICATE_NICKNAME("Duplicate nickname"),
-    EMAIL_NOT_FOUND("Email not found"),
     USER_NOT_FOUND("User not found"),
-    INVALID_NICKNAME("Invalid nickname"),
-    INVALID_EMAIL_FORMAT("Invalid email format"),
-    TOO_LONG_BIO("Bio is too long"),
-    TOO_MANY_PERSONALITIES("Too many personalities"),
-    TOO_MANY_TRAVEL_STYLES("Too many travel styles"),
 
     // Social account
     SOCIAL_ACCOUNT_ALREADY_LINKED("Social account is linked to another user"),
@@ -30,7 +24,6 @@ enum class ErrorCode(
     EXPIRED_TOKEN("The token has expired"),
     INCORRECT_TOKEN_SUBJECT("The subject in the token is incorrect"),
     MISSING_AUTHORIZATION_HEADER("This authorization header is invalid"),
-    INVALID_ACCESS_TOKEN("The access token is invalid"),
     INVALID_JWT("The JWT is invalid"),
     USER_WITHDRAWN("This account has been withdrawn"),
 
@@ -51,7 +44,6 @@ enum class ErrorCode(
 
     // Plan
     PLAN_NOT_FOUND("Plan not found"),
-    MARKER_NOT_FOUND("Marker not found"),
 
     // Party
     PARTY_NOT_FOUND("Party not found"),
@@ -68,9 +60,6 @@ enum class ErrorCode(
     PARTY_JOIN_REQUEST_NOT_FOUND("No pending join request found"),
     PARTY_JOIN_REJECTED_COOLDOWN("Cannot rejoin within 24 hours of rejection"),
     PARTY_JOIN_CANCEL_NOT_ALLOWED("Only pending join requests can be cancelled"),
-
-    // Image
-    IMAGE_UPLOAD_FAILED("Image upload failed"),
 
     // Chat
     CHATROOM_NOT_FOUND("Chat room not found"),
