@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.party
 
+import com.dogGetDrunk.meetjyou.chat.connection.ChatAccessRevocationReason
 import com.dogGetDrunk.meetjyou.common.exception.business.party.HostBanNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.HostLeaveNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.InactiveMemberBanException
@@ -563,7 +564,7 @@ class PartyService(
 
         targetMembership.ban()
         party.joined--
-        removeFromChatRoom(partyUuid, targetUserUuid)
+        removeFromChatRoom(partyUuid, targetUserUuid, ChatAccessRevocationReason.MEMBER_BANNED)
         chatRoomRepository.findByParty_Uuid(partyUuid)?.let { chatRoom ->
             chatRoomEventBroadcaster.broadcastMemberBanned(
                 roomUuid = chatRoom.uuid,
@@ -611,7 +612,7 @@ class PartyService(
 
         membership.leave()
         party.joined--
-        removeFromChatRoom(partyUuid, userUuid)
+        removeFromChatRoom(partyUuid, userUuid, ChatAccessRevocationReason.MEMBER_LEFT)
         chatRoomRepository.findByParty_Uuid(partyUuid)?.let { chatRoom ->
             chatRoomEventBroadcaster.broadcastMemberLeft(
                 roomUuid = chatRoom.uuid,
@@ -721,8 +722,9 @@ class PartyService(
     private fun removeFromChatRoom(
         partyUuid: UUID,
         targetUserUuid: UUID,
+        reason: ChatAccessRevocationReason,
     ) {
         val chatRoom = chatRoomRepository.findByParty_Uuid(partyUuid) ?: return
-        chatParticipantService.removeParticipant(chatRoom.uuid, targetUserUuid)
+        chatParticipantService.removeParticipant(chatRoom.uuid, targetUserUuid, reason)
     }
 }

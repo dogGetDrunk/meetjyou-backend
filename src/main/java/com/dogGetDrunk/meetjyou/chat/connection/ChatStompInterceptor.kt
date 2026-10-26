@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.chat.connection
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
+import com.dogGetDrunk.meetjyou.chat.ChatController
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.auth.UnauthenticatedException
@@ -57,8 +58,8 @@ class ChatStompInterceptor(
 
         validateMembership(roomUuid, partyUuid, userUuid)
 
-        accessor.sessionAttributes?.put("roomUuid", roomUuid)
-        accessor.sessionAttributes?.put("userUuid", userUuid)
+        accessor.sessionAttributes?.put(ChatSessionAttributes.ROOM_UUID, roomUuid)
+        accessor.sessionAttributes?.put(ChatSessionAttributes.USER_UUID, userUuid)
         accessor.user = ChatPrincipal(userUuid)
 
         log.info("STOMP CONNECT authorized. roomUuid={}, userUuid={}", roomUuid, userUuid)
@@ -73,15 +74,17 @@ class ChatStompInterceptor(
         val destination = accessor.destination
             ?: throw InvalidInputException(value = "destination", message = "STOMP destination is missing")
 
-        if (!destination.startsWith(CHAT_SUBSCRIBE_PREFIX)) {
+        if (destination == ERROR_QUEUE_SUBSCRIPTION) {
             return message
         }
 
         val roomUuid = extractRoomUuidFromDestination(destination)
-            ?: throw InvalidInputException(value = destination, message = "Chat room UUID in destination is invalid")
+            ?: throw InvalidInputException(value = destination, message = "Unsupported subscription destination")
 
-        val userUuid = accessor.sessionAttributes?.get("userUuid") as? UUID
+        val userUuid = accessor.sessionAttributes?.get(ChatSessionAttributes.USER_UUID) as? UUID
             ?: throw UnauthenticatedException(destination)
+
+        validateConnectedRoom(accessor, roomUuid, userUuid)
 
         val partyUuid = chatRoomRepository.findPartyUuidByRoomUuid(roomUuid)
             ?: throw ChatRoomNotFoundException(roomUuid.toString())
@@ -153,9 +156,32 @@ class ChatStompInterceptor(
         }
     }
 
+    // A connection is bound to the room it was authorized for on CONNECT; closing sessions on removal
+    // relies on that, so a session subscribed to another room would survive a kick from it.
+    private fun validateConnectedRoom(accessor: StompHeaderAccessor, roomUuid: UUID, userUuid: UUID) {
+        val connectedRoomUuid = accessor.sessionAttributes?.get(ChatSessionAttributes.ROOM_UUID) as? UUID
+        if (connectedRoomUuid != roomUuid) {
+            log.warn(
+                "STOMP SUBSCRIBE rejected for another room. roomUuid={}, connectedRoomUuid={}, userUuid={}",
+                roomUuid,
+                connectedRoomUuid,
+                userUuid,
+            )
+            throw ChatRoomAccessDeniedException(roomUuid.toString())
+        }
+    }
+
+    /**
+     * Allowlist: only `/sub/chat/room/{uuid}` and `/sub/chat/room/{uuid}/events` pass. The simple broker
+     * treats a subscription destination as an Ant pattern, so anything looser (a `**` wildcard) would
+     * receive every room's broadcasts. The UUID must be in canonical form: a broadcast destination is
+     * matched as an exact string.
+     */
     private fun extractRoomUuidFromDestination(destination: String): UUID? {
-        val roomUuid = destination.removePrefix(CHAT_SUBSCRIBE_PREFIX).substringBefore("/")
-        return runCatching { UUID.fromString(roomUuid) }.getOrNull()
+        val match = ROOM_SUBSCRIPTION_PATTERN.matchEntire(destination) ?: return null
+        val rawRoomUuid = match.groupValues[1]
+        return runCatching { UUID.fromString(rawRoomUuid) }.getOrNull()
+            ?.takeIf { it.toString() == rawRoomUuid }
     }
 
     private class ChatPrincipal(
@@ -165,7 +191,8 @@ class ChatStompInterceptor(
     }
 
     companion object {
-        private const val CHAT_SUBSCRIBE_PREFIX = "/sub/chat/room/"
+        private val ROOM_SUBSCRIPTION_PATTERN = Regex("^/sub/chat/room/([^/]+)(/events)?$")
+        private const val ERROR_QUEUE_SUBSCRIPTION = "/user${ChatController.ERROR_QUEUE}"
         private const val ROOM_UUID_HEADER = "roomUuid"
     }
 }

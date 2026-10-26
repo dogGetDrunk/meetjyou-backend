@@ -24,8 +24,8 @@ class WebSocketEventListener(
         val accessor = StompHeaderAccessor.wrap(event.message)
         val sessionAttributes = accessor.sessionAttributes ?: return
 
-        val roomUuid = sessionAttributes["roomUuid"] as? UUID
-        val userUuid = sessionAttributes["userUuid"] as? UUID
+        val roomUuid = sessionAttributes[ChatSessionAttributes.ROOM_UUID] as? UUID
+        val userUuid = sessionAttributes[ChatSessionAttributes.USER_UUID] as? UUID
         val sessionId = accessor.sessionId
 
         if (roomUuid == null || userUuid == null || sessionId == null) {
@@ -50,8 +50,8 @@ class WebSocketEventListener(
         val accessor = StompHeaderAccessor.wrap(event.message)
         val sessionAttributes = accessor.sessionAttributes ?: return
 
-        val roomUuid = sessionAttributes["roomUuid"] as? UUID
-        val userUuid = sessionAttributes["userUuid"] as? UUID
+        val roomUuid = sessionAttributes[ChatSessionAttributes.ROOM_UUID] as? UUID
+        val userUuid = sessionAttributes[ChatSessionAttributes.USER_UUID] as? UUID
         val sessionId = accessor.sessionId
 
         if (roomUuid == null || userUuid == null || sessionId == null) {

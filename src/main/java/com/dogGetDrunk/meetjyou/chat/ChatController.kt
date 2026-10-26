@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.chat
 
+import com.dogGetDrunk.meetjyou.chat.connection.ChatSessionAttributes
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRequest
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
@@ -25,7 +26,7 @@ class ChatController(
         request: ChatMessageRequest,
         headerAccessor: SimpMessageHeaderAccessor,
     ) {
-        val senderUuid = headerAccessor.sessionAttributes?.get("userUuid") as? UUID
+        val senderUuid = headerAccessor.sessionAttributes?.get(ChatSessionAttributes.USER_UUID) as? UUID
             ?: throw UnauthenticatedException(SESSION_WITHOUT_USER)
 
         chatService.handleChatMessage(request, senderUuid)

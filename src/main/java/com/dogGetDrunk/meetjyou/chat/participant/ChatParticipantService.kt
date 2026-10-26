@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.chat.participant
 
-import com.dogGetDrunk.meetjyou.chat.connection.ChatSessionTracker
+import com.dogGetDrunk.meetjyou.chat.connection.ChatAccessRevocationReason
+import com.dogGetDrunk.meetjyou.chat.connection.ChatAccessRevokedEvent
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
@@ -9,6 +10,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundE
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -20,7 +22,7 @@ class ChatParticipantService(
     private val chatRoomRepository: ChatRoomRepository,
     private val userRepository: UserRepository,
     private val userPartyRepository: UserPartyRepository,
-    private val chatSessionTracker: ChatSessionTracker,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
 
     private val log = LoggerFactory.getLogger(ChatParticipantService::class.java)
@@ -57,12 +59,14 @@ class ChatParticipantService(
     fun removeParticipant(
         roomUuid: UUID,
         userUuid: UUID,
+        reason: ChatAccessRevocationReason,
     ) {
         chatParticipantRepository.deleteByUser_UuidAndRoom_Uuid(
             userUuid = userUuid,
             roomUuid = roomUuid,
         )
-        chatSessionTracker.disconnectAllSessions(roomUuid, userUuid)
+        // Presence and the open WebSocket are dropped after commit (ChatSessionRevocationListener).
+        eventPublisher.publishEvent(ChatAccessRevokedEvent(roomUuid, userUuid, reason))
 
         log.info("Chat participant removed. roomUuid={}, userUuid={}", roomUuid, userUuid)
     }
