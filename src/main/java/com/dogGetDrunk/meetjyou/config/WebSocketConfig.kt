@@ -1,8 +1,8 @@
 package com.dogGetDrunk.meetjyou.config
 
-import com.dogGetDrunk.meetjyou.chat.connection.ChatOutboundInterceptor
 import com.dogGetDrunk.meetjyou.chat.connection.ChatStompErrorHandler
 import com.dogGetDrunk.meetjyou.chat.connection.ChatStompInterceptor
+import com.dogGetDrunk.meetjyou.chat.connection.ChatWebSocketSessionRegistry
 import com.dogGetDrunk.meetjyou.config.property.WebSocketProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration
@@ -11,13 +11,14 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration
 
 @Configuration
 @EnableWebSocketMessageBroker
 @EnableConfigurationProperties(WebSocketProperties::class)
 class WebSocketConfig(
     private val chatStompInterceptor: ChatStompInterceptor,
-    private val chatOutboundInterceptor: ChatOutboundInterceptor,
+    private val chatWebSocketSessionRegistry: ChatWebSocketSessionRegistry,
     private val chatStompErrorHandler: ChatStompErrorHandler,
     private val webSocketProperties: WebSocketProperties,
 ) : WebSocketMessageBrokerConfigurer {
@@ -38,7 +39,8 @@ class WebSocketConfig(
         registration.interceptors(chatStompInterceptor)
     }
 
-    override fun configureClientOutboundChannel(registration: ChannelRegistration) {
-        registration.interceptors(chatOutboundInterceptor)
+    // Keeps a handle on every open session so a kick / leave / withdrawal can close it.
+    override fun configureWebSocketTransport(registration: WebSocketTransportRegistration) {
+        registration.addDecoratorFactory(chatWebSocketSessionRegistry)
     }
 }

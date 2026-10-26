@@ -12,6 +12,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDen
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.EmptyChatMessageException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.ChatRoomNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.notification.NotificationPayload
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.event.NotificationEvent
@@ -52,6 +53,8 @@ class ChatService(
 
         val sender = userRepository.findByUuid(senderUuid)
             ?: throw UserNotFoundException(senderUuid)
+        // CONNECT checks this only once; a session opened before withdrawal must not keep sending.
+        if (!sender.isActive()) throw UserWithdrawnException(senderUuid.toString(), message = "Withdrawn user on SEND")
 
         validateMessageSendPermission(partyUuid, senderUuid)
 

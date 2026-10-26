@@ -8,6 +8,7 @@ import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRequest
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDeniedException
+import com.dogGetDrunk.meetjyou.common.exception.business.user.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
 import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
@@ -23,6 +24,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.springframework.context.ApplicationEventPublisher
+import java.time.Instant
 
 class ChatServiceTest : BehaviorSpec() {
 
@@ -117,6 +119,19 @@ class ChatServiceTest : BehaviorSpec() {
                     shouldThrow<ChatRoomAccessDeniedException> {
                         sut.handleChatMessage(request, senderUuid)
                     }
+                }
+            }
+
+            `when`("탈퇴한 유저가 이미 열려 있던 세션으로 메시지를 전송하면") {
+                then("UserWithdrawnException을 던지고 저장하지 않는다") {
+                    sender.withdraw(Instant.now())
+                    val membership = NotificationCenterFixtures.hostUserParty(party, sender)
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, senderUuid) } returns membership
+
+                    shouldThrow<UserWithdrawnException> {
+                        sut.handleChatMessage(request, senderUuid)
+                    }
+                    verify(exactly = 0) { chatMessageRepository.save(any()) }
                 }
             }
 

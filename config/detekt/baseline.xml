@@ -258,7 +258,6 @@
     <ID>MaxLineLength:UserServiceTest.kt$UserServiceTest$verify(exactly = 1) { userPreferenceRepository.saveAll(match&lt;List&lt;UserPreference&gt;&gt; { it.size == 2 }) }</ID>
     <ID>MaxLineLength:WebSocketEventListener.kt$WebSocketEventListener$log.info("WebSocket connection established. roomUuid={}, userUuid={}, sessionId={}", roomUuid, userUuid, sessionId)</ID>
     <ID>NewLineAtEndOfFile:PlanReadAccessDeniedException.kt$com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanReadAccessDeniedException.kt</ID>
-    <ID>ReturnCount:ChatOutboundInterceptor.kt$ChatOutboundInterceptor$override fun preSend(message: Message&lt;*&gt;, channel: MessageChannel): Message&lt;*&gt;?</ID>
     <ID>ReturnCount:DiscordAlertService.kt$DiscordAlertService$fun sendAlert( request: HttpServletRequest, status: Int, exceptionClass: String, summary: String, detail: String? = null )</ID>
     <ID>ReturnCount:NotificationEventHandler.kt$NotificationEventHandler$@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) @Transactional(propagation = Propagation.REQUIRES_NEW) fun on(event: NotificationEvent)</ID>
     <ID>ReturnCount:PartyService.kt$PartyService$@Transactional(readOnly = true) fun verifyPartyHost(partyUuid: UUID, userUuid: UUID): Boolean</ID>

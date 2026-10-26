@@ -88,6 +88,25 @@ class ChatTestDataHelper(
         return user.uuid
     }
 
+    /** Creates another party + chat room where [userUuid] is an active member. */
+    @Transactional
+    fun addRoomFor(userUuid: UUID): UUID {
+        val user = userRepository.findByUuid(userUuid) ?: error("User not found: $userUuid")
+        val party = partyRepository.save(
+            Party(
+                itinStart = Instant.now(),
+                itinFinish = Instant.now().plusSeconds(86400),
+                destination = "Busan",
+                joined = 1,
+                capacity = 4,
+                name = "Other Party",
+            )
+        )
+        val chatRoom = chatRoomRepository.save(ChatRoom(party = party))
+        userPartyRepository.save(UserParty(party = party, user = user, role = PartyRole.MEMBER))
+        return chatRoom.uuid
+    }
+
     private fun applyStatus(membership: UserParty, status: MemberStatus) {
         when (status) {
             MemberStatus.JOINED -> Unit
