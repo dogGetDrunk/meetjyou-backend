@@ -25,7 +25,7 @@ class ChatSessionRevocationListener(
     fun on(event: ChatAccessRevokedEvent) {
         // Presence first: push routing reads it, and the disconnect event from the close may lag.
         chatSessionTracker.disconnectAllSessions(event.roomUuid, event.userUuid)
-        sessionRegistry.closeSessions(event.userUuid, event.roomUuid, ErrorCode.CHATROOM_ACCESS_DENIED.name)
+        sessionRegistry.closeSessions(event.userUuid, event.roomUuid, event.reason.name)
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)

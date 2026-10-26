@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.chat
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
+import com.dogGetDrunk.meetjyou.chat.connection.ChatAccessRevocationReason
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.support.ChatTestDataHelper
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
@@ -31,7 +32,11 @@ import org.springframework.messaging.simp.stomp.StompSession
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.support.TransactionTemplate
+import org.springframework.web.socket.CloseStatus
+import org.springframework.web.socket.TextMessage
+import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.client.standard.StandardWebSocketClient
+import org.springframework.web.socket.handler.TextWebSocketHandler
 import org.springframework.web.socket.messaging.WebSocketStompClient
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -81,13 +86,15 @@ class ChatAccessRevocationIntegrationTest : BehaviorSpec() {
         given("방에 연결된 활성 멤버") {
             lateinit var userUuid: UUID
             lateinit var roomUuid: UUID
+            lateinit var token: String
             lateinit var client: TestClient
 
             beforeEach {
                 val data = chatTestDataHelper.createTestData()
                 userUuid = data.userUuid
                 roomUuid = data.roomUuid
-                client = connect(roomUuid, jwtProvider.generateAccessToken(userUuid, Role.USER))
+                token = jwtProvider.generateAccessToken(userUuid, Role.USER)
+                client = connect(roomUuid, token)
             }
 
             afterEach {
@@ -131,17 +138,39 @@ class ChatAccessRevocationIntegrationTest : BehaviorSpec() {
 
             `when`("멤버가 방에서 제거되면(강퇴·나가기)") {
                 then("커밋 후 서버가 열린 세션을 닫는다") {
-                    chatParticipantService.removeParticipant(roomUuid, userUuid)
+                    chatParticipantService.removeParticipant(
+                        roomUuid,
+                        userUuid,
+                        ChatAccessRevocationReason.MEMBER_BANNED,
+                    )
 
                     withTimeout(TIMEOUT_MILLIS) { client.closed.await() }
                     client.session.isConnected shouldBe false
                 }
             }
 
+            ChatAccessRevocationReason.entries.forEach { reason ->
+                `when`("${reason.name} 사유로 제거되면") {
+                    then("close code 1008, reason = ${reason.name}으로 닫혀 앱이 강퇴와 나가기를 구분한다") {
+                        val raw = connectRaw(roomUuid, token)
+
+                        chatParticipantService.removeParticipant(roomUuid, userUuid, reason)
+
+                        val status = withTimeout(TIMEOUT_MILLIS) { raw.closeStatus.await() }
+                        status.code shouldBe CloseStatus.POLICY_VIOLATION.code
+                        status.reason shouldBe reason.name
+                    }
+                }
+            }
+
             `when`("제거 트랜잭션이 롤백되면") {
                 then("세션은 닫히지 않는다") {
                     transactionTemplate.executeWithoutResult { status ->
-                        chatParticipantService.removeParticipant(roomUuid, userUuid)
+                        chatParticipantService.removeParticipant(
+                            roomUuid,
+                            userUuid,
+                            ChatAccessRevocationReason.MEMBER_BANNED,
+                        )
                         status.setRollbackOnly()
                     }
                     delay(SETTLE_MILLIS)
@@ -183,6 +212,30 @@ class ChatAccessRevocationIntegrationTest : BehaviorSpec() {
             )
             return received
         }
+    }
+
+    private class RawClient(val closeStatus: CompletableFuture<CloseStatus>)
+
+    // WebSocketStompClient hides the close frame behind ConnectionLostException, so this speaks
+    // STOMP over a plain WebSocket to read the code and reason the app would see.
+    private fun connectRaw(roomUuid: UUID, token: String): RawClient {
+        val connected = CompletableFuture<Unit>()
+        val closeStatus = CompletableFuture<CloseStatus>()
+        val handler = object : TextWebSocketHandler() {
+            override fun handleTextMessage(session: WebSocketSession, message: TextMessage) {
+                if (message.payload.startsWith("CONNECTED")) connected.complete(Unit)
+            }
+
+            override fun afterConnectionClosed(session: WebSocketSession, status: CloseStatus) {
+                closeStatus.complete(status)
+            }
+        }
+        val session = StandardWebSocketClient().execute(handler, "ws://localhost:$port/ws-chat")
+            .get(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        val frame = "CONNECT\naccept-version:1.2\nroomUuid:$roomUuid\nAuthorization:Bearer $token\n\n\u0000"
+        session.sendMessage(TextMessage(frame))
+        connected.get(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        return RawClient(closeStatus)
     }
 
     private fun connect(roomUuid: UUID, token: String): TestClient {

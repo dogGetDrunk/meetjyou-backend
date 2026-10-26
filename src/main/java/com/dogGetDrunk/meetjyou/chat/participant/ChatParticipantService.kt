@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.chat.participant
 
+import com.dogGetDrunk.meetjyou.chat.connection.ChatAccessRevocationReason
 import com.dogGetDrunk.meetjyou.chat.connection.ChatAccessRevokedEvent
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
@@ -58,13 +59,14 @@ class ChatParticipantService(
     fun removeParticipant(
         roomUuid: UUID,
         userUuid: UUID,
+        reason: ChatAccessRevocationReason,
     ) {
         chatParticipantRepository.deleteByUser_UuidAndRoom_Uuid(
             userUuid = userUuid,
             roomUuid = roomUuid,
         )
         // Presence and the open WebSocket are dropped after commit (ChatSessionRevocationListener).
-        eventPublisher.publishEvent(ChatAccessRevokedEvent(roomUuid, userUuid))
+        eventPublisher.publishEvent(ChatAccessRevokedEvent(roomUuid, userUuid, reason))
 
         log.info("Chat participant removed. roomUuid={}, userUuid={}", roomUuid, userUuid)
     }

@@ -18,7 +18,8 @@ STOMP over WebSocket (`/ws-chat`, pub `/pub/**`, sub `/sub/**`). Key classes:
 
 **Access lifetime (#221):** a connection is authorized once on CONNECT, so access loss must close it — nothing filters outbound frames
 - One connection = one room (`roomUuid` CONNECT header, stored as a session attribute). SUBSCRIBE is an allowlist: `/sub/chat/room/{connected room}` (+ `/events`) and `/user/queue/errors` only. The simple broker treats a subscription as an Ant pattern, so a looser rule lets a wildcard receive every room
-- Kick / leave → `ChatParticipantService.removeParticipant` publishes `ChatAccessRevokedEvent`; withdrawal → `UserSessionRevoker.revokeAll` publishes `UserSessionsRevokedEvent`. `ChatSessionRevocationListener` closes the matching sessions after commit (1008, reason = errorCode); the reconnect is rejected on CONNECT
+- Kick / leave → `ChatParticipantService.removeParticipant` publishes `ChatAccessRevokedEvent`; withdrawal → `UserSessionRevoker.revokeAll` publishes `UserSessionsRevokedEvent`. `ChatSessionRevocationListener` closes the matching sessions after commit — close code 1008, reason `MEMBER_BANNED` / `MEMBER_LEFT` (`ChatAccessRevocationReason`) or `USER_WITHDRAWN`; the reconnect is rejected on CONNECT
+- The removed member never receives the room's MEMBER_BANNED / MEMBER_LEFT event (its session closes first, and sending the event first would still race the async outbound channel) — the close reason is its only signal. A new removal path needs its own reason value
 - A new way to lose room access must publish one of these events
 - SEND rechecks membership and `User.isActive()` per message — covers the gap between commit and close
 - Accepted race: a CONNECT validated just before the removal commits can set its attributes after the close scan and stay open until it reconnects (#221 PR)
