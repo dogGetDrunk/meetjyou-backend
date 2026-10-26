@@ -76,16 +76,6 @@ interface UserPartyRepository : JpaRepository<UserParty, Long> {
         """
         select up
         from UserParty up
-        join fetch up.user
-        where up.party.uuid = :partyUuid
-        """
-    )
-    fun findAllWithUserByPartyUuid(@Param("partyUuid") partyUuid: UUID): List<UserParty>
-
-    @Query(
-        """
-        select up
-        from UserParty up
         join fetch up.party
         where up.user.uuid = :userUuid
           and up.memberStatus = :memberStatus

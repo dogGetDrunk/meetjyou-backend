@@ -11,6 +11,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.chat.ChatRoomAccessDen
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
 import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.assertions.throwables.shouldThrow
@@ -59,7 +60,9 @@ class ChatServiceTest : BehaviorSpec() {
                 every { userRepository.findByUuid(senderUuid) } returns sender
                 every { partyRepository.findByUuid(partyUuid) } returns party
                 every { chatSessionTracker.getConnectedUsers(roomUuid) } returns emptySet()
-                every { userPartyRepository.findAllWithUserByPartyUuid(partyUuid) } returns emptyList()
+                every {
+                    userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(partyUuid, MemberStatus.JOINED)
+                } returns emptyList()
             }
 
             `when`("JOINED 상태 멤버가 메시지를 전송하면") {
