@@ -18,6 +18,7 @@ import com.dogGetDrunk.meetjyou.notification.event.NotificationEvent
 import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
 import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -112,7 +113,9 @@ class ChatService(
             messageId = savedMessage.id,
         )
 
-        val receivers = userPartyRepository.findAllWithUserByPartyUuid(partyUuid)
+        // JOINED only: the push carries the message body, so applicants and members who were
+        // banned or left must not receive it.
+        val receivers = userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(partyUuid, MemberStatus.JOINED)
             .map { it.user }
             .filter { it.uuid != senderUuid }
             .filter { receiver -> !chatSessionTracker.isUserConnected(room.uuid, receiver.uuid) }

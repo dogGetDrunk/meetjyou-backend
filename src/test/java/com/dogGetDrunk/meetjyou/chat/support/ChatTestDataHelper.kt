@@ -12,6 +12,7 @@ import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.PartyRole
 import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
@@ -68,6 +69,38 @@ class ChatTestDataHelper(
         userPartyRepository.save(UserParty(party = party, user = user, role = PartyRole.MEMBER))
         return TestData(userUuid = user.uuid, roomUuid = chatRoom.uuid)
     }
+
+    /** Adds a user to the room's party, then moves the membership to [status] through UserParty's own transitions. */
+    @Transactional
+    fun addMember(roomUuid: UUID, nickname: String, status: MemberStatus): UUID {
+        val party = chatRoomRepository.findByUuid(roomUuid)?.party ?: error("Room not found: $roomUuid")
+        val user = userRepository.save(
+            User(
+                email = "$nickname@example.com",
+                nickname = nickname,
+                authProvider = AuthProvider.KAKAO,
+                externalId = "ext-$nickname",
+            )
+        )
+        val membership = UserParty(party = party, user = user, role = PartyRole.MEMBER)
+        applyStatus(membership, status)
+        userPartyRepository.save(membership)
+        return user.uuid
+    }
+
+    private fun applyStatus(membership: UserParty, status: MemberStatus) {
+        when (status) {
+            MemberStatus.JOINED -> Unit
+            MemberStatus.PENDING -> membership.pending()
+            MemberStatus.REJECTED -> membership.reject()
+            MemberStatus.BANNED -> membership.ban()
+            MemberStatus.LEFT -> membership.leave()
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun outboxRecipientUuids(): Set<UUID> =
+        notificationOutboxRepository.findAll().map { it.user.uuid }.toSet()
 
     @Transactional
     fun cleanup() {
