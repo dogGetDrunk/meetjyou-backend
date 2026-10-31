@@ -307,7 +307,7 @@
     <ID>TooManyFunctions:PlanService.kt$PlanService</ID>
     <ID>TooManyFunctions:PostService.kt$PostService</ID>
     <ID>TooManyFunctions:UserController.kt$UserController</ID>
-    <ID>TooManyFunctions:UserPartyRepository.kt$UserPartyRepository : JpaRepository</ID>
+    <ID>TooManyFunctions:UserPartyRepository.kt$UserPartyRepository : JpaRepositoryUserPartyRowLock</ID>
     <ID>TooManyFunctions:UserService.kt$UserService</ID>
     <ID>UnusedPrivateMember:LoginRequest.kt$LoginRequest$@AssertTrue(message = "credential 또는 accessToken 중 하나는 반드시 존재해야 합니다.") private fun isValidAuthentication(): Boolean</ID>
     <ID>UnusedPrivateMember:RegistrationRequest.kt$RegistrationRequest$@AssertTrue(message = "credential 또는 accessToken 중 하나는 반드시 존재해야 합니다.") private fun isValidAuthentication(): Boolean</ID>

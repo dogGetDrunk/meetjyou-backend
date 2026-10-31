@@ -72,7 +72,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                 then("joined 카운터가 1 증가하고 알림 이벤트가 발행된다") {
                     val pendingMembership = NotificationCenterFixtures.pendingUserParty(party, applicant)
                     every {
-                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                        userPartyRepository.lockByPartyUuidAndUserUuid(party.uuid, applicant.uuid)
                     } returns pendingMembership
                     every {
                         userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(party.uuid, MemberStatus.JOINED)
@@ -91,7 +91,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                 then("PartyFullException을 던진다") {
                     val pendingMembership = NotificationCenterFixtures.pendingUserParty(party, applicant)
                     every {
-                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                        userPartyRepository.lockByPartyUuidAndUserUuid(party.uuid, applicant.uuid)
                     } returns pendingMembership
                     val fullParty = Party(
                         itinStart = party.itinStart,
@@ -113,7 +113,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                 then("PartyJoinRequestNotFoundException을 던진다") {
                     val bannedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.ban() }
                     every {
-                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                        userPartyRepository.lockByPartyUuidAndUserUuid(party.uuid, applicant.uuid)
                     } returns bannedMembership
 
                     shouldThrow<PartyJoinRequestNotFoundException> {
@@ -126,7 +126,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                 then("예외 없이 조용히 종료하고 joined 카운터를 다시 증가시키지 않는다") {
                     val alreadyJoinedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.approve() }
                     every {
-                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                        userPartyRepository.lockByPartyUuidAndUserUuid(party.uuid, applicant.uuid)
                     } returns alreadyJoinedMembership
 
                     val joinedBefore = party.joined
@@ -141,7 +141,7 @@ class ApproveJoinRequestTest : BehaviorSpec() {
                 then("PartyFullException 대신 예외 없이 종료된다") {
                     val alreadyJoinedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.approve() }
                     every {
-                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                        userPartyRepository.lockByPartyUuidAndUserUuid(party.uuid, applicant.uuid)
                     } returns alreadyJoinedMembership
                     val fullParty = Party(
                         itinStart = party.itinStart,

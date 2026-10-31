@@ -64,7 +64,7 @@ class CancelJoinRequestTest : BehaviorSpec() {
             `when`("PENDING 상태인 신청이 존재하는 경우") {
                 then("레코드가 삭제된다") {
                     val membership = NotificationCenterFixtures.pendingUserParty(party, user)
-                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid) } returns membership
+                    every { userPartyRepository.lockByPartyUuidAndUserUuid(partyUuid, userUuid) } returns membership
                     every { userPartyRepository.deleteByParty_UuidAndUser_Uuid(partyUuid, userUuid) } returns 1
 
                     sut.cancelJoinRequest(partyUuid)
@@ -75,7 +75,7 @@ class CancelJoinRequestTest : BehaviorSpec() {
 
             `when`("신청 레코드가 존재하지 않는 경우") {
                 then("PartyJoinRequestNotFoundException을 던진다") {
-                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid) } returns null
+                    every { userPartyRepository.lockByPartyUuidAndUserUuid(partyUuid, userUuid) } returns null
 
                     shouldThrow<PartyJoinRequestNotFoundException> {
                         sut.cancelJoinRequest(partyUuid)
@@ -87,7 +87,7 @@ class CancelJoinRequestTest : BehaviorSpec() {
                 then("PartyJoinCancelNotAllowedException을 던진다") {
                     val membership = NotificationCenterFixtures.hostUserParty(party, user)
                     // hostUserParty has memberStatus=JOINED (default)
-                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid) } returns membership
+                    every { userPartyRepository.lockByPartyUuidAndUserUuid(partyUuid, userUuid) } returns membership
 
                     shouldThrow<PartyJoinCancelNotAllowedException> {
                         sut.cancelJoinRequest(partyUuid)
