@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.util.UUID
 
-interface UserPartyRepository : JpaRepository<UserParty, Long> {
+interface UserPartyRepository : JpaRepository<UserParty, Long>, UserPartyRowLock {
 
     fun findByParty_UuidAndRole(partyUuid: UUID, role: PartyRole): UserParty?
 

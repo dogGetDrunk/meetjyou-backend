@@ -15,9 +15,13 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.DynamicUpdate
 import java.time.Instant
 
+// Read-cursor and unread-flag writes load memberships without a lock; a full-column UPDATE would
+// revert a concurrent ban/leave/approve (member_status) they never touched (#222).
 @Entity
+@DynamicUpdate
 @Table(uniqueConstraints = [UniqueConstraint(name = "uk_user_party", columnNames = ["user_id", "party_id"])])
 class UserParty(
     @ManyToOne(fetch = FetchType.LAZY)

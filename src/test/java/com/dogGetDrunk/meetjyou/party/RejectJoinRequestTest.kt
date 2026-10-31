@@ -68,7 +68,7 @@ class RejectJoinRequestTest : BehaviorSpec() {
                 then("REJECTED로 전이되고 알림 이벤트가 발행된다") {
                     val pendingMembership = NotificationCenterFixtures.pendingUserParty(party, applicant)
                     every {
-                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                        userPartyRepository.lockByPartyUuidAndUserUuid(party.uuid, applicant.uuid)
                     } returns pendingMembership
 
                     sut.rejectJoinRequest(party.uuid, applicant.uuid)
@@ -82,7 +82,7 @@ class RejectJoinRequestTest : BehaviorSpec() {
                 then("예외 없이 조용히 종료하고 알림을 재발행하지 않는다") {
                     val rejectedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.reject() }
                     every {
-                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                        userPartyRepository.lockByPartyUuidAndUserUuid(party.uuid, applicant.uuid)
                     } returns rejectedMembership
 
                     sut.rejectJoinRequest(party.uuid, applicant.uuid)
@@ -95,7 +95,7 @@ class RejectJoinRequestTest : BehaviorSpec() {
                 then("PartyJoinRequestNotFoundException을 던진다") {
                     val bannedMembership = NotificationCenterFixtures.pendingUserParty(party, applicant).also { it.ban() }
                     every {
-                        userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, applicant.uuid)
+                        userPartyRepository.lockByPartyUuidAndUserUuid(party.uuid, applicant.uuid)
                     } returns bannedMembership
 
                     shouldThrow<PartyJoinRequestNotFoundException> {

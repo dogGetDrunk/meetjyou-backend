@@ -237,7 +237,9 @@ class PartyService(
     fun cancelJoinRequest(partyUuid: UUID) {
         val userUuid = currentUserProvider.uuid
         log.info("Party join cancellation requested. partyUuid={}, userUuid={}", partyUuid, userUuid)
-        val membership = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, userUuid)
+        // Locked read: a concurrent approve must either finish first (we then see JOINED) or wait
+        // for this delete (it then finds no row), never approve a request we are deleting.
+        val membership = userPartyRepository.lockByPartyUuidAndUserUuid(partyUuid, userUuid)
             ?: throw PartyJoinRequestNotFoundException(partyUuid, userUuid)
         if (membership.memberStatus != MemberStatus.PENDING) {
             throw PartyJoinCancelNotAllowedException(partyUuid, userUuid)
@@ -253,10 +255,13 @@ class PartyService(
 
         requireActiveHostMembership(partyUuid, hostUuid)
 
-        // Looked up and status-checked before the party lock/capacity check so a lost-response
-        // retry of an already-approved request short-circuits here instead of failing a capacity
-        // check that only holds because this same applicant is already counted in party.joined.
-        val request = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid)
+        val party = partyRepository.lockByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
+
+        // Read under the lock: a double-clicked approve, or a racing reject/cancel, has committed by
+        // now and must be seen, not this transaction's stale snapshot (#222). Status is checked
+        // before capacity so a retry of an already-approved request succeeds instead of failing a
+        // capacity check that only holds because this applicant is already counted in party.joined.
+        val request = userPartyRepository.lockByPartyUuidAndUserUuid(partyUuid, applicantUuid)
             ?: throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
 
         when (request.memberStatus) {
@@ -268,7 +273,6 @@ class PartyService(
             else -> throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
         }
 
-        val party = partyRepository.lockByUuid(partyUuid) ?: throw PartyNotFoundException(partyUuid)
         if (party.joined >= party.capacity) {
             throw PartyFullException(partyUuid)
         }
@@ -334,7 +338,9 @@ class PartyService(
 
         requireActiveHostMembership(partyUuid, hostUuid)
 
-        val request = userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, applicantUuid)
+        // Locked read so a racing approve is either seen as JOINED or waits and then sees REJECTED.
+        // Only the membership row is locked (approve locks party → membership), so no lock cycle.
+        val request = userPartyRepository.lockByPartyUuidAndUserUuid(partyUuid, applicantUuid)
             ?: throw PartyJoinRequestNotFoundException(partyUuid, applicantUuid)
 
         when (request.memberStatus) {
