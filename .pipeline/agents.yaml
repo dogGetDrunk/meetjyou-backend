@@ -1,0 +1,35 @@
+roles:
+  main_designer:  { vendor: claude, model: claude-opus-5-5,   effort: high }
+  sub_designer:   { vendor: openai, model: gpt-6.1-sol,       effort: high }
+  test_writer:    { vendor: openai, model: gpt-6.1-terra,     effort: medium }
+
+implement:
+  high:   [{ vendor: claude, model: claude-sonnet-5-5, effort: high }]
+  medium: [{ vendor: openai, model: gpt-6.1-terra,     effort: medium },
+           { vendor: claude, model: claude-sonnet-5-5, effort: medium }]
+  low:    [{ vendor: claude, model: claude-haiku-5-5,  effort: low },
+           { vendor: openai, model: gpt-6-luna,        effort: low }]
+
+review:            # key = 구현한 모델
+  high:
+    claude-sonnet-5-5: { model: gpt-6.1-sol,       effort: high }
+  medium:
+    gpt-6.1-terra:     { model: claude-sonnet-5-5, effort: medium }
+    claude-sonnet-5-5: { model: gpt-6.1-terra,     effort: medium }
+  low:
+    claude-haiku-5-5:  { model: gpt-6-luna,        effort: low }
+    gpt-6-luna:        { model: claude-haiku-5-5,  effort: low }
+
+merge_judge:
+  high:   { model: claude-opus-5-5, effort: high }
+  medium: { model: gpt-6.1-sol,     effort: medium }
+  low:    null     # 생략
+
+limits:
+  concurrent_implementers: 2
+  spec_critique_rounds: 2
+  review_rounds: 3
+  failures_before_effort_up: 2
+  failures_before_promotion: 2
+  max_effort_only_on_escalation: true
+  ticket_effort_override_range: 1
