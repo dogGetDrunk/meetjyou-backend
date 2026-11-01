@@ -68,3 +68,9 @@ REQ-006의 stale snapshot·영속성 컨텍스트 재사용 회귀 및 REQ-002/0
 - `./gradlew test build` + `./gradlew dockerTest`: 최종 M1 전체 gate 통과, skip/미실행 없이 실제 실행 결과 기록
 - `git diff --check`: 문서/소스 공백 오류 없음
 - AT-006-1·2 및 AT-002-2 MySQL 부분 충족; 코드 실패는 이 티켓에서 임의 수정하지 않고 blocking 보고
+
+## 수용 테스트 코드 (보호 대상)
+- 원본: 이 태스크 폴더 `tests/code/` 아래 src와 같은 경로 구조 (별도 세션 Terra 작성)
+- 구현 첫 커밋: 이 티켓 acceptance_tests의 보호 대상 파일을 `tests/code/<경로>` → `<경로>`로 그대로 복사 (diff 0)
+- 복사본 수정 금지. 테스트 오류 의심 시 수정하지 말고 escalation
+- 리뷰어: `diff .pipeline/tasks/20261102-post-party-sync/tests/code/<경로> <경로>` 무출력 확인

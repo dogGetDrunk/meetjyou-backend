@@ -110,3 +110,9 @@ status: ready
 - `./gradlew dockerTest`: 기존 MySQL 회귀 전체 통과, AT-004-1·AT-007-2 새 시나리오 통과; Docker daemon 필요, 운영/공유 DB 사용 금지
 - `git diff --check` 및 두 규칙 문서 diff 확인; 테스트 실패/미실행은 그대로 기록, skip·명령 완화 금지
 - AT-001-1~3·AT-002-1~3(AT-002-2 MySQL 경쟁은 후속 티켓)·AT-003-1~3·AT-004-1·AT-007-1~2 충족; REQ-006 구현 산출물은 후속 MySQL 수용 검증 전 전체 태스크 완료 주장 금지
+
+## 수용 테스트 코드 (보호 대상)
+- 원본: 이 태스크 폴더 `tests/code/` 아래 src와 같은 경로 구조 (별도 세션 Terra 작성)
+- 구현 첫 커밋: 이 티켓 acceptance_tests의 보호 대상 파일을 `tests/code/<경로>` → `<경로>`로 그대로 복사 (diff 0)
+- 복사본 수정 금지. 테스트 오류 의심 시 수정하지 말고 escalation
+- 리뷰어: `diff .pipeline/tasks/20261102-post-party-sync/tests/code/<경로> <경로>` 무출력 확인
