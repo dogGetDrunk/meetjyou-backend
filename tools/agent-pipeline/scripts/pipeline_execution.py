@@ -6,9 +6,9 @@ from pathlib import Path
 import subprocess
 import uuid
 
-import yaml
 
 from pipeline_runtime import Orca, dispatch_lock
+from pipeline_config import load_policy, verify_policy, role_text, project_settings
 
 
 def state_dir(root):
@@ -29,10 +29,8 @@ def write_json(path, value):
 
 
 def approved_config(root):
-    path = Path(root) / '.pipeline/agents.yaml'
-    approval = json.loads((Path(root) / '.pipeline/logs/defaults-approval.json').read_text())
-    if hashlib.sha256(path.read_bytes()).hexdigest() != approval['agents_sha256']:
-        raise ValueError('agents.yaml changed since human approval')
+    verify_policy()
+    project_settings(root)
 
 
 def normalize_touches(paths):
@@ -81,8 +79,8 @@ def execute(root, ticket, text, plan, run, repo, limit):
         if ticket_path.exists():
             content = ticket_path.read_text()
             ticket_path.write_text(re.sub(r'^status: ready\b', 'status: in_progress', content, flags=re.MULTILINE))
-        role = (Path(root) / '.pipeline/prompts/roles/implementer.md').read_text()
-        subprocess.run(['git', 'fetch', 'origin'], cwd=root, check=True)
+        role = role_text(root, 'implementer')
+        subprocess.run(['git', 'fetch', project_settings(root)['base_ref'].split('/', 1)[0]], cwd=root, check=True)
         receipt = runtime.start(role + '\n' + text, plan, run, repo)
         claims[ticket['id']].update(receipt, state='in_progress', implementer=plan['implementer'])
         write_json(ledger, claims)
@@ -115,7 +113,7 @@ def continue_owned(root, ticket_id, previous_dispatch, plan, launch):
         old = claims.get(ticket_id, {})
         if old.get('dispatchId') != previous_dispatch or old.get('state') == 'unknown':
             raise ValueError('Continuation does not own a proven ticket claim')
-        config = yaml.safe_load((Path(root) / '.pipeline/agents.yaml').read_text())
+        config = load_policy()
         del claims[ticket_id]
         ticket = {'id': ticket_id, 'touches': old['touches']}
         reserve(claims, ticket, config['limits']['concurrent_implementers'])

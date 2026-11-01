@@ -11,3 +11,7 @@
 - D-004: 실행 응답 유실 시 unknown 상태 유지·자동 재실행 금지; 진행성보다 중복 편집 방지 우선, receipt 조사 후 복구
 - D-005: YAML 원문 모델 배정 유지 및 PyYAML 버전 고정; shell 정규식 기반 YAML 해석의 형식 의존성 회피
 - D-006: gate 통과·교차 리뷰·판단·CI를 동일 commit SHA에 연결; HEAD 조회만으로 미커밋 코드의 검증을 대체하는 방식 기각
+
+- D-007: 모든 프로젝트 공통 적용 요구 — 엔진·정책·역할 프롬프트를 전역 CLI로 분리, 프로젝트에는 project.yaml·작업 상태만 보관; 복사 배포의 정책 drift 기각
+- D-008: 설치본은 checkout 독립 release, 공통 소스 보관처는 tools/agent-pipeline; 별도 원격 저장소 생성은 이번 범위 제외
+- D-009: gate argv·remote tracking base_ref·merge_method는 프로젝트 명시 설정, Gradle·origin/main 추정 fallback 금지

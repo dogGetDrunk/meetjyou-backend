@@ -7,19 +7,15 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from pipeline_execution import execute, state_dir
 
 
 class ExecutionTest(unittest.TestCase):
     def prepare(self, root):
         (root / '.pipeline/logs').mkdir(parents=True)
-        (root / '.pipeline/prompts/roles').mkdir(parents=True)
-        config = root / '.pipeline/agents.yaml'
-        config.write_text('roles: {}\nlimits: {concurrent_implementers: 2}\n')
-        approval = {'agents_sha256': hashlib.sha256(config.read_bytes()).hexdigest()}
-        (root / '.pipeline/logs/defaults-approval.json').write_text(json.dumps(approval))
-        (root / '.pipeline/prompts/roles/implementer.md').write_text('Only ticket scope')
+        (root / '.pipeline/project.yaml').write_text(
+            'version: 1\nbase_ref: origin/main\nmerge_method: merge\ngate: [[echo, test]]\n')
         intent = root / '.pipeline/intent.md'
         intent.write_text('Approved test intent')
         record = {'intent_sha256': hashlib.sha256(intent.read_bytes()).hexdigest()}

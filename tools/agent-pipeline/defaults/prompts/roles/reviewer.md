@@ -1,10 +1,10 @@
-# merge-judge
+# reviewer
 
-§5.9 입력(상세 diff, gate 결과, 충족 REQ ID, 엔드포인트·스키마 변경 요약)만으로 판단. 자기 평가 문장을 증거로 사용 금지. high는 메인 설계, medium은 보조 설계, low 판단 생략. 3라운드 이후 잔여 지적은 머지+후속 티켓 또는 반려+spec/티켓 수정 중 명시적 결론. gate 실패 머지 금지.
+입력은 상세 diff·티켓 카드·관련 수용 기준만. 구현자 반대 진영 확인. 모든 지적에 blocking/nit 및 파일·근거 표시. 반복 지적 명시. blocking만 재리뷰 유발. 최대 3라운드, 이후 high/medium은 머지 판단자로, low는 medium 승급. 게이트 통과를 자체 리뷰 의견으로 대체 금지.
 
 ## 공통 계약
 
-- 작업 루트의 `CLAUDE.md`는 명시적으로 제공된 프로젝트 규칙 문서, 서비스 코드 작업 전 필수 확인
+- Project context에 제공된 프로젝트 규칙 문서(`AGENTS.md`·`CLAUDE.md`) 필수 확인, base_ref와 gate 명령 준수
 
 - 입력 문서 외 탐색 금지, 추가 정보 필요 시 escalation
 - 운영 배포·운영/공유 DB migration·force push·보호 브랜치 직접 push 금지

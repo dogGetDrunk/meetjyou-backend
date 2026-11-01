@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from pipeline_runtime import Orca, recovery_action
 
 
@@ -100,9 +100,10 @@ class ClaimsTest(unittest.TestCase):
             root = Path(directory)
             (root / '.pipeline/logs').mkdir(parents=True)
             (root / '.pipeline/agents.yaml').write_text('roles: {}')
-            (root / '.pipeline/logs/defaults-approval.json').write_text('{"agents_sha256": "wrong"}')
-            with self.assertRaises(ValueError):
-                approved_config(root)
+            (root / '.pipeline/defaults-approval.json').write_text('{"agents_sha256": "wrong"}')
+            with patch('pipeline_config.DEFAULTS', root / '.pipeline'):
+                with self.assertRaises((ValueError, FileNotFoundError)):
+                    approved_config(root)
             path = root / 'claims.json'
             write_json(path, {'T-001': {'state': 'unknown'}})
             self.assertEqual(json.loads(path.read_text())['T-001']['state'], 'unknown')

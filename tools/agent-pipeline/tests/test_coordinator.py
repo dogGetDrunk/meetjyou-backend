@@ -9,11 +9,11 @@ import unittest
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import pipeline_coordinator as pc  # noqa: E402
 
-CONFIG = yaml.safe_load((ROOT / '.pipeline/agents.yaml').read_text())
+CONFIG = yaml.safe_load((ROOT / 'defaults/agents.yaml').read_text())
 SHA = 'a' * 40
 ROLES = ('implementer', 'reviewer', 'merge-judge')
 
@@ -84,6 +84,8 @@ class CoordinatorCase(unittest.TestCase):
         base = Path(self.tmp.name)
         self.root, self.wt, self.shared = base / 'repo', base / 'wt', base / 'shared'
         (self.root / '.pipeline/tickets').mkdir(parents=True)
+        (self.root / '.pipeline/project.yaml').write_text(
+            'version: 1\nbase_ref: origin/main\nmerge_method: merge\ngate: [[echo, test]]\n')
         (self.root / '.pipeline/prompts/roles').mkdir(parents=True)
         self.wt.mkdir()
         for role in ROLES:
@@ -677,7 +679,13 @@ class AdapterTest(unittest.TestCase):
         def runner(argv, **kwargs):
             calls.append(argv)
             return types.SimpleNamespace(returncode=0, stdout=outputs.pop(0), stderr='')
-        return pc.GhForge(ROOT, runner, intent_check=lambda root: None), calls
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        (root / '.pipeline').mkdir()
+        (root / '.pipeline/project.yaml').write_text(
+            'version: 1\nbase_ref: origin/trunk\nmerge_method: squash\ngate: [[echo, test]]\n')
+        return pc.GhForge(root, runner, intent_check=lambda root: None), calls
 
     def test_gh_ci_state_requires_every_check_successful_on_same_head(self):
         def state(checks, head=SHA):

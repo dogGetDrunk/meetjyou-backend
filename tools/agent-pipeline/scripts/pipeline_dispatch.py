@@ -9,7 +9,7 @@ import yaml
 
 from pipeline_execution import execute, normalize_touches
 
-ROOT = Path(__file__).resolve().parents[1]
+from pipeline_config import load_policy, project_root
 TIERS = ['low', 'medium', 'high']
 EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max']
 
@@ -123,20 +123,21 @@ def main():
     parser.add_argument('--run', help='Existing Orca Run ID')
     parser.add_argument('--repo', help='Exact Orca repo selector')
     args = parser.parse_args()
-    config = yaml.safe_load((ROOT / '.pipeline/agents.yaml').read_text())
+    config = load_policy()
     ticket = load_ticket(args.ticket)
     result = resolve(config, ticket, args.model, args.capacity,
                      args.failures, args.review_rounds)
     if args.execute:
+        root = project_root()
         if not args.run or not args.repo:
             raise ValueError('Live dispatch requires --run and --repo')
         if result['action'] != 'dispatch' or ticket['status'] != 'ready':
             raise ValueError('Only ready, dispatchable tickets may execute')
         for dependency in ticket['depends_on']:
-            dependency_ticket = load_ticket(ROOT / f'.pipeline/tickets/{dependency}.md')
+            dependency_ticket = load_ticket(root / f'.pipeline/tickets/{dependency}.md')
             if dependency_ticket['status'] != 'merged':
                 raise ValueError(f'Dependency not merged: {dependency}')
-        result['receipt'] = execute(ROOT, ticket, args.ticket.read_text(), result,
+        result['receipt'] = execute(root, ticket, args.ticket.read_text(), result,
                                     args.run, args.repo, config['limits']['concurrent_implementers'])
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

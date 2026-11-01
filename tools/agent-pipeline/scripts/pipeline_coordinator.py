@@ -17,9 +17,9 @@ from pipeline_dispatch import load_ticket, resolve
 from pipeline_execution import approved_config, execute, overlaps, state_dir, write_json, continue_owned, approved_intent
 from pipeline_runtime import Orca, dispatch_lock
 
-ROOT = Path(__file__).resolve().parents[1]
+from pipeline_config import load_policy, project_root, project_settings, role_text
+from pipeline_gate import run_project_gate
 STATE_FILE = 'coordinator.json'
-BASE_REF = 'origin/main'
 GATE_TIMEOUT_S = 3600
 ORCA_START_TIMEOUT_MS = '30000'
 CI_MISSING_GRACE_TICKS = 3
@@ -28,7 +28,6 @@ SHA_PATTERN = re.compile(r'[0-9a-f]{40}')
 TICKET_ID = re.compile(r'T-[A-Za-z0-9_-]+')
 SCHEMA_REVIEW = 'review/v1'
 SCHEMA_JUDGE = 'judge/v1'
-MERGE_FLAG = '--merge'
 TRANSITIONS = {
     'queued': {'implementing', 'blocked', 'escalated'},
     'implementing': {'gating', 'needs_fix', 'blocked', 'escalated'},
@@ -214,7 +213,7 @@ class GhForge(Forge):
 
     def merge(self, number, sha):
         self.intent_check(self.root)
-        self._gh('pr', 'merge', str(number), MERGE_FLAG, '--match-head-commit', sha)
+        self._gh('pr', 'merge', str(number), '--' + project_settings(self.root)['merge_method'], '--match-head-commit', sha)
 
 
 def check_verdict(check):
@@ -227,10 +226,7 @@ def check_verdict(check):
 
 
 def run_gate(root, worktree):
-    """Run scripts/gate.sh against the worker worktree; returns (exit_code, combined_output)."""
-    process = subprocess.run([str(Path(root) / 'scripts/gate.sh'), str(worktree)], cwd=root,
-                             capture_output=True, text=True, timeout=GATE_TIMEOUT_S)
-    return process.returncode, f'{process.stdout}{process.stderr}'
+    return run_project_gate(root, worktree, GATE_TIMEOUT_S)
 
 
 def git_read(worktree, *args):
@@ -489,7 +485,7 @@ class Coordinator:
         return resolve(self.config, ticket, rec['model'], None, rec['failures'], rec['rounds_total'])
 
     def role_text(self, role):
-        return (self.root / f'.pipeline/prompts/roles/{role}.md').read_text()
+        return role_text(self.root, role)
 
     def start_implementing(self, rec, entry):
         plan = self.plan_for(rec)
@@ -614,7 +610,7 @@ class Coordinator:
     def review_prompt(self, rec, entry, path):
         self.require_gated_head(rec)
         sha = rec['evidence']['gate']['head_sha']
-        diff = self.git(self.worktree_of(rec), 'diff', f'{BASE_REF}...{sha}')
+        diff = self.git(self.worktree_of(rec), 'diff', f"{project_settings(self.root)['base_ref']}...{sha}")
         schema = {'schema': SCHEMA_REVIEW, 'ticket': rec['id'], 'dispatch_id': '<your dispatch id>', 'head_sha': sha,
                   'round': rec['review_round'] + 1, 'decision': 'approve|request_changes',
                   'findings': [{'id': 'F1', 'severity': 'blocking|nit', 'file': 'path',
@@ -676,7 +672,7 @@ class Coordinator:
     def judge_prompt(self, rec, entry, path):
         self.require_gated_head(rec)
         sha = rec['evidence']['gate']['head_sha']
-        diff = self.git(self.worktree_of(rec), 'diff', f'{BASE_REF}...{sha}')
+        diff = self.git(self.worktree_of(rec), 'diff', f"{project_settings(self.root)['base_ref']}...{sha}")
         facts = {'gate': rec['evidence']['gate'], 'requirements': rec['requirements'],
                  'interfaces_produced': rec['produces'], 'review': rec['evidence'].get('review'),
                  'review_rounds_exhausted': rec['exhausted']}
@@ -795,7 +791,7 @@ class Coordinator:
 
 
 def build_config(root):
-    return yaml.safe_load((Path(root) / '.pipeline/agents.yaml').read_text())
+    return load_policy()
 
 
 def main():
@@ -806,9 +802,11 @@ def main():
     parser.add_argument('--interval', type=int, default=30)
     parser.add_argument('--max-ticks', type=int, default=0, help='0 = until idle')
     args = parser.parse_args()
-    config = build_config(ROOT)
-    backend = OrcaBackend(ROOT, args.run, args.repo, config['limits']['concurrent_implementers'])
-    coordinator = Coordinator(ROOT, backend, GhForge(ROOT), config)
+    root = project_root()
+    project_settings(root)
+    config = build_config(root)
+    backend = OrcaBackend(root, args.run, args.repo, config['limits']['concurrent_implementers'])
+    coordinator = Coordinator(root, backend, GhForge(root), config)
     ticks = 0
     while True:
         report = coordinator.tick()

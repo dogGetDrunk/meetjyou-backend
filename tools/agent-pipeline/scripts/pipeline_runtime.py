@@ -7,6 +7,8 @@ import subprocess
 import time
 import uuid
 
+from pipeline_config import project_settings
+
 
 class Orca:
     def __init__(self, root, executable='orca'):
@@ -41,7 +43,7 @@ class Orca:
     def start(self, ticket_text, plan, run, repo, task=None, retry_of=None):
         worker = plan['implementer']
         argv = ['--run', run, '--worktree', 'new-child', '--repo', repo,
-                '--base-branch', 'origin/main', '--setup', 'skip',
+                '--base-branch', project_settings(self.root)['base_ref'], '--setup', 'skip',
                 '--agent', 'claude' if worker['vendor'] == 'claude' else 'codex',
                 '--model', worker['model'], '--effort', worker['effort'],
                 '--timeout-ms', '30000']
