@@ -45,6 +45,13 @@ class DispatchTest(unittest.TestCase):
         self.assertTrue(plan['promoted'])
         self.assertEqual(MODULE.resolve(CONFIG, {'tier': 'high'}, failures=6)['action'], 'escalate')
 
+    def test_high_override_must_exhaust_max_before_escalating(self):
+        plan = MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': -1}, failures=6)
+        self.assertEqual(plan['implementer']['effort'], 'max')
+        self.assertEqual(MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': -1}, failures=8)['action'], 'escalate')
+        plan = MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': 1}, failures=2)
+        self.assertEqual(plan['implementer']['effort'], 'max')
+
     def test_third_low_review_promotes_and_reassigns_judge(self):
         plan = MODULE.resolve(CONFIG, {'tier': 'low'}, rounds=3)
         self.assertEqual(plan['tier'], 'medium')
@@ -54,7 +61,7 @@ class DispatchTest(unittest.TestCase):
         for kwargs in ({'model': 'unknown'}, {'failures': -1}, {'rounds': -1}):
             with self.assertRaises(ValueError):
                 MODULE.resolve(CONFIG, {'tier': 'low'}, **kwargs)
-        for offset in (2, -2, 'high', True):
+        for offset in (2, -2, 'high', True, False):
             with self.assertRaises(ValueError):
                 MODULE.resolve(CONFIG, {'tier': 'low', 'effort_override': offset})
         plan = MODULE.resolve(CONFIG, {'tier': 'high'}, failures=4)

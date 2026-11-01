@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import uuid
 
+import yaml
+
 from pipeline_runtime import Orca, dispatch_lock
 
 
@@ -66,6 +68,7 @@ def reserve(claims, ticket, limit):
 
 def execute(root, ticket, text, plan, run, repo, limit):
     approved_config(root)
+    approved_intent(root)
     shared = state_dir(root)
     with dispatch_lock(shared):
         ledger = shared / 'claims.json'
@@ -100,3 +103,35 @@ def reconcile(root, runtime, claims):
             liveness = snapshot.get('projection', {}).get('liveness') or {}
             if liveness.get('verdict') == 'exited':
                 claim['state'] = worker['state']
+
+
+def continue_owned(root, ticket_id, previous_dispatch, plan, launch):
+    approved_config(root)
+    approved_intent(root)
+    shared = state_dir(root)
+    with dispatch_lock(shared):
+        ledger = shared / 'claims.json'
+        claims = json.loads(ledger.read_text())
+        old = claims.get(ticket_id, {})
+        if old.get('dispatchId') != previous_dispatch or old.get('state') == 'unknown':
+            raise ValueError('Continuation does not own a proven ticket claim')
+        config = yaml.safe_load((Path(root) / '.pipeline/agents.yaml').read_text())
+        del claims[ticket_id]
+        ticket = {'id': ticket_id, 'touches': old['touches']}
+        reserve(claims, ticket, config['limits']['concurrent_implementers'])
+        claims[ticket_id]['previous_dispatch'] = previous_dispatch
+        write_json(ledger, claims)
+        receipt = launch()
+        claims[ticket_id].update(receipt, state='in_progress', implementer=plan['implementer'])
+        write_json(ledger, claims)
+        return receipt
+
+
+def approved_intent(root):
+    intent = Path(root) / '.pipeline/intent.md'
+    record = Path(root) / '.pipeline/logs/intent-approval.json'
+    if not record.is_file():
+        raise ValueError('Human intent approval is missing')
+    approval = json.loads(record.read_text())
+    if hashlib.sha256(intent.read_bytes()).hexdigest() != approval.get('intent_sha256'):
+        raise ValueError('Intent changed since human approval')

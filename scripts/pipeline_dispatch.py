@@ -41,15 +41,24 @@ def load_ticket(path):
     for name in ticket['touches']:
         if not isinstance(name, str) or Path(name).is_absolute() or '..' in Path(name).parts:
             raise ValueError('touches must contain repository-relative paths')
+    validate_acceptance_ids(ticket)
     ticket['touches'] = normalize_touches(ticket['touches'])
     return ticket
+
+
+def validate_acceptance_ids(ticket):
+    for field, prefix in (('requirements', 'REQ-'), ('acceptance_tests', 'AT-')):
+        values = ticket[field]
+        if not values or any(not isinstance(value, str) or not value.startswith(prefix) for value in values):
+            raise ValueError(f'{field} must contain nonempty {prefix} identifiers')
 
 
 def resolve(config, ticket, model=None, capacity=None, failures=0, rounds=0):
     if failures < 0 or rounds < 0:
         raise ValueError('Counts cannot be negative')
     tier = ticket['tier']
-    offset = ticket.get('effort_override') or 0
+    raw_offset = ticket.get('effort_override')
+    offset = 0 if raw_offset is None else raw_offset
     if type(offset) is not int or abs(offset) > 1:
         raise ValueError('effort_override must be null or an integer within +/-1')
     limits = config['limits']
@@ -59,7 +68,7 @@ def resolve(config, ticket, model=None, capacity=None, failures=0, rounds=0):
     # Two initial failures, two at increased effort, then promotion.
     while failures >= promotion_at or (tier == 'low' and rounds >= limits['review_rounds']):
         if tier == 'high':
-            if failures >= promotion_at + step:
+            if high_exhausted(config, offset, failures):
                 return {'action': 'escalate', 'target': 'main_designer', 'tier': tier}
             break
         tier = TIERS[TIERS.index(tier) + 1]
@@ -78,6 +87,12 @@ def resolve(config, ticket, model=None, capacity=None, failures=0, rounds=0):
                               ([] if tier == 'low' else ['judge_approved'])}
 
 
+def high_exhausted(config, offset, failures):
+    base = EFFORTS.index(config['implement']['high'][0]['effort']) + offset
+    exhausted_at = (EFFORTS.index('max') - base + 1) * config['limits']['failures_before_effort_up']
+    return failures >= exhausted_at
+
+
 def select_implementer(config, tier, offset, failures, model, capacity):
     if capacity and TIERS.index(tier) > TIERS.index(capacity):
         raise ValueError('Upward pickup is forbidden')
@@ -89,10 +104,9 @@ def select_implementer(config, tier, offset, failures, model, capacity):
     base = EFFORTS.index(selected['effort']) + offset
     if base < 0 or base >= EFFORTS.index('max'):
         raise ValueError('Ticket effort override is outside allowed range')
-    automatic_steps = min(failures // config['limits']['failures_before_effort_up'], 2)
-    effort = min(base + automatic_steps, len(EFFORTS) - 1)
-    if automatic_steps < 2:
-        effort = min(effort, EFFORTS.index('xhigh'))
+    automatic_steps = failures // config['limits']['failures_before_effort_up']
+    ceiling = EFFORTS.index('max' if tier == 'high' else 'xhigh')
+    effort = min(base + automatic_steps, ceiling)
     if EFFORTS[effort] == 'max' and tier != 'high':
         raise ValueError('max is only allowed during high-tier escalation')
     return selected, effort

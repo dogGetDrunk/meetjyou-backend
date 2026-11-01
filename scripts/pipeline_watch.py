@@ -6,11 +6,13 @@ from pathlib import Path
 import sys
 
 from pipeline_runtime import Orca, dispatch_lock, recovery_action
-from pipeline_execution import approved_config, state_dir, write_json, reserve
+from pipeline_execution import approved_config, state_dir, write_json, reserve, approved_intent
 from pipeline_dispatch import load_ticket, resolve
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+TASK_TIMEOUT_SECONDS = 1800
+HEARTBEAT_GRACE_SECONDS = 600
 
 
 def inspect(runtime, dispatch, timeout_seconds, heartbeat_seconds):
@@ -46,8 +48,8 @@ def liveness_verdict(snapshot):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dispatch', required=True)
-    parser.add_argument('--timeout-seconds', type=int, default=1800)
-    parser.add_argument('--heartbeat-seconds', type=int, default=600)
+    parser.add_argument('--timeout-seconds', type=int, default=TASK_TIMEOUT_SECONDS)
+    parser.add_argument('--heartbeat-seconds', type=int, default=HEARTBEAT_GRACE_SECONDS)
     parser.add_argument('--retry-ticket', type=Path)
     parser.add_argument('--failures', type=int, default=0)
     args = parser.parse_args()
@@ -66,6 +68,7 @@ def retry_ticket(args, action):
     if action not in ('settled', 'inspect_then_fence_then_retry'):
         raise ValueError('Retry denied: process exit is not proven')
     approved_config(ROOT)
+    approved_intent(ROOT)
     runtime, shared = Orca(ROOT), state_dir(ROOT)
     with dispatch_lock(shared):
         claims, ticket, ledger, plan = prepare_retry(args, shared)

@@ -16,10 +16,14 @@ class ExecutionTest(unittest.TestCase):
         (root / '.pipeline/logs').mkdir(parents=True)
         (root / '.pipeline/prompts/roles').mkdir(parents=True)
         config = root / '.pipeline/agents.yaml'
-        config.write_text('roles: {}')
+        config.write_text('roles: {}\nlimits: {concurrent_implementers: 2}\n')
         approval = {'agents_sha256': hashlib.sha256(config.read_bytes()).hexdigest()}
         (root / '.pipeline/logs/defaults-approval.json').write_text(json.dumps(approval))
         (root / '.pipeline/prompts/roles/implementer.md').write_text('Only ticket scope')
+        intent = root / '.pipeline/intent.md'
+        intent.write_text('Approved test intent')
+        record = {'intent_sha256': hashlib.sha256(intent.read_bytes()).hexdigest()}
+        (root / '.pipeline/logs/intent-approval.json').write_text(json.dumps(record))
         shared = root / 'shared'
         shared.mkdir()
         return shared
@@ -77,3 +81,55 @@ class RetryOwnershipTest(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         pipeline_watch.prepare_retry(args, shared)
                 self.assertEqual(json.loads(ledger.read_text())['T-001'], claim)
+
+
+class ContinuationTest(unittest.TestCase):
+    def test_lost_continuation_receipt_cannot_be_replayed(self):
+        from pipeline_execution import continue_owned
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shared = ExecutionTest.prepare(self, root)
+            ledger = shared / 'claims.json'
+            ledger.write_text(json.dumps({'T-001': {'state': 'review', 'dispatchId': 'ctx_old', 'touches': ['src/a']}}))
+            with patch('pipeline_execution.state_dir', return_value=shared):
+                def lost():
+                    raise RuntimeError('receipt lost')
+                with self.assertRaises(RuntimeError):
+                    continue_owned(root, 'T-001', 'ctx_old', {'implementer': {}}, lost)
+                with self.assertRaises(ValueError):
+                    continue_owned(root, 'T-001', 'ctx_old', {'implementer': {}}, lambda: {})
+            claim = json.loads(ledger.read_text())['T-001']
+            self.assertEqual(claim['state'], 'unknown')
+            self.assertEqual(claim['previous_dispatch'], 'ctx_old')
+
+    def test_continuation_rechecks_global_capacity_before_launch(self):
+        from pipeline_execution import continue_owned
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shared = ExecutionTest.prepare(self, root)
+            claims = {f'T-00{i}': {'state': 'in_progress', 'dispatchId': f'ctx_{i}', 'touches': [f'src/{i}']}
+                      for i in range(1, 4)}
+            claims['T-001']['state'] = 'review'
+            ledger = shared / 'claims.json'
+            ledger.write_text(json.dumps(claims))
+            launched = []
+            with patch('pipeline_execution.state_dir', return_value=shared):
+                with self.assertRaises(ValueError):
+                    continue_owned(root, 'T-001', 'ctx_1', {'implementer': {}}, lambda: launched.append(True))
+            self.assertFalse(launched)
+            self.assertEqual(json.loads(ledger.read_text()), claims)
+
+
+class IntentApprovalTest(unittest.TestCase):
+    def test_missing_or_changed_intent_cannot_be_approved_by_config_alone(self):
+        from pipeline_execution import approved_intent
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shared = ExecutionTest.prepare(self, root)
+            approved_intent(root)
+            (root / '.pipeline/intent.md').write_text('Changed intent')
+            with self.assertRaises(ValueError):
+                approved_intent(root)
+            (root / '.pipeline/logs/intent-approval.json').unlink()
+            with self.assertRaises(ValueError):
+                approved_intent(root)

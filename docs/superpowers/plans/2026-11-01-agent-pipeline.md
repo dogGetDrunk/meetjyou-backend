@@ -13,20 +13,21 @@
 - [x] 등급·모델·effort override·누적 실패·리뷰 횟수 검증
 - [x] 하향 픽업·반대 진영 리뷰·판단자·승급 정책 테스트
 - [x] 더미 티켓 3개 subprocess 검증
-- [ ] agents.yaml 최초 사람 승인
+- [x] agents.yaml 최초 사람 승인
 
 ## 2. 결정적 게이트
 
 - [x] `scripts/gate.sh`: 정책 테스트 후 `./gradlew test build`, 실패 즉시 종료
 - [x] 전체 Gradle test/build 통과 확인 (UP-TO-DATE 캐시 사용)
-- [ ] 공통 CLAUDE.md/AGENTS.md에 가드레일 참조 반영 (기존 사용자 미추적 AGENTS.md 소유권 보존)
+- [x] CLAUDE.md와 .pipeline/AGENTS.md 가드레일 반영, 역할 프롬프트에 CLAUDE.md 명시 제공; 사용자 root AGENTS.md 보존
 
 ## 3. Orca 실행·리허설
 
-- [ ] 계정별 모델·effort 지원 확인
-- [ ] runtime Run/DAG 생성과 ready 분배·동시성 2 제한
-- [ ] task/dispatch ID 영속 기록 및 exactly-once 완료 처리
-- [ ] gate 실패를 원 구현자에게 환류, 교차 리뷰·등급별 머지 전이
-- [ ] timeout/heartbeat 조사·종료 확인 후 재분배
-- [ ] dummy 상·중·하 실제 E2E, 실패·재시도·재분배 증거 기록
-- [ ] 전체 테스트·자체 리뷰 후 커밋·푸시·PR·CI 검증
+- [x] 원문 기본 모델·effort 실제 라우팅 확인; 자동 상향 단계 provider 지원은 운영 확인 항목
+- [x] Run 생성, 로컬 티켓 DAG ready 분배·동시성 2 제한
+- [x] task/dispatch ID·외부 mutation journal·공유 claim 영속 기록
+- [x] gate 실패 환류, 교차 리뷰·등급별 판단·CI 머지 전이
+- [x] timeout/heartbeat 조사·종료 확인 후 재분배 로직 및 단위 테스트
+- [x] dummy 상·중·하 실제 역할 라우팅, 실패·release 후 재분배 증거 기록 (빈 diff, 실제 서비스 E2E와 구분)
+- [x] 전체 로컬 게이트·자체 리뷰·교차 리뷰 및 기반 커밋·푸시·PR 생성
+- 최종 커밋 CI·머지 증거: PR #236 checks 및 merge 상태 참조

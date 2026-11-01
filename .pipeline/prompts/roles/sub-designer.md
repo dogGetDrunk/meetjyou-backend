@@ -4,6 +4,8 @@ spec 비평·계획·티켓 DAG·Given/When/Then 작성. spec 밖 설계 선택�
 
 ## 공통 계약
 
+- 작업 루트의 `CLAUDE.md`는 명시적으로 제공된 프로젝트 규칙 문서, 서비스 코드 작업 전 필수 확인
+
 - 입력 문서 외 탐색 금지, 추가 정보 필요 시 escalation
 - 운영 배포·운영/공유 DB migration·force push·보호 브랜치 직접 push 금지
 - 시크릿·자격증명 파일 접근 금지
