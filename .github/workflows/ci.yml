@@ -19,6 +19,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify pipeline policy
+        run: |
+          python3 -m pip install -r .pipeline/requirements.txt
+          python3 -m unittest discover -s .pipeline/tests -p 'test_*.py'
+          bash -n scripts/gate.sh scripts/dispatch.sh
+
       - name: Set up Amazon Corretto JDK 21
         uses: actions/setup-java@v4
         with:
