@@ -11,7 +11,7 @@
 
 - intent는 프로젝트당 1개가 아니라 태스크당 1개 — `.pipeline/tasks/<키>/`
 - 모델 배정: Claude Max 5x 기준 상 구현 Opus, 중 머지 판단 Opus (원문 §4는 Sonnet·Sol) — `defaults/defaults-approval.json`
-- 시작 신호: `/task` 명령 (`commands/task.md`)
+- 시작 신호: `task` 스킬 (`skills/task/SKILL.md`) — Claude Code `/task`, Codex `$task`
 
 ## 새 프로젝트
 
@@ -86,6 +86,8 @@ agent-pipeline self-test
 - 런처: 고정 release 사용, 원본 저장소 이동·브랜치 전환과 무관
 - 업데이트: 설치 명령 재실행, 기존 런처는 준비 완료 후 원자적으로 교체
 - Codex/Claude 전역 지침: 기존 본문 보존 후 관리 블록 추가, 재설치 시 같은 블록 갱신
-- `/task` 명령: `~/.claude/commands/task.md`, `~/.codex/prompts/task.md` — 관리 표시 없는 같은 이름 파일은 보존
+- `task` 스킬: 실제 파일 `~/.agents/skills/task/`(Codex), `~/.claude/skills/task` → 그 경로 symlink(Claude Code)
+  - 관리 표시 없는 같은 이름 스킬·링크는 보존, 과거 `~/.claude/commands`·`~/.codex/prompts`의 관리 파일은 제거
+  - Codex 0.166은 커스텀 프롬프트 대신 스킬만 로드 — 프롬프트 설치는 Codex에서 `/task` 미인식 원인
 - 다른 머신/CI: 설치하거나 소스 CLI `python3 tools/agent-pipeline/scripts/pipeline_cli.py …` 사용
 - 공통 소스의 현재 보관 저장소는 Meetjyou, 실행 시 해당 저장소·Gradle에 의존 없음
