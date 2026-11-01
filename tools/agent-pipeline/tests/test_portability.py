@@ -135,18 +135,34 @@ class PortableTest(unittest.TestCase):
         self.assertTrue(once.startswith(original.rstrip()))
         self.assertEqual(once.count(INSTALLER.BEGIN), 1)
 
-    def test_task_command_installs_for_both_agents_and_spares_user_files(self):
+    def test_task_skill_is_shared_by_codex_and_claude_and_replaces_legacy_commands(self):
         home = self.base / 'home'
-        user_owned = home / '.codex/prompts/task.md'
-        user_owned.parent.mkdir(parents=True)
-        user_owned.write_text('my own prompt')
-        first = INSTALLER.install_commands(home)
-        self.assertEqual(first, [home / '.claude/commands/task.md'])
-        self.assertEqual(user_owned.read_text(), 'my own prompt')
-        managed = (home / '.claude/commands/task.md').read_text()
-        self.assertIn(INSTALLER.COMMAND_MARKER, managed)
-        self.assertEqual(INSTALLER.install_commands(home), first)
-        self.assertEqual((home / '.claude/commands/task.md').read_text(), managed)
+        legacy = home / '.claude/commands/task.md'
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text(f'{INSTALLER.MANAGED_MARKER}\nold')
+        user_prompt = home / '.codex/prompts/task.md'
+        user_prompt.parent.mkdir(parents=True)
+        user_prompt.write_text('my own prompt')
+        first = INSTALLER.install_skills(home)
+        shared, link = home / '.agents/skills/task', home / '.claude/skills/task'
+        self.assertEqual(first, [shared, link])
+        text = (shared / 'SKILL.md').read_text()
+        self.assertTrue(text.startswith('---\nname: task\n'))
+        self.assertIn(INSTALLER.MANAGED_MARKER, text)
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(link.resolve(), shared.resolve())
+        self.assertFalse(legacy.exists())
+        self.assertEqual(user_prompt.read_text(), 'my own prompt')
+        self.assertEqual(INSTALLER.install_skills(home), first)
+
+    def test_user_owned_task_skill_is_never_replaced(self):
+        home = self.base / 'home'
+        mine = home / '.agents/skills/task/SKILL.md'
+        mine.parent.mkdir(parents=True)
+        mine.write_text('---\nname: task\ndescription: mine\n---\n')
+        self.assertEqual(INSTALLER.install_skills(home), [])
+        self.assertIn('description: mine', mine.read_text())
+        self.assertFalse((home / '.claude/skills/task').exists())
 
     def test_policy_change_cannot_use_original_approval(self):
         defaults = self.base / 'policy'

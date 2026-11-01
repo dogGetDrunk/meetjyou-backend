@@ -28,25 +28,66 @@ def update_instructions(path):
     temporary.replace(path)
 
 
-COMMAND_MARKER = '<!-- agent-pipeline:managed -->'
-COMMAND_TARGETS = ('.claude/commands', '.codex/prompts')
+MANAGED_MARKER = '<!-- agent-pipeline:managed -->'
+SHARED_SKILLS = '.agents/skills'      # read by Codex
+CLAUDE_SKILLS = '.claude/skills'      # symlinked to the shared copy, one source for both agents
+LEGACY_COMMANDS = ('.claude/commands', '.codex/prompts')   # pre-skill install locations
 
 
-def install_commands(home):
-    """Install /task for Claude Code and Codex; never overwrite a same-named file the user wrote."""
+def is_managed(path):
+    return path.is_file() and MANAGED_MARKER in path.read_text()
+
+
+def install_skills(home):
+    """Install pipeline skills for Codex and Claude Code; never touch same-named user skills."""
     installed = []
-    for source in sorted((SOURCE / 'commands').glob('*.md')):
-        for folder in COMMAND_TARGETS:
-            target = home / folder / source.name
-            if target.exists() and COMMAND_MARKER not in target.read_text():
-                print(f'Skipped (user-owned file): {target}')
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            temporary = target.with_name(target.name + '.pipeline.tmp')
-            temporary.write_text(source.read_text())
-            temporary.replace(target)
-            installed.append(target)
+    for source in sorted(p for p in (SOURCE / 'skills').iterdir() if (p / 'SKILL.md').is_file()):
+        shared = home / SHARED_SKILLS / source.name
+        if shared.exists() and not is_managed(shared / 'SKILL.md'):
+            print(f'Skipped (user-owned skill): {shared}')
+            continue
+        replace_tree(source, shared)
+        installed.append(shared)
+        link = home / CLAUDE_SKILLS / source.name
+        if link_skill(link, shared):
+            installed.append(link)
+        remove_legacy_commands(home, source.name)
     return installed
+
+
+def replace_tree(source, target):
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staging = target.with_name(f'.{target.name}.pipeline.tmp')
+    shutil.rmtree(staging, ignore_errors=True)
+    shutil.copytree(source, staging)
+    if target.exists():
+        shutil.rmtree(target)
+    staging.rename(target)
+
+
+def link_skill(link, shared):
+    relative = Path('../..') / SHARED_SKILLS / shared.name
+    if link.is_symlink():
+        if link.resolve() == shared.resolve():
+            return True
+        print(f'Skipped (user-owned link): {link}')
+        return False
+    if link.exists():
+        if not is_managed(link / 'SKILL.md'):
+            print(f'Skipped (user-owned skill): {link}')
+            return False
+        shutil.rmtree(link)
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.symlink_to(relative, target_is_directory=True)
+    return True
+
+
+def remove_legacy_commands(home, name):
+    for folder in LEGACY_COMMANDS:
+        legacy = home / folder / f'{name}.md'
+        if is_managed(legacy):
+            legacy.unlink()
+            print(f'Removed legacy command: {legacy}')
 
 
 def source_files():
@@ -74,8 +115,8 @@ def install(prefix, instructions_home=None):
     if instructions_home:
         for name in ('.codex/AGENTS.md', '.claude/CLAUDE.md'):
             update_instructions(instructions_home / name)
-        for target in install_commands(instructions_home):
-            print(f'Command: {target}')
+        for target in install_skills(instructions_home):
+            print(f'Skill: {target}')
     print(f'Installed: {prefix / "bin/agent-pipeline"}\nRelease: {release}')
 
 

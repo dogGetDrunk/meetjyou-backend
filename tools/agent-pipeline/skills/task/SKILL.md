@@ -1,11 +1,16 @@
 ---
-description: 파이프라인 태스크 시작 — 후보 선택 → 태스크 폴더 → intent 작성·승인 → 설계·티켓
+name: task
+description: >-
+  agent-pipeline 개발 태스크를 시작하거나 이어갈 때 사용. 태스크 폴더(.pipeline/tasks/)와
+  intent 승인을 거쳐 구현 워커까지 연결한다. 트리거: "/task", "$task", "태스크 시작",
+  "다음 태스크 하자", "이 이슈 작업 시작", "intent 쓰자", 인자로 이슈 번호·작업 설명을 붙인 호출.
+  질문·조사만 하는 요청에는 쓰지 않는다.
 argument-hint: "[비움 | 설명 텍스트 | 이슈 번호]"
 ---
 <!-- agent-pipeline:managed -->
-# /task
+# task
 
-파이프라인 태스크 시작 신호. 인자: `$ARGUMENTS`
+파이프라인 태스크 시작 신호. 인자 = 호출 시 스킬 이름 뒤에 붙은 텍스트(없으면 비움).
 
 ## 0. 전제
 

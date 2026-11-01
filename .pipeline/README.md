@@ -3,7 +3,7 @@
 - 공통 프로세스: 전역 `agent-pipeline guide`, 배포 소스 [GUIDE.md](../tools/agent-pipeline/GUIDE.md)
 - 프로젝트 어댑터: [project.yaml](project.yaml) — `origin/main`, merge commit, `./gradlew test build`
 - 태스크 문서: [tasks/](tasks/) — 태스크당 `YYYYMMDD-slug/` 폴더(intent·approval·spec·결정·티켓·logs·result), 코드와 함께 버전 관리
-- 시작 신호: `/task` (전역 설치 명령, 원본 [commands/task.md](../tools/agent-pipeline/commands/task.md))
+- 시작 신호: `task` 스킬 — Claude Code `/task`, Codex `$task` (원본 [skills/task/SKILL.md](../tools/agent-pipeline/skills/task/SKILL.md))
 - 공통 엔진·모델·역할 지시서: 전역 설치본, 프로젝트 복사 없음
 - 프로젝트 공통 기록: [decisions.md](decisions.md)(파이프라인 구축 결정), [logs/usage.md](logs/usage.md)(한도 실측), [logs/rehearsal.md](logs/rehearsal.md)(11/1 리허설)
 
