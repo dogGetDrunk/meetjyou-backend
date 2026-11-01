@@ -23,3 +23,11 @@
 - 재배정: 기존 failed 결과 확인 및 release(프로세스 종료) 후 동일 `task_a22c30117466`에 `--retry-of` 적용 확인
 - timeout/heartbeat 부재만으로 재배정 금지: 단위 테스트 확인, 실제 장애 주입 E2E 미수행
 - `ctx_8ad81c2cb628`의 부가 medium 판단(high effort)은 정식 검증에서 제외, 별도 medium effort 판단으로 재검증
+
+## 실제 부트스트랩 코드 교차 리뷰
+
+- 1차 `ctx_e015289048cc`: claim 재시도·다중 Run 중복 실행 blocking, 수정
+- 2차 `ctx_5736e68a5859`: retry 소유권·unknown reservation·capacity/overlap·경로 정규화 blocking, 수정
+- 3차 `ctx_973f4fde3364`: 4개 blocking 해소 승인, unknown 상태의 수동 조사 필요성은 fail-closed 한계로 기록
+- `workerState`(worker-list)와 `worker.state`(worker-show): 실제 설치 CLI receipt에서 각각 확인, 스키마 차이 정상
+- main 보호 확인: build-and-test 필수, strict=true, enforce_admins=true

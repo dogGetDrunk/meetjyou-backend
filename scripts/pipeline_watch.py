@@ -29,8 +29,18 @@ def inspect(runtime, dispatch, timeout_seconds, heartbeat_seconds):
         last = last.replace(tzinfo=timezone.utc)
     timed_out = (now - started).total_seconds() >= timeout_seconds
     stale = (now - last).total_seconds() >= heartbeat_seconds
-    verdict = (snapshot.get('projection', {}).get('liveness') or {}).get('verdict')
+    verdict = liveness_verdict(snapshot)
     return snapshot, recovery_action(verdict, timed_out, stale)
+
+
+def liveness_verdict(snapshot):
+    liveness = snapshot.get('projection', {}).get('liveness') or {}
+    observation = snapshot.get('observation') or {}
+    gaps = ('missing_status', 'capability_unsupported')
+    if liveness.get('reason') in gaps and observation.get('exactWorker'):
+        if observation.get('status') in ('live', 'exited'):
+            return observation['status']
+    return liveness.get('verdict')
 
 
 def main():

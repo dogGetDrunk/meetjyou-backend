@@ -107,3 +107,16 @@ class ClaimsTest(unittest.TestCase):
             write_json(path, {'T-001': {'state': 'unknown'}})
             self.assertEqual(json.loads(path.read_text())['T-001']['state'], 'unknown')
             self.assertEqual(list(root.glob('*.tmp')), [])
+
+
+class LivenessTest(unittest.TestCase):
+    def test_exact_host_observation_can_resolve_local_status_gap(self):
+        from pipeline_watch import liveness_verdict
+        snapshot = {'projection': {'liveness': {'verdict': 'unverifiable', 'reason': 'missing_status'}},
+                    'observation': {'status': 'exited', 'exactWorker': True}}
+        self.assertEqual(liveness_verdict(snapshot), 'exited')
+        snapshot['observation']['exactWorker'] = False
+        self.assertEqual(liveness_verdict(snapshot), 'unverifiable')
+        snapshot['observation']['exactWorker'] = True
+        snapshot['projection']['liveness']['reason'] = 'host_unavailable'
+        self.assertEqual(liveness_verdict(snapshot), 'unverifiable')

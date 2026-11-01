@@ -77,6 +77,8 @@ class DispatchTest(unittest.TestCase):
             root = Path(directory)
             (root / 'scripts').mkdir()
             (root / '.pipeline/tests').mkdir(parents=True)
+            (root / '.pipeline/tests/test_fixture.py').write_text(
+                'import unittest\nclass Fixture(unittest.TestCase):\n    def test_gate_fixture(self):\n        self.assertTrue(True)\n')
             gate = root / 'scripts/gate.sh'
             gate.write_text((ROOT / 'scripts/gate.sh').read_text())
             gradle = root / 'gradlew'
