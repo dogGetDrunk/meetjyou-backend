@@ -6,8 +6,9 @@ from pathlib import Path
 import sys
 
 from pipeline_runtime import Orca, dispatch_lock, recovery_action
-from pipeline_execution import approved_config, state_dir, write_json, reserve, approved_intent
+from pipeline_execution import approved_config, state_dir, write_json, reserve
 from pipeline_dispatch import load_ticket, resolve
+from pipeline_tasks import ticket_intent
 
 from pipeline_config import load_policy, project_root
 
@@ -71,7 +72,7 @@ def retry_ticket(args, action):
     if action not in ('settled', 'inspect_then_fence_then_retry'):
         raise ValueError('Retry denied: process exit is not proven')
     approved_config(ROOT)
-    approved_intent(ROOT)
+    ticket_intent(ROOT, load_ticket(args.retry_ticket)['id'])
     runtime, shared = Orca(ROOT), state_dir(ROOT)
     with dispatch_lock(shared):
         claims, ticket, ledger, plan = prepare_retry(args, shared)

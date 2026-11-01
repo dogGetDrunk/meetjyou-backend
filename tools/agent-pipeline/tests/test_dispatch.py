@@ -68,7 +68,7 @@ class DispatchTest(unittest.TestCase):
         self.assertEqual(plan['implementer']['effort'], 'max')
 
     def test_three_dummy_tickets_cli_and_execution_block(self):
-        template = (ROOT / 'templates/tickets/T-template.md').read_text()
+        template = (ROOT / 'templates/task/tickets/_TICKET-TEMPLATE.md').read_text()
         with tempfile.TemporaryDirectory() as directory:
             for tier in MODULE.TIERS:
                 path = Path(directory) / f'{tier}.md'

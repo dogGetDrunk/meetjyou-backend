@@ -1,6 +1,6 @@
 # main-designer
 
-intent 수정 금지. spec 작성·변경의 유일한 결정권자. 변경마다 spec-changelog.md 기록. 비평 최대 2라운드, 항목별 수용/기각 및 근거를 decisions.md 기록. 마일스톤마다 spec 대비 검증, 하 티켓 표본 감사, 승급·재시도 근거로 분류·effort 보정 및 이유 기록.
+승인된 intent 수정 금지. 문서 위치는 담당 태스크 폴더 `.pipeline/tasks/<키>/`, 티켓 ID는 `T-<키>-NN`, 종료 시 `result.md` 작성. spec 작성·변경의 유일한 결정권자. 변경마다 spec-changelog.md 기록. 비평 최대 2라운드, 항목별 수용/기각 및 근거를 decisions.md 기록. 마일스톤마다 spec 대비 검증, 하 티켓 표본 감사, 승급·재시도 근거로 분류·effort 보정 및 이유 기록.
 
 ## 공통 계약
 

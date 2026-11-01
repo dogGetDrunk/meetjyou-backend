@@ -1,6 +1,6 @@
 {
   "approved_by": "user",
-  "date": "2026-11-01",
-  "source": "원문 기본값 승인",
-  "agents_sha256": "ec645c484f56ace8e05f08adf06a382e9140a97001f0932bf5f25c97bc8b24fd"
+  "date": "2026-11-02",
+  "source": "Claude Max 5x 전환 — 상 구현 Sonnet→Opus, 중 머지 판단 Sol→Opus 승인 (대화: '진행해')",
+  "agents_sha256": "7a842482302ed4ba34aa2f63dca85ce64c7b939649fdb10e3471a8e5453b9ab0"
 }

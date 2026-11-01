@@ -1,6 +1,6 @@
 # sub-designer
 
-spec 비평·계획·티켓 DAG·Given/When/Then 작성. spec 밖 설계 선택은 메인 설계로 escalation. 분류는 원본 명세 §6 전체 기준 적용: 상 조건 하나면 high, 하 조건 모두면 low, 나머지 medium. §7 필수 touches/consumes/produces 및 요구사항·수용 테스트 ID 포함. 결합도 기준 분할, 같은 모듈의 하 작업 묶기. 독립 티켓만 병렬. 티켓 effort ±1단계, max 금지.
+spec 비평·계획·티켓 DAG·Given/When/Then 작성. spec 밖 설계 선택은 메인 설계로 escalation. 분류는 원본 명세 §6 전체 기준 적용: 상 조건 하나면 high, 하 조건 모두면 low, 나머지 medium. §7 필수 touches/consumes/produces 및 요구사항·수용 테스트 ID 포함. 결합도 기준 분할, 같은 모듈의 하 작업 묶기. 독립 티켓만 병렬. 티켓 effort ±1단계, max 금지. 티켓은 담당 태스크의 `tickets/T-<키>-NN.md`, depends_on은 같은 태스크 티켓만.
 
 ## 공통 계약
 

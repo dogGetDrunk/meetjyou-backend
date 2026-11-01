@@ -16,7 +16,8 @@ from pipeline_cli import initialize
 from pipeline_config import load_policy, project_settings, role_text, verify_policy
 from pipeline_gate import run_project_gate
 from pipeline_runtime import Orca
-from pipeline_execution import approved_intent, state_dir
+from pipeline_execution import state_dir
+from pipeline_tasks import approved_intent, new_task
 
 SPEC = importlib.util.spec_from_file_location('installer', ENGINE / 'install.py')
 INSTALLER = importlib.util.module_from_spec(SPEC)
@@ -45,9 +46,10 @@ class PortableTest(unittest.TestCase):
             self.assertFalse(self.init(root)['intent_approved'])
             self.assertFalse((root / '.pipeline/agents.yaml').exists())
             self.assertFalse((root / '.pipeline/prompts').exists())
-            self.assertFalse((root / '.pipeline/logs/intent-approval.json').exists())
+            self.assertEqual(list((root / '.pipeline/tasks').glob('*/approval.json')), [])
+            new_task(root, '20261102-shared-key', 'same key in two repos', 'M')
             with self.assertRaises(ValueError):
-                approved_intent(root)
+                approved_intent(root, '20261102-shared-key')
         (state_dir(first) / 'claims.json').write_text('{"T-001": {"state": "unknown"}}')
         self.assertFalse((state_dir(second) / 'claims.json').exists())
         verify_policy()
@@ -56,7 +58,8 @@ class PortableTest(unittest.TestCase):
     def test_reinitialization_preserves_existing_state(self):
         root = self.repo('existing')
         self.init(root)
-        intent = root / '.pipeline/intent.md'
+        new_task(root, '20261102-existing', 'existing', 'M')
+        intent = root / '.pipeline/tasks/20261102-existing/intent.md'
         intent.write_text('Existing approved intent')
         with self.assertRaises(ValueError):
             self.init(root)
@@ -131,6 +134,19 @@ class PortableTest(unittest.TestCase):
         self.assertEqual(path.read_text(), once)
         self.assertTrue(once.startswith(original.rstrip()))
         self.assertEqual(once.count(INSTALLER.BEGIN), 1)
+
+    def test_task_command_installs_for_both_agents_and_spares_user_files(self):
+        home = self.base / 'home'
+        user_owned = home / '.codex/prompts/task.md'
+        user_owned.parent.mkdir(parents=True)
+        user_owned.write_text('my own prompt')
+        first = INSTALLER.install_commands(home)
+        self.assertEqual(first, [home / '.claude/commands/task.md'])
+        self.assertEqual(user_owned.read_text(), 'my own prompt')
+        managed = (home / '.claude/commands/task.md').read_text()
+        self.assertIn(INSTALLER.COMMAND_MARKER, managed)
+        self.assertEqual(INSTALLER.install_commands(home), first)
+        self.assertEqual((home / '.claude/commands/task.md').read_text(), managed)
 
     def test_policy_change_cannot_use_original_approval(self):
         defaults = self.base / 'policy'
