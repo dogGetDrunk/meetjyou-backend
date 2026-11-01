@@ -23,6 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Next task
 - "다음 할 일"의 출처 = 팀 노션 스프린트 보드의 내 태스크 → 연결된 GitHub 이슈. 대화 기억·세션 요약 기반 추천 금지
 - 답할 때 출처(보드 태스크명 + 이슈 번호) 명시. 보드와 연결 안 된 열린 이슈는 "보드 미연결"로 따로 표시
+- `/task` 후보 출처도 동일(보드 "내 할 일" 뷰 → 연결 이슈), 이슈 없는 보드 태스크도 시작 가능
 
 ## Commands
 
@@ -145,6 +146,8 @@ Context-compaction preserve/drop rules → global CLAUDE.md §9 (pure meta, not 
 ## Pipeline guardrails
 
 - 파이프라인 공통 계약: 전역 `agent-pipeline guide` 및 설치본 `defaults/prompts/roles/`, 프로젝트 설정 `.pipeline/project.yaml`
+- 태스크 시작: `/task`, 또는 명령 없는 구현 요청 시 수정 전 1회 확인("태스크로 진행 / S 예외로 바로 수정") — 이 확인이 스펙 카드 대체
+- 태스크 문서: `.pipeline/tasks/<YYYYMMDD-slug>/`, 승인 = intent PR 머지(M·L) 또는 `task/<키>` push(S) — 엔진이 base ref 반영 여부 검사
 - 운영 배포·운영/공유 DB migration·force push·보호 브랜치 직접 push·시크릿 접근 금지
 - 승인된 intent 수정 금지, 변경 필요 시 사람 결정 게이트
 - 구현 에이전트의 수용 테스트 수정 금지, 오류 의심 시 escalation

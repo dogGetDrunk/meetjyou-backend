@@ -1,9 +1,9 @@
 ---
-id: T-012
+id: T-20261102-example-01  # T-<태스크 키>-NN 필수 (태스크 폴더 이름이 키)
 title: 모임 참가 신청 API
 tier: high            # high | medium | low
 effort_override: null # 기본값 대비 ±1단계까지만. 예: +1, -1
-depends_on: [T-009, T-010]
+depends_on: []        # 같은 태스크의 티켓만. 예: [T-20261102-example-00]
 requirements: [REQ-4, REQ-5]
 acceptance_tests: [AT-4-1, AT-4-2, AT-5-1]
 touches:              # 건드릴 모듈/파일 (의존성 판단 근거, 필수)

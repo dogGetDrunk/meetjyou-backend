@@ -4,7 +4,7 @@ roles:
   test_writer:    { vendor: openai, model: gpt-6.1-terra,     effort: medium }
 
 implement:
-  high:   [{ vendor: claude, model: claude-sonnet-5-5, effort: high }]
+  high:   [{ vendor: claude, model: claude-opus-5-5,   effort: high }]   # Max 5x: Sonnet -> Opus
   medium: [{ vendor: openai, model: gpt-6.1-terra,     effort: medium },
            { vendor: claude, model: claude-sonnet-5-5, effort: medium }]
   low:    [{ vendor: claude, model: claude-haiku-5-5,  effort: low },
@@ -12,7 +12,7 @@ implement:
 
 review:            # key = 구현한 모델
   high:
-    claude-sonnet-5-5: { model: gpt-6.1-sol,       effort: high }
+    claude-opus-5-5:   { model: gpt-6.1-sol,       effort: high }
   medium:
     gpt-6.1-terra:     { model: claude-sonnet-5-5, effort: medium }
     claude-sonnet-5-5: { model: gpt-6.1-terra,     effort: medium }
@@ -22,7 +22,7 @@ review:            # key = 구현한 모델
 
 merge_judge:
   high:   { model: claude-opus-5-5, effort: high }
-  medium: { model: gpt-6.1-sol,     effort: medium }
+  medium: { model: claude-opus-5-5, effort: medium }   # Max 5x: offload Plus, review stays cross-vendor
   low:    null     # 생략
 
 limits:

@@ -28,6 +28,27 @@ def update_instructions(path):
     temporary.replace(path)
 
 
+COMMAND_MARKER = '<!-- agent-pipeline:managed -->'
+COMMAND_TARGETS = ('.claude/commands', '.codex/prompts')
+
+
+def install_commands(home):
+    """Install /task for Claude Code and Codex; never overwrite a same-named file the user wrote."""
+    installed = []
+    for source in sorted((SOURCE / 'commands').glob('*.md')):
+        for folder in COMMAND_TARGETS:
+            target = home / folder / source.name
+            if target.exists() and COMMAND_MARKER not in target.read_text():
+                print(f'Skipped (user-owned file): {target}')
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target.with_name(target.name + '.pipeline.tmp')
+            temporary.write_text(source.read_text())
+            temporary.replace(target)
+            installed.append(target)
+    return installed
+
+
 def source_files():
     return sorted(p for p in SOURCE.rglob('*') if p.is_file() and
                   '__pycache__' not in p.parts and p.suffix != '.pyc')
@@ -53,6 +74,8 @@ def install(prefix, instructions_home=None):
     if instructions_home:
         for name in ('.codex/AGENTS.md', '.claude/CLAUDE.md'):
             update_instructions(instructions_home / name)
+        for target in install_commands(instructions_home):
+            print(f'Command: {target}')
     print(f'Installed: {prefix / "bin/agent-pipeline"}\nRelease: {release}')
 
 

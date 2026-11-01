@@ -14,8 +14,10 @@ from pathlib import Path
 import yaml
 
 from pipeline_dispatch import load_ticket, resolve
-from pipeline_execution import approved_config, execute, overlaps, state_dir, write_json, continue_owned, approved_intent
+from pipeline_execution import approved_config, execute, overlaps, state_dir, write_json, continue_owned
 from pipeline_runtime import Orca, dispatch_lock
+from pipeline_tasks import (find_ticket, task_key_of, ticket_base_ref, ticket_intent, ticket_paths,
+                            ticket_prefix)
 
 from pipeline_config import load_policy, project_root, project_settings, role_text
 from pipeline_gate import run_project_gate
@@ -80,7 +82,7 @@ class OrcaBackend(Backend):
     worktree (path:ABS) with the full feedback in --spec; the original process is not reused.
     """
 
-    def __init__(self, root, run, repo, limit, orca=None, ownership=continue_owned, intent_check=approved_intent):
+    def __init__(self, root, run, repo, limit, orca=None, ownership=continue_owned, intent_check=ticket_intent):
         self.root, self.run, self.repo, self.limit = Path(root), run, repo, limit
         self.orca = orca or Orca(root)
         self.released = set()
@@ -92,24 +94,24 @@ class OrcaBackend(Backend):
         return {'dispatchId': receipt.get('dispatchId'), 'taskId': receipt.get('taskId')}
 
     def continue_implementer(self, ticket_id, prompt, plan, worktree, previous_dispatch=None):
-        launch = lambda: self._continue_launch(previous_dispatch, prompt, plan, worktree)
+        launch = lambda: self._continue_launch(ticket_id, previous_dispatch, prompt, plan, worktree)
         return self.ownership(self.root, ticket_id, previous_dispatch, plan, launch)
 
-    def _continue_launch(self, previous, prompt, plan, worktree):
+    def _continue_launch(self, ticket_id, previous, prompt, plan, worktree):
         if previous:
             snapshot = self.orca.call('worker-show', '--dispatch', previous)
             if snapshot['worker']['state'] in ('failed', 'stopped'):
                 return self.orca.retry(previous, plan)
-        return self._start_in(prompt, plan['implementer'], worktree)
+        return self._start_in(ticket_id, prompt, plan['implementer'], worktree)
 
     def start_reviewer(self, ticket_id, prompt, role_plan, worktree):
-        return self._start_in(prompt, role_plan, worktree)
+        return self._start_in(ticket_id, prompt, role_plan, worktree)
 
     def start_judge(self, ticket_id, prompt, role_plan, worktree):
-        return self._start_in(prompt, role_plan, worktree)
+        return self._start_in(ticket_id, prompt, role_plan, worktree)
 
-    def _start_in(self, spec, worker, worktree):
-        self.intent_check(self.root)
+    def _start_in(self, ticket_id, spec, worker, worktree):
+        self.intent_check(self.root, ticket_id)
         agent = 'claude' if worker['vendor'] == 'claude' else 'codex'
         receipt = self.orca.call('worker-start', '--spec', spec, '--worktree', f'path:{worktree}',
                                  '--agent', agent, '--model', worker['model'],
@@ -163,21 +165,21 @@ class Forge:
     def find_pr(self, branch):
         raise AdapterUnverified('find_pr: not implemented')
 
-    def mark_ready(self, number):
+    def mark_ready(self, number, ticket_id):
         """Take the implementer's draft PR out of draft after judgment approves."""
         raise AdapterUnverified('mark_ready: not implemented')
 
     def ci_state(self, number, sha):
         raise AdapterUnverified('ci_state: not implemented')
 
-    def merge(self, number, sha):
+    def merge(self, number, sha, ticket_id):
         raise AdapterUnverified('merge: not implemented')
 
 
 class GhForge(Forge):
     """gh CLI forge. pr view/list fields live-verified; unknown shapes mean not-success."""
 
-    def __init__(self, root, runner=subprocess.run, intent_check=approved_intent):
+    def __init__(self, root, runner=subprocess.run, intent_check=ticket_intent):
         self.root, self.runner = Path(root), runner
         self.intent_check = intent_check
 
@@ -197,8 +199,8 @@ class GhForge(Forge):
         return {'number': items[0]['number'], 'head_sha': items[0]['headRefOid'],
                 'draft': bool(items[0].get('isDraft'))}
 
-    def mark_ready(self, number):
-        self.intent_check(self.root)
+    def mark_ready(self, number, ticket_id):
+        self.intent_check(self.root, ticket_id)
         self._gh('pr', 'ready', str(number))
 
     def ci_state(self, number, sha):
@@ -211,8 +213,8 @@ class GhForge(Forge):
         verdicts = {check_verdict(check) for check in checks}
         return 'failure' if 'failure' in verdicts else 'pending' if 'pending' in verdicts else 'success'
 
-    def merge(self, number, sha):
-        self.intent_check(self.root)
+    def merge(self, number, sha, ticket_id):
+        self.intent_check(self.root, ticket_id)
         self._gh('pr', 'merge', str(number), '--' + project_settings(self.root)['merge_method'], '--match-head-commit', sha)
 
 
@@ -290,12 +292,13 @@ def parse_judge(path, expect, requirements):
 
 class Coordinator:
     def __init__(self, root, backend, forge, config, shared=None, gate=None, git=git_read,
-                 approval=approved_config):
+                 approval=approved_config, intent_check=ticket_intent, base_ref=ticket_base_ref):
         self.root = Path(root)
         self.backend, self.forge, self.config = backend, forge, config
         self.shared = Path(shared) if shared else state_dir(root)
         self.gate = gate or (lambda worktree: run_gate(self.root, worktree))
         self.git, self.approval = git, approval
+        self.intent_check, self.base_ref = intent_check, base_ref
         self.state = self.load_state()
         self.events = []
         self.refused = []
@@ -327,8 +330,8 @@ class Coordinator:
         statuses = {'implementing': 'in_progress', 'gating': 'in_progress', 'needs_fix': 'in_progress',
                     'reviewing': 'review', 'judging': 'review', 'merging': 'review', 'merged': 'merged',
                     'blocked': 'blocked', 'rejected': 'blocked', 'escalated': 'blocked'}
-        path = self.root / f".pipeline/tickets/{rec['id']}.md"
-        if rec['state'] not in statuses or not path.exists():
+        path = find_ticket(self.root, rec['id'])
+        if rec['state'] not in statuses or path is None:
             return
         text = path.read_text()
         parts = text.split('\n---', 1)
@@ -338,7 +341,9 @@ class Coordinator:
         path.write_text(f'{header}\n---{parts[1]}')
 
     def append_audit(self, name, rec, detail):
-        folder = self.root / '.pipeline/logs'
+        path = find_ticket(self.root, rec['id'])
+        # Audit rows stay with their task so the folder is a complete record of the work.
+        folder = path.parent.parent / 'logs' if path else self.root / '.pipeline/logs'
         folder.mkdir(parents=True, exist_ok=True)
         with (folder / f'{name}.md').open('a') as output:
             stamp = datetime.now(timezone.utc).isoformat()
@@ -410,12 +415,15 @@ class Coordinator:
 
     def load_tickets(self):
         tickets, invalid = {}, []
-        for path in sorted((self.root / '.pipeline/tickets').glob('T-*.md')):
+        for path in ticket_paths(self.root):
+            name = path.relative_to(self.root).as_posix()
             try:
                 ticket = load_ticket(path)
+                if ticket['id'] in tickets:
+                    raise ValueError(f"duplicate ticket id {ticket['id']}")
                 tickets[ticket['id']] = {'ticket': ticket, 'text': path.read_text()}
             except (ValueError, KeyError, OSError, yaml.YAMLError) as error:
-                invalid.append({'file': path.name, 'error': str(error)})
+                invalid.append({'file': name, 'error': str(error)})
         return tickets, invalid
 
     def advance(self, rec, tickets):
@@ -451,8 +459,17 @@ class Coordinator:
         for identifier in sorted(tickets):
             if self.free_slots() <= 0:
                 return
-            if self.is_eligible(tickets[identifier], merged):
+            if self.is_eligible(tickets[identifier], merged) and self.intent_ready(identifier):
                 self.dispatch_new(tickets[identifier])
+
+    def intent_ready(self, identifier):
+        """Tickets of a task whose intent is not approved-and-on-base stay queued, never blocked."""
+        try:
+            self.intent_check(self.root, identifier)
+            return True
+        except (ValueError, OSError) as error:
+            self.refused.append({'ticket': identifier, 'reason': str(error)})
+            return False
 
     def dispatch_new(self, entry):
         ticket = entry['ticket']
@@ -610,7 +627,7 @@ class Coordinator:
     def review_prompt(self, rec, entry, path):
         self.require_gated_head(rec)
         sha = rec['evidence']['gate']['head_sha']
-        diff = self.git(self.worktree_of(rec), 'diff', f"{project_settings(self.root)['base_ref']}...{sha}")
+        diff = self.git(self.worktree_of(rec), 'diff', f"{self.base_ref(self.root, rec['id'])}...{sha}")
         schema = {'schema': SCHEMA_REVIEW, 'ticket': rec['id'], 'dispatch_id': '<your dispatch id>', 'head_sha': sha,
                   'round': rec['review_round'] + 1, 'decision': 'approve|request_changes',
                   'findings': [{'id': 'F1', 'severity': 'blocking|nit', 'file': 'path',
@@ -672,7 +689,7 @@ class Coordinator:
     def judge_prompt(self, rec, entry, path):
         self.require_gated_head(rec)
         sha = rec['evidence']['gate']['head_sha']
-        diff = self.git(self.worktree_of(rec), 'diff', f"{project_settings(self.root)['base_ref']}...{sha}")
+        diff = self.git(self.worktree_of(rec), 'diff', f"{self.base_ref(self.root, rec['id'])}...{sha}")
         facts = {'gate': rec['evidence']['gate'], 'requirements': rec['requirements'],
                  'interfaces_produced': rec['produces'], 'review': rec['evidence'].get('review'),
                  'review_rounds_exhausted': rec['exhausted']}
@@ -702,13 +719,20 @@ class Coordinator:
         if rec['exhausted'] and report['decision'] == 'merge':
             raise ReportError('review rounds exhausted: judge must choose merge_with_followup or reject')
         if report['decision'] == 'merge_with_followup':
-            self.ensure_followup(report)
+            self.ensure_followup(rec, report)
         rec['evidence']['judge'] = {'decision': report['decision'], 'followup_ticket': report.get('followup_ticket')}
         self.move(rec, 'merging', f"judge: {report['decision']}")
 
-    def ensure_followup(self, report):
+    def ensure_followup(self, rec, report):
         identifier = report['followup_ticket']
-        path = self.root / f'.pipeline/tickets/{identifier}.md'
+        parent = find_ticket(self.root, rec['id'])
+        if parent is None:
+            raise ReportError(f"parent ticket file missing for {rec['id']}")
+        # A followup belongs to the same task, so it inherits that task's approved intent.
+        prefix = ticket_prefix(task_key_of(parent))
+        if not identifier.startswith(prefix):
+            raise ReportError(f'followup_ticket must start with {prefix}')
+        path = parent.parent / f'{identifier}.md'
         if not path.exists():
             card = report.get('followup_card')
             if not isinstance(card, str) or not card.strip():
@@ -749,7 +773,7 @@ class Coordinator:
         if pr['head_sha'] != sha:
             return self.block(rec, 'PR head differs from the gated and reviewed sha')
         if pr.get('draft'):
-            self.call_on(rec, self.forge, 'mark_ready', pr['number'])
+            self.call_on(rec, self.forge, 'mark_ready', pr['number'], rec['id'])
             rec['pending_call'] = None
             self.save()
             return
@@ -758,7 +782,7 @@ class Coordinator:
             return
         if state != 'success':
             return self.block(rec, f'CI not verified: {state}')
-        self.call_on(rec, self.forge, 'merge', pr['number'], sha)
+        self.call_on(rec, self.forge, 'merge', pr['number'], sha, rec['id'])
         rec['evidence']['merged_pr'] = pr['number']
         self.move(rec, 'merged', f"PR {pr['number']} merged after CI success")
         self.release_claim(rec)
@@ -794,6 +818,14 @@ def build_config(root):
     return load_policy()
 
 
+def refresh_remote(root):
+    """Approval is read from remote-tracking refs, so a merged intent PR is seen only after fetch."""
+    remote = project_settings(root)['base_ref'].split('/', 1)[0]
+    process = subprocess.run(['git', 'fetch', '-q', remote], cwd=root, capture_output=True, text=True)
+    if process.returncode:
+        print(f'warning: fetch {remote} failed; approvals use the last fetched refs', file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Deterministic pipeline coordinator')
     parser.add_argument('--run', required=True, help='Existing Orca Run ID')
@@ -809,6 +841,7 @@ def main():
     coordinator = Coordinator(root, backend, GhForge(root), config)
     ticks = 0
     while True:
+        refresh_remote(root)
         report = coordinator.tick()
         ticks += 1
         print(json.dumps(report, ensure_ascii=False))

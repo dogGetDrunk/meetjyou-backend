@@ -40,10 +40,10 @@ class Orca:
             raise RuntimeError(f'Orca refused operation; inspect recovery receipt: {path}')
         return receipt['result']
 
-    def start(self, ticket_text, plan, run, repo, task=None, retry_of=None):
+    def start(self, ticket_text, plan, run, repo, task=None, retry_of=None, base_ref=None):
         worker = plan['implementer']
         argv = ['--run', run, '--worktree', 'new-child', '--repo', repo,
-                '--base-branch', project_settings(self.root)['base_ref'], '--setup', 'skip',
+                '--base-branch', base_ref or project_settings(self.root)['base_ref'], '--setup', 'skip',
                 '--agent', 'claude' if worker['vendor'] == 'claude' else 'codex',
                 '--model', worker['model'], '--effort', worker['effort'],
                 '--timeout-ms', '30000']

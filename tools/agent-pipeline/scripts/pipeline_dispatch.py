@@ -8,6 +8,7 @@ import sys
 import yaml
 
 from pipeline_execution import execute, normalize_touches
+from pipeline_tasks import require_ticket, task_key_of, ticket_prefix
 
 from pipeline_config import load_policy, project_root
 TIERS = ['low', 'medium', 'high']
@@ -42,8 +43,20 @@ def load_ticket(path):
         if not isinstance(name, str) or Path(name).is_absolute() or '..' in Path(name).parts:
             raise ValueError('touches must contain repository-relative paths')
     validate_acceptance_ids(ticket)
+    validate_task_prefix(path, ticket)
     ticket['touches'] = normalize_touches(ticket['touches'])
     return ticket
+
+
+def validate_task_prefix(path, ticket):
+    """Ticket IDs carry their task key so shared claims never collide across tasks."""
+    key = task_key_of(path)
+    if key is None:
+        return
+    prefix = ticket_prefix(key)
+    for identifier in [ticket['id'], *ticket['depends_on']]:
+        if not identifier.startswith(prefix):
+            raise ValueError(f'Ticket {identifier} must start with {prefix}')
 
 
 def validate_acceptance_ids(ticket):
@@ -134,7 +147,7 @@ def main():
         if result['action'] != 'dispatch' or ticket['status'] != 'ready':
             raise ValueError('Only ready, dispatchable tickets may execute')
         for dependency in ticket['depends_on']:
-            dependency_ticket = load_ticket(root / f'.pipeline/tickets/{dependency}.md')
+            dependency_ticket = load_ticket(require_ticket(root, dependency))
             if dependency_ticket['status'] != 'merged':
                 raise ValueError(f'Dependency not merged: {dependency}')
         result['receipt'] = execute(root, ticket, args.ticket.read_text(), result,

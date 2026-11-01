@@ -1,5 +1,4 @@
 """Shared ticket ownership and approved configuration checks."""
-import hashlib
 import json
 import re
 from pathlib import Path
@@ -9,6 +8,7 @@ import uuid
 
 from pipeline_runtime import Orca, dispatch_lock
 from pipeline_config import load_policy, verify_policy, role_text, project_settings
+from pipeline_tasks import require_ticket, ticket_base_ref, ticket_intent
 
 
 def state_dir(root):
@@ -66,7 +66,7 @@ def reserve(claims, ticket, limit):
 
 def execute(root, ticket, text, plan, run, repo, limit):
     approved_config(root)
-    approved_intent(root)
+    ticket_intent(root, ticket['id'])
     shared = state_dir(root)
     with dispatch_lock(shared):
         ledger = shared / 'claims.json'
@@ -75,13 +75,13 @@ def execute(root, ticket, text, plan, run, repo, limit):
         reconcile(root, runtime, claims)
         reserve(claims, ticket, limit)
         write_json(ledger, claims)
-        ticket_path = Path(root) / f'.pipeline/tickets/{ticket["id"]}.md'
-        if ticket_path.exists():
-            content = ticket_path.read_text()
-            ticket_path.write_text(re.sub(r'^status: ready\b', 'status: in_progress', content, flags=re.MULTILINE))
+        ticket_path = require_ticket(root, ticket['id'])
+        content = ticket_path.read_text()
+        ticket_path.write_text(re.sub(r'^status: ready\b', 'status: in_progress', content, flags=re.MULTILINE))
         role = role_text(root, 'implementer')
-        subprocess.run(['git', 'fetch', project_settings(root)['base_ref'].split('/', 1)[0]], cwd=root, check=True)
-        receipt = runtime.start(role + '\n' + text, plan, run, repo)
+        base = ticket_base_ref(root, ticket['id'])
+        subprocess.run(['git', 'fetch', base.split('/', 1)[0]], cwd=root, check=True)
+        receipt = runtime.start(role + '\n' + text, plan, run, repo, base_ref=base)
         claims[ticket['id']].update(receipt, state='in_progress', implementer=plan['implementer'])
         write_json(ledger, claims)
         return receipt
@@ -105,7 +105,7 @@ def reconcile(root, runtime, claims):
 
 def continue_owned(root, ticket_id, previous_dispatch, plan, launch):
     approved_config(root)
-    approved_intent(root)
+    ticket_intent(root, ticket_id)
     shared = state_dir(root)
     with dispatch_lock(shared):
         ledger = shared / 'claims.json'
@@ -123,13 +123,3 @@ def continue_owned(root, ticket_id, previous_dispatch, plan, launch):
         claims[ticket_id].update(receipt, state='in_progress', implementer=plan['implementer'])
         write_json(ledger, claims)
         return receipt
-
-
-def approved_intent(root):
-    intent = Path(root) / '.pipeline/intent.md'
-    record = Path(root) / '.pipeline/logs/intent-approval.json'
-    if not record.is_file():
-        raise ValueError('Human intent approval is missing')
-    approval = json.loads(record.read_text())
-    if hashlib.sha256(intent.read_bytes()).hexdigest() != approval.get('intent_sha256'):
-        raise ValueError('Intent changed since human approval')
