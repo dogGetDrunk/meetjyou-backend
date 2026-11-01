@@ -1,0 +1,5 @@
+version: 1
+base_ref: origin/main
+merge_method: merge
+gate:
+  - [./gradlew, test, build]

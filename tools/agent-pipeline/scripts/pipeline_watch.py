@@ -8,9 +8,10 @@ import sys
 from pipeline_runtime import Orca, dispatch_lock, recovery_action
 from pipeline_execution import approved_config, state_dir, write_json, reserve, approved_intent
 from pipeline_dispatch import load_ticket, resolve
-import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+from pipeline_config import load_policy, project_root
+
+ROOT = None
 TASK_TIMEOUT_SECONDS = 1800
 HEARTBEAT_GRACE_SECONDS = 600
 
@@ -46,6 +47,8 @@ def liveness_verdict(snapshot):
 
 
 def main():
+    global ROOT
+    ROOT = project_root()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dispatch', required=True)
     parser.add_argument('--timeout-seconds', type=int, default=TASK_TIMEOUT_SECONDS)
@@ -87,7 +90,7 @@ def prepare_retry(args, shared):
     claim = claims.get(ticket['id'], {})
     if claim.get('dispatchId') != args.dispatch or claim.get('state') == 'unknown':
         raise ValueError('Dispatch does not own a proven retryable ticket claim')
-    config = yaml.safe_load((ROOT / '.pipeline/agents.yaml').read_text())
+    config = load_policy()
     model = claim.get('implementer', {}).get('model')
     plan = resolve(config, ticket, model=model, failures=args.failures)
     if plan['action'] != 'dispatch':

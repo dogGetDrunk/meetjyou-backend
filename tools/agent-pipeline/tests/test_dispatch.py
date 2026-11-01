@@ -9,12 +9,12 @@ import unittest
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 SPEC = importlib.util.spec_from_file_location('dispatch', ROOT / 'scripts/pipeline_dispatch.py')
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
-CONFIG = yaml.safe_load((ROOT / '.pipeline/agents.yaml').read_text())
+CONFIG = yaml.safe_load((ROOT / 'defaults/agents.yaml').read_text())
 
 
 class DispatchTest(unittest.TestCase):
@@ -68,32 +68,28 @@ class DispatchTest(unittest.TestCase):
         self.assertEqual(plan['implementer']['effort'], 'max')
 
     def test_three_dummy_tickets_cli_and_execution_block(self):
-        template = (ROOT / '.pipeline/tickets/T-template.md').read_text()
+        template = (ROOT / 'templates/tickets/T-template.md').read_text()
         with tempfile.TemporaryDirectory() as directory:
             for tier in MODULE.TIERS:
                 path = Path(directory) / f'{tier}.md'
                 path.write_text(template.replace('tier: high', f'tier: {tier}'))
-                command = [str(ROOT / 'scripts/dispatch.sh'), str(path)]
+                command = [sys.executable, str(ROOT / 'scripts/pipeline_cli.py'), 'dispatch', str(path)]
                 receipt = subprocess.run(command, capture_output=True, text=True, check=True)
                 self.assertEqual(json.loads(receipt.stdout)['tier'], tier)
                 blocked = subprocess.run(command + ['--execute'], capture_output=True, text=True)
                 self.assertEqual(blocked.returncode, 2)
 
-    def test_gate_propagates_gradle_success_and_failure(self):
+    def test_gate_propagates_success_and_failure(self):
+        from pipeline_gate import run_project_gate
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / 'scripts').mkdir()
-            (root / '.pipeline/tests').mkdir(parents=True)
-            (root / '.pipeline/tests/test_fixture.py').write_text(
-                'import unittest\nclass Fixture(unittest.TestCase):\n    def test_gate_fixture(self):\n        self.assertTrue(True)\n')
-            gate = root / 'scripts/gate.sh'
-            gate.write_text((ROOT / 'scripts/gate.sh').read_text())
-            gradle = root / 'gradlew'
+            (root / '.pipeline').mkdir()
             for code in (0, 23):
-                gradle.write_text(f'#!/bin/sh\nexit {code}\n')
-                gradle.chmod(0o755)
-                result = subprocess.run(['bash', str(gate)], capture_output=True)
-                self.assertEqual(result.returncode, code)
+                config = {'version': 1, 'base_ref': 'origin/trunk', 'merge_method': 'squash',
+                          'gate': [[sys.executable, '-c', f'import sys; sys.exit({code})']]}
+                (root / '.pipeline/project.yaml').write_text(yaml.safe_dump(config))
+                result, output = run_project_gate(root)
+                self.assertEqual(result, code)
 
     def test_missing_ticket_fields_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

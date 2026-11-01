@@ -26,8 +26,8 @@ jobs:
 
       - name: Verify pipeline policy
         run: |
-          python3 -m pip install -r .pipeline/requirements.txt
-          python3 -m unittest discover -s .pipeline/tests -p 'test_*.py'
+          python3 -m pip install -r tools/agent-pipeline/defaults/requirements.txt
+          python3 -m unittest discover -s tools/agent-pipeline/tests -p 'test_*.py'
           bash -n scripts/gate.sh scripts/dispatch.sh
 
       - name: Set up Amazon Corretto JDK 21
