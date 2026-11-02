@@ -59,6 +59,16 @@ agent-pipeline watch --dispatch DISPATCH_ID
 - S: `task/<키>`(intent·approval·티켓) → 워커 PR 하나로 머지
 - 워커는 티켓 카드만 받음, spec·티켓은 base에 없어도 실행 가능
 
+## 모델 교체 절차
+
+신규 모델 출시·구모델 퇴역 시 사람이 수행 (자동 추적 금지 — 승인 해시·교차 리뷰 쌍이 깨짐)
+
+1. `defaults/agents.yaml`의 모델 ID·effort 수정 — `review` 키(구현 모델)와 `merge_judge`도 함께
+2. `shasum -a 256 defaults/agents.yaml` 결과를 `defaults/defaults-approval.json`의 `agents_sha256`에 기록, `source`에 승인 사유 명시
+3. `defaults/agent-pipeline-spec.md` §4·§13의 모델 ID 갱신 (`tests/test_model_sync.py`가 불일치 검출)
+4. 지원 effort 단계 확인(§13), 에스컬레이션 임계가 바뀌면 `tests/test_dispatch.py`·`test_coordinator.py` 기대값 갱신
+5. 엔진 테스트 통과 확인 후 PR·머지, `install.py --global-instructions`로 재설치
+
 ## 운영 규칙
 
 - 초기화는 기존 파일 덮어쓰기·intent 자동 승인 없음
