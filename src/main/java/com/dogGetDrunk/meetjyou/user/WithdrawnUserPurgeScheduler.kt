@@ -1,7 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImgService
 import com.dogGetDrunk.meetjyou.common.discord.DiscordAlertService
+import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImgService
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component

@@ -81,7 +81,7 @@ class UserImgServiceTest : BehaviorSpec() {
                     val uuid = UUID.randomUUID()
                     every { oracleObjectStorageService.deleteObject(any()) } returns true
 
-                    sut.deleteUserProfileImg(uuid)
+                    sut.deleteUserProfileImg(uuid) shouldBe true
 
                     verify(exactly = 1) { oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-original.jpg") }
                     verify(exactly = 1) { oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-thumbnail.jpg") }
