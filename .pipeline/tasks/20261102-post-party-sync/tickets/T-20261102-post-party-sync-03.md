@@ -3,7 +3,7 @@ id: T-20261102-post-party-sync-03
 title: 수용 테스트 보조 단언 보강 + REQ-007 근거 문단 정합
 tier: low
 effort_override: null
-depends_on: [T-20261102-post-party-sync-01]
+depends_on: []
 requirements: [REQ-001, REQ-002, REQ-004, REQ-007]
 acceptance_tests: [AT-001-3, AT-002-2, AT-002-3, AT-004-1, AT-007-2]
 touches:

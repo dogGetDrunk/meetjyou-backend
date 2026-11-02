@@ -60,7 +60,7 @@ produces:
 - 'PostService.updatePost / updatePostStatus: party → post lock + synchronized Party'
 - 'PlanService.deletePlan: party detach → post detach → marker delete → plan delete'
 - 기존 회귀 테스트 갱신·단위/H2 수용 테스트·규칙 문서 정합성
-status: merged
+status: blocked
 ---
 
 ## 목표
