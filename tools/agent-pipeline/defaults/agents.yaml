@@ -4,7 +4,7 @@ roles:
   test_writer:    { vendor: openai, model: gpt-6.1-terra,     effort: medium }
 
 implement:
-  high:   [{ vendor: claude, model: claude-opus-5-5,   effort: high }]   # Max 5x: Sonnet -> Opus
+  high:   [{ vendor: claude, model: claude-opus-5-5,   effort: medium }]   # Max 5x: Sonnet -> Opus, effort lowered to medium
   medium: [{ vendor: openai, model: gpt-6.1-terra,     effort: medium },
            { vendor: claude, model: claude-sonnet-5-5, effort: medium }]
   low:    [{ vendor: claude, model: claude-haiku-5-5,  effort: low },

@@ -43,13 +43,13 @@ class DispatchTest(unittest.TestCase):
         plan = MODULE.resolve(CONFIG, {'tier': 'low'}, failures=4)
         self.assertEqual(plan['tier'], 'medium')
         self.assertTrue(plan['promoted'])
-        self.assertEqual(MODULE.resolve(CONFIG, {'tier': 'high'}, failures=6)['action'], 'escalate')
+        self.assertEqual(MODULE.resolve(CONFIG, {'tier': 'high'}, failures=8)['action'], 'escalate')
 
     def test_high_override_must_exhaust_max_before_escalating(self):
-        plan = MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': -1}, failures=6)
+        plan = MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': -1}, failures=8)
         self.assertEqual(plan['implementer']['effort'], 'max')
-        self.assertEqual(MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': -1}, failures=8)['action'], 'escalate')
-        plan = MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': 1}, failures=2)
+        self.assertEqual(MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': -1}, failures=10)['action'], 'escalate')
+        plan = MODULE.resolve(CONFIG, {'tier': 'high', 'effort_override': 1}, failures=4)
         self.assertEqual(plan['implementer']['effort'], 'max')
 
     def test_third_low_review_promotes_and_reassigns_judge(self):
@@ -64,7 +64,7 @@ class DispatchTest(unittest.TestCase):
         for offset in (2, -2, 'high', True, False):
             with self.assertRaises(ValueError):
                 MODULE.resolve(CONFIG, {'tier': 'low', 'effort_override': offset})
-        plan = MODULE.resolve(CONFIG, {'tier': 'high'}, failures=4)
+        plan = MODULE.resolve(CONFIG, {'tier': 'high'}, failures=6)
         self.assertEqual(plan['implementer']['effort'], 'max')
 
     def test_three_dummy_tickets_cli_and_execution_block(self):

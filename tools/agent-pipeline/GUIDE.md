@@ -10,7 +10,7 @@
 ## 원문 명세와 다른 점
 
 - intent는 프로젝트당 1개가 아니라 태스크당 1개 — `.pipeline/tasks/<키>/`
-- 모델 배정: Claude Max 5x 기준 상 구현 Opus, 중 머지 판단 Opus (원문 §4는 Sonnet·Sol) — `defaults/defaults-approval.json`
+- 모델 배정: Claude Max 5x 기준 상 구현 Opus(effort medium 시작, 실패 시 자동 상향 → 에스컬레이션 임계 실패 8회), 중 머지 판단 Opus (원문 §4는 상 구현 Sonnet high, 중 머지 판단 Sol) — `defaults/defaults-approval.json`
 - 시작 신호: `task` 스킬 (`skills/task/SKILL.md`) — Claude Code `/task`, Codex `$task`
 
 ## 새 프로젝트
