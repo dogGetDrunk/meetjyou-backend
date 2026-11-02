@@ -8,6 +8,7 @@ import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
 import com.dogGetDrunk.meetjyou.party.PartyService
+import com.dogGetDrunk.meetjyou.party.PartyRecruitmentStatus
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostStatusRequest
@@ -60,17 +61,17 @@ class UpdatePostStatusServiceTest : BehaviorSpec() {
             val request = UpdatePostStatusRequest(status = PostStatus.RECRUITMENT_COMPLETED)
 
             beforeEach {
-                every { postRepository.findByUuid(post.uuid) } returns post
+                every { postRepository.lockByUuid(post.uuid) } returns post
                 every { currentUserProvider.uuid } returns author.uuid
             }
 
             `when`("상태를 바꾸면") {
-                then("게시글을 읽기 전에 연결된 파티 행을 잠근다") {
+                then("AT-003-1 게시글을 읽기 전에 연결된 파티 행을 잠근다") {
                     sut.updatePostStatus(post.uuid, request)
 
                     verifyOrder {
                         partyService.lockPartyOfPost(post.uuid)
-                        postRepository.findByUuid(post.uuid)
+                        postRepository.lockByUuid(post.uuid)
                     }
                 }
             }
@@ -83,7 +84,7 @@ class UpdatePostStatusServiceTest : BehaviorSpec() {
                     shouldThrow<PostNotFoundException> {
                         sut.updatePostStatus(missing, request)
                     }
-                    verify(exactly = 0) { postRepository.findByUuid(missing) }
+                    verify(exactly = 0) { postRepository.lockByUuid(missing) }
                 }
             }
 
@@ -95,19 +96,47 @@ class UpdatePostStatusServiceTest : BehaviorSpec() {
                 }
             }
 
+            `when`("모집 완료를 반복 요청하면") {
+                then("AT-003-1 파티 모집 상태는 CLOSED로 유지된다") {
+                    sut.updatePostStatus(post.uuid, request)
+                    sut.updatePostStatus(post.uuid, request)
+
+                    post.status shouldBe PostStatus.RECRUITMENT_COMPLETED
+                    party.recruitmentStatus shouldBe PartyRecruitmentStatus.CLOSED
+                    verify(exactly = 2) { partyService.lockPartyOfPost(post.uuid) }
+                    verify(exactly = 2) { postRepository.lockByUuid(post.uuid) }
+                }
+            }
+
+            `when`("완료된 모집을 두 번 재개하면") {
+                then("AT-003-2 게시글과 파티 모집 상태가 열린 상태로 유지된다") {
+                    sut.updatePostStatus(post.uuid, request)
+                    val reopen = UpdatePostStatusRequest(status = PostStatus.RECRUITING)
+                    sut.updatePostStatus(post.uuid, reopen)
+                    sut.updatePostStatus(post.uuid, reopen)
+
+                    post.status shouldBe PostStatus.RECRUITING
+                    party.recruitmentStatus shouldBe PartyRecruitmentStatus.OPEN
+                }
+            }
+
             `when`("연결된 파티가 이미 COMPLETED 상태이면") {
-                then("InvalidInputException을 던지고 status는 변하지 않는다") {
+                then("AT-003-3 InvalidInputException을 던지고 status는 변하지 않는다") {
                     party.complete()
 
                     shouldThrow<InvalidInputException> {
                         sut.updatePostStatus(post.uuid, request)
                     }
+                    shouldThrow<InvalidInputException> {
+                        sut.updatePostStatus(post.uuid, UpdatePostStatusRequest(PostStatus.RECRUITING))
+                    }
                     post.status shouldBe PostStatus.RECRUITING
+                    party.recruitmentStatus shouldBe PartyRecruitmentStatus.CLOSED
                 }
             }
 
             `when`("작성자가 아닌 유저가 호출하면") {
-                then("PostUpdateAccessDeniedException을 던진다") {
+                then("AT-003-3 PostUpdateAccessDeniedException을 던진다") {
                     val stranger = UserFixtures.user(email = "stranger@test.com", nickname = "stranger", externalId = "ext-stranger")
                     every { currentUserProvider.uuid } returns stranger.uuid
 

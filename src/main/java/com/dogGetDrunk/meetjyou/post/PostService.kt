@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PreferenceNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.UserNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyCapacityBelowJoinedException
 import com.dogGetDrunk.meetjyou.common.exception.business.plan.PlanUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.exception.business.post.PostUpdateAccessDeniedException
 import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
@@ -166,22 +167,18 @@ class PostService(
 
     @Transactional
     fun updatePost(postUuid: UUID, request: UpdatePostRequest): UpdatePostResponse {
-        val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
-        val userUuid = currentUserProvider.uuid
-        assertIsAuthor(post, postUuid, userUuid)
-
+        // Party row first, then the post row: the same order as completeParty, updatePostStatus
+        // and deletePlan, so these writers queue on the party row instead of deadlocking. Both
+        // locked reads return the latest committed rows, so `joined` below is current.
+        partyService.lockPartyOfPost(postUuid)
+        val post = postRepository.lockByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
+        assertIsAuthor(post, postUuid, currentUserProvider.uuid)
         validatePostWritable(postUuid, post)
-        applyPlanChange(post, request.planUuid, request.isPlanPublic)
+        validateCapacityNotBelowJoined(post.party, request.capacity)
 
-        post.apply {
-            title = request.title
-            content = request.content
-            isInstant = request.isInstant
-            itinStart = request.itinStart
-            itinFinish = request.itinFinish
-            location = request.location
-            capacity = request.capacity
-        }
+        applyPlanChange(post, request.planUuid, request.isPlanPublic)
+        applyPostFields(post, request)
+        post.party.syncFromPost(request.capacity, request.itinStart, request.itinFinish, request.location)
 
         if (request.companionSpec != null) {
             // delete-then-insert instead of update — consider optimizing to an upsert
@@ -197,15 +194,15 @@ class PostService(
     fun updatePostStatus(postUuid: UUID, request: UpdatePostStatusRequest): UpdatePostStatusResponse {
         // Party row locked before the post or party is loaded: completeParty writes this same
         // `status` column under that lock, so a stale "not completed" read would let a completed
-        // party's post go back to RECRUITING. Only the party row is locked explicitly, so the
-        // lock order matches completeParty (party, then the post row at flush) — no deadlock.
+        // party's post go back to RECRUITING. Lock order party -> post matches completeParty.
         partyService.lockPartyOfPost(postUuid)
-        val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
+        val post = postRepository.lockByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
         val userUuid = currentUserProvider.uuid
         assertIsAuthor(post, postUuid, userUuid)
         validatePostWritable(postUuid, post)
 
         post.status = request.status
+        syncPartyRecruitment(post.party, request.status)
         log.info("Post status updated: uuid={} status={}", postUuid, request.status)
         return UpdatePostStatusResponse.of(post)
     }
@@ -225,6 +222,29 @@ class PostService(
     private fun assertIsAuthor(post: Post, postUuid: UUID, userUuid: UUID) {
         if (userUuid != post.author.uuid) {
             throw PostUpdateAccessDeniedException(postUuid, post.author.uuid, userUuid)
+        }
+    }
+
+    private fun validateCapacityNotBelowJoined(party: Party, capacity: Int) {
+        if (capacity < party.joined) {
+            throw PartyCapacityBelowJoinedException(party.uuid, capacity, party.joined)
+        }
+    }
+
+    private fun applyPostFields(post: Post, request: UpdatePostRequest) {
+        post.title = request.title
+        post.content = request.content
+        post.isInstant = request.isInstant
+        post.itinStart = request.itinStart
+        post.itinFinish = request.itinFinish
+        post.location = request.location
+        post.capacity = request.capacity
+    }
+
+    private fun syncPartyRecruitment(party: Party, status: PostStatus) {
+        when (status) {
+            PostStatus.RECRUITMENT_COMPLETED -> party.closeRecruitment()
+            PostStatus.RECRUITING -> party.openRecruitment()
         }
     }
 

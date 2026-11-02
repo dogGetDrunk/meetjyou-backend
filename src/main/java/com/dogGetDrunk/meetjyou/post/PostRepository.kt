@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository
 import java.util.UUID
 
 @Repository
-interface PostRepository : JpaRepository<Post, Long> {
+interface PostRepository : JpaRepository<Post, Long>, PostRowLock {
     fun findByUuid(uuid: UUID): Post?
     fun findByParty_Uuid(partyUuid: UUID): Post?
     fun findAllByParty_UuidIn(partyUuids: Collection<UUID>): List<Post>

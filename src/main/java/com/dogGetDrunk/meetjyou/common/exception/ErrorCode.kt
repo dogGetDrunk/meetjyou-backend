@@ -61,6 +61,7 @@ enum class ErrorCode(
     PARTY_NOT_FOUND(HttpStatus.NOT_FOUND, "Party not found"),
     PARTY_RECRUITMENT_CLOSED(HttpStatus.CONFLICT, "Party recruitment is closed"),
     PARTY_FULL(HttpStatus.CONFLICT, "Party is at full capacity"),
+    PARTY_CAPACITY_BELOW_JOINED(HttpStatus.CONFLICT, "Capacity cannot be lower than the current member count"),
     PARTY_JOIN_NOT_ALLOWED(HttpStatus.CONFLICT, "Cannot join this party"),
     PARTY_SELF_BAN_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Cannot ban yourself"),
     PARTY_HOST_BAN_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Cannot ban the host"),
