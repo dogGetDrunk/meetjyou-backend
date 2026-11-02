@@ -1,0 +1,147 @@
+package com.dogGetDrunk.meetjyou.post
+
+import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
+import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
+import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
+import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
+import com.dogGetDrunk.meetjyou.party.PartyService
+import com.dogGetDrunk.meetjyou.plan.MarkerRepository
+import com.dogGetDrunk.meetjyou.plan.PlanRepository
+import com.dogGetDrunk.meetjyou.plan.support.PlanFixtures
+import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
+import com.dogGetDrunk.meetjyou.post.view.PostViewService
+import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
+import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
+import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.support.UserFixtures
+import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
+import io.kotest.core.spec.IsolationMode
+import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.shouldBe
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import io.mockk.verifyOrder
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
+
+class UpdatePostPlanSyncTest : BehaviorSpec() {
+
+    private val postRepository = mockk<PostRepository>(relaxed = true)
+    private val userRepository = mockk<UserRepository>(relaxed = true)
+    private val compPreferenceRepository = mockk<CompPreferenceRepository>(relaxed = true)
+    private val preferenceRepository = mockk<PreferenceRepository>(relaxed = true)
+    private val partyService = mockk<PartyService>(relaxed = true)
+    private val planRepository = mockk<PlanRepository>(relaxed = true)
+    private val markerRepository = mockk<MarkerRepository>(relaxed = true)
+    private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
+    private val postViewService = mockk<PostViewService>(relaxed = true)
+    private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
+    private val chatRoomRepository = mockk<ChatRoomRepository>(relaxed = true)
+    private val idempotencyKeyService = mockk<IdempotencyKeyService>(relaxed = true)
+    private val sut = PostService(
+        postRepository, userRepository, compPreferenceRepository, preferenceRepository,
+        partyService, planRepository, markerRepository, userPartyRepository, postViewService,
+        currentUserProvider, chatRoomRepository, idempotencyKeyService,
+    )
+
+    override fun isolationMode() = IsolationMode.InstancePerLeaf
+
+    private fun updateRequest(post: Post, planUuid: java.util.UUID?, isPlanPublic: Boolean?) = UpdatePostRequest(
+        title = post.title,
+        content = post.content,
+        isInstant = post.isInstant,
+        itinStart = post.itinStart,
+        itinFinish = post.itinFinish,
+        location = post.location,
+        capacity = post.capacity,
+        companionSpec = null,
+        planUuid = planUuid,
+        isPlanPublic = isPlanPublic,
+    )
+
+    private fun verifyLockOrder(post: Post) {
+        verifyOrder {
+            partyService.lockPartyOfPost(post.uuid)
+            postRepository.lockByUuid(post.uuid)
+        }
+        verify(exactly = 0) { postRepository.findByUuid(post.uuid) }
+    }
+
+    init {
+        val user = UserFixtures.user()
+        val party = NotificationCenterFixtures.party()
+        val post = NotificationCenterFixtures.post(party, user)
+
+        beforeEach {
+            clearAllMocks()
+            val principal = CustomUserPrincipal(user.uuid)
+            SecurityContextHolder.getContext().authentication =
+                UsernamePasswordAuthenticationToken(principal, null, emptyList())
+            every { currentUserProvider.uuid } returns user.uuid
+            every { postRepository.lockByUuid(post.uuid) } returns post
+        }
+
+        afterEach { SecurityContextHolder.clearContext() }
+
+        given("updatePost 호출 시 planUuid가 함께 전달되면") {
+            `when`("새 여행 계획서로 교체하면") {
+                then("AT-001-1 모집글과 연결된 파티의 plan이 함께 갱신된다") {
+                    val newPlan = PlanFixtures.plan(owner = user)
+                    every { planRepository.findByUuid(newPlan.uuid) } returns newPlan
+
+                    sut.updatePost(post.uuid, updateRequest(post, newPlan.uuid, true))
+
+                    verifyLockOrder(post)
+                    post.plan shouldBe newPlan
+                    post.isPlanPublic shouldBe true
+                    party.plan shouldBe newPlan
+                }
+            }
+
+            `when`("기존 계획서를 유지하면") {
+                then("AT-001-1 잠근 후 같은 계획서 연결을 유지한다") {
+                    val existingPlan = PlanFixtures.plan(owner = user)
+                    post.plan = existingPlan
+                    post.isPlanPublic = true
+                    party.plan = existingPlan
+                    every { planRepository.findByUuid(existingPlan.uuid) } returns existingPlan
+
+                    sut.updatePost(post.uuid, updateRequest(post, existingPlan.uuid, true))
+
+                    verifyLockOrder(post)
+                    post.plan shouldBe existingPlan
+                    party.plan shouldBe existingPlan
+                }
+            }
+
+            `when`("계획서가 없는 상태를 유지하면") {
+                then("AT-001-1 잠근 후 계획서가 없는 상태를 유지한다") {
+                    sut.updatePost(post.uuid, updateRequest(post, null, null))
+
+                    verifyLockOrder(post)
+                    post.plan shouldBe null
+                    party.plan shouldBe null
+                }
+            }
+
+            `when`("planUuid가 null이면") {
+                then("AT-001-1 모집글과 연결된 파티의 plan이 함께 해제된다") {
+                    val existingPlan = PlanFixtures.plan(owner = user)
+                    post.plan = existingPlan
+                    post.isPlanPublic = true
+                    party.plan = existingPlan
+
+                    sut.updatePost(post.uuid, updateRequest(post, null, null))
+
+                    verifyLockOrder(post)
+                    post.plan shouldBe null
+                    post.isPlanPublic shouldBe null
+                    party.plan shouldBe null
+                }
+            }
+        }
+    }
+}
