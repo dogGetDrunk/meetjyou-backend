@@ -1,0 +1,24 @@
+{
+  "schema": "review/v1",
+  "ticket": "T-20261102-post-party-sync-01",
+  "dispatch_id": "ctx_62a81457488e",
+  "head_sha": "a68fb180d954624f13c47b3358e1fafd7fd27ded",
+  "round": 1,
+  "decision": "approve",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "nit",
+      "file": "src/test/java/com/dogGetDrunk/meetjyou/post/PostPartySyncIntegrationTest.kt",
+      "evidence": "AT-001-3(166~205행)은 실제 CompPreferenceRepository 대신 relaxed mock을 사용하며 기존 plan·compPreference C0를 구성/재조회하지 않아 그 두 값의 롤백까지 반증하지 못함; AT-002-2/3도 plan·compPreference 보존 단언 없음. decisions.md에서 메인 설계가 승인한 보조 단언 공백이므로 blocking 아님; 보호 테스트의 구현자 수정 요청 없이 후속 테스트 작성자 보강 후보로 기록.",
+      "repeated": false
+    },
+    {
+      "id": "F2",
+      "severity": "nit",
+      "file": ".pipeline/tasks/20261102-post-party-sync/spec.md",
+      "evidence": "REQ-007 근거(63행)의 “409 수용 대신 순서 정렬”, “#201로 제거된 교착을 되살리지 않음”은 바로 아래 개정 수용 기준의 plan 전환 편집 ↔ deletePlan accepted deadlock(409)과 모순됨. 무교착 보장을 plan 유지 편집으로 한정하고 plan 전환은 별도 accepted deadlock임을 근거 문단에도 반영할 필요; 구현은 개정 기준을 따르므로 문서 nit.",
+      "repeated": false
+    }
+  ]
+}

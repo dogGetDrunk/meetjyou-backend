@@ -1,0 +1,20 @@
+{
+  "schema": "judge/v1",
+  "ticket": "T-20261102-post-party-sync-01",
+  "dispatch_id": "manual-judge-20261102",
+  "head_sha": "a68fb180d954624f13c47b3358e1fafd7fd27ded",
+  "decision": "merge_with_followup",
+  "requirements_met": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004",
+    "REQ-005",
+    "REQ-006",
+    "REQ-007"
+  ],
+  "followup_ticket": "T-20261102-post-party-sync-03",
+  "followup_card": "---\nid: T-20261102-post-party-sync-03\ntask: 20261102-post-party-sync\ntitle: 수용 테스트 보조 단언 보강 + REQ-007 근거 문단 정합\ntype: test-docs\nsize: S\ndepends_on: [T-20261102-post-party-sync-01]\nstatus: ready\n---\n\n## 목표\n- T-01 리뷰 nit F1·F2 및 decisions.md에 기록된 보조 단언 공백 해소\n- 프로덕션 코드 변경 없음\n\n## 범위\n- AT-001-3 (`PostPartySyncIntegrationTest`): seed에 기존 plan 링크와 compPreference C0 추가. 실패 주입은 실제 `CompPreferenceRepository`를 Kotlin `by` 위임으로 감싼 테스트 대역으로 처리하고 `saveAll`만 throw. 롤백 후 plan 링크와 C0 행 보존을 실제 레포로 재조회해 단언\n- AT-002-2 / AT-002-3: 정원 거부 뒤 plan 링크·`isPlanPublic`·compPreference 보존 단언 추가\n- AT-004-1 (`PostUpdatePartyCompleteDeadlockDockerTest`): 편집 거부 뒤 `itinStart`/`itinFinish` 보존 단언 추가\n- AT-007-2 (`PartyAggregateDeadlockDockerTest`): deletePlan이 이긴 경우 marker 삭제 단언 추가\n- `spec.md` REQ-007 근거 문단: 무교착 보장은 plan 유지 편집으로 한정, plan 전환 편집 ↔ deletePlan은 accepted deadlock(409)으로 명시. 개정된 수용 기준과 모순 제거\n\n## 제외\n- 락 순서·deletePlan 구조 변경 (party PK 선잠금은 알림 관측 후 판단, party.md 규칙)\n- 프로덕션 코드\n\n## 제약\n- 보호 수용 테스트이므로 test-writer 세션이 `tests/code/`에 작성, 구현자는 바이트 그대로 복사\n\n## 완료 기준\n- `./gradlew test` 통과, `./gradlew dockerTest` 통과 (실행 출력 첨부)\n- 회귀 주입(예: AT-001-3에서 트랜잭션 제거, AT-002에서 검증 순서를 plan 변경 뒤로 이동) 시 보강 단언이 실제로 red인지 확인\n",
+  "rationale": "[판정 근거]\n- gate 통과(head a68fb18), GitHub CI build-and-test SUCCESS, 리뷰 1라운드 approve. 지적은 nit 2건(F1·F2)뿐이며 blocking 없음\n- 보호 수용 테스트 4개 파일이 tests/code와 src에서 blob 해시 일치(a7b7cc9, ad3b2cb, 308d492, dcccb75). tests/code 수정은 메인 설계가 decisions.md에 escalation 근거와 함께 기록. 구현자가 직접 고친 흔적 없음\n\n[REQ 근거]\n- REQ-001: `Party.syncFromPost`\n- REQ-002: plan·필드 변경 전에 `capacity >= joined` 검증, 409 `PARTY_CAPACITY_BELOW_JOINED`, `ErrorCodeStatusTest` 반영\n- REQ-003: `syncPartyRecruitment`\n- REQ-004·REQ-006: updatePost/updatePostStatus가 party → post 순서로 잠근 뒤 locked refresh(`PostRowLock`)로 최신 joined를 읽음\n- REQ-007: deletePlan이 party detach를 post보다 먼저 수행\n- REQ-005: 규칙 문서와 기존 테스트 갱신\n- 컨벤션 위반 없음: 30줄 이하, `?: throw`, 상태는 ErrorCode에 둠\n\n[트레이드오프]\n- updatePost ↔ completeParty 교착은 제거됨\n- 대신 plan 전환 편집 ↔ deletePlan 교착이 새로 생김. #201에서 무교착이던 경로라 회귀\n- 그래도 수용 가능: post-first detach였다면 plan 유지 편집도 교착하므로 party-first가 우월. 남는 교착은 CLAUDE.md Concurrency 규칙(사후 409, 알림 관측 전 구조 변경 금지)에 부합하고 party.md에 재검토 조건이 남음\n\n[머지 전 확인 권고]\n- REQ-004·REQ-006·REQ-007의 핵심 증거는 dockerTest(47/0)인데, 엔진 검증이 아닌 워커 보고임\n- CI build-and-test가 dockerTest 소스셋을 포함하는지 입력만으로는 확인 불가\n- 머지 수행자가 `./gradlew dockerTest`를 직접 재실행해 확인하길 권고\n\n[비차단 관찰]\n- PUT /posts/{postUuid}가 새로 409를 반환할 수 있음. 프론트에 공유 필요\n- 기존 행의 post↔party capacity·recruitmentStatus 불일치 백필 없음. 다음 편집·상태 변경 시에만 수렴\n\n[후속 티켓 사유]\n- F1(보조 단언 공백)과 F2(spec 근거 문단 모순)는 머지를 막을 사유가 아니므로 후속 티켓으로 분리",
+  "note": "followup_ticket renamed 02->03 by main designer: T-02 already exists (MySQL acceptance ticket). Manual judge session by human decision after engine blocked state."
+}

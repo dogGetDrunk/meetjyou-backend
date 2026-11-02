@@ -26,7 +26,7 @@ produces:
 - 'PostLockFreshReadDockerTest: AT-006-1 capacity 3→10→3'
 - 'PostLockFreshReadDockerTest: AT-006-2 RECRUITING→RECRUITMENT_COMPLETED→RECRUITING'
 - 'PostLockFreshReadDockerTest: AT-002-2 approval commits before shrink validation'
-status: pending
+status: merged  # T-01 PR #244로 충족 (decisions.md)
 ---
 
 ## 목표

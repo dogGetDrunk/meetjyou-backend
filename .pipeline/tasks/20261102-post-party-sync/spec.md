@@ -60,7 +60,7 @@
 ### REQ-007 deletePlan detach 순서 party → post (C1-2)
 
 - 요구사항: `PlanService.deletePlan`에서 `partyRepository.detachPlan(plan)` → `postRepository.detachPlan(plan)` 순서로 변경, 주석 갱신
-  - 근거: REQ-004로 `updatePost`가 party → post 순서가 됨. 기존 post-first는 옛 `updatePost` 쓰기 순서(post → party)에 맞춘 것(#201) → 그대로 두면 `deletePlan ↔ updatePost` 교착 재발. 409 수용 대신 순서 정렬: #201로 제거된 교착을 되살리지 않음, 변경 2줄
+  - 근거: REQ-004로 `updatePost`가 party → post 순서가 됨. 기존 post-first를 두면 plan 유지 편집 ↔ `deletePlan`까지 교착. party-first로 정렬해 plan 유지 편집은 무교착으로 한정 보장, plan 전환 편집 ↔ `deletePlan`은 `plan_id` 보조 인덱스 경유 순환 대기가 남아 accepted deadlock(409) — 아래 수용 기준 (2026-11-02 개정, 리뷰 F2)
 - 수용 기준:
   - `PlanServiceTest` verifyOrder: party detach → post detach → marker 삭제 → plan 삭제
   - plan 유지 편집(정원 등) ↔ deletePlan: 교착 없음, deletePlan이 party 행에서 대기 후 편집 뒤에 detach (party-first의 효과)

@@ -1,0 +1,23 @@
+{
+ "schema": "review/v1",
+ "ticket": "T-20261102-post-party-sync-03",
+ "pr": 245,
+ "reviewer": "gpt-6.1-sol (high, read-only, 수동 실행)",
+ "rounds": [
+  {
+   "round": 1,
+   "head_sha": "first push (pre-R1)",
+   "decision": "request_changes",
+   "raw": "decision: request_changes\n\nfindings:\n\n- id: R1\n  severity: blocking\n  file: src/dockerTest/java/com/dogGetDrunk/meetjyou/party/PartyAggregateDeadlockDockerTest.kt:378\n  evidence: 411·440행도 동일한 문제입니다. `findAllByPlan_Uuid...`는 marker의 FK에서 Plan의 UUID를 조회하므로, 직전 단언처럼 Plan이 삭제되면 빈 결과가 됩니다. marker를 삭제하지 않고 다른 plan으로 재연결하는 회귀도 통과하여 AT-007-2의 marker 행 삭제를 증명하지 못합니다. seed의 marker ID/UUID를 보관하고 `existsById`/`findByUuid`로 삭제를 확인해야 합니다.\n  반복 여부: 이번 리뷰의 신규 지적.\n\nescalation: 구현자 모델·진영이 입력에 없어 반대 진영 여부 확인 불가.\n\nresult: REQ-001·002·004의 AT-001-3·002-2·002-3·004-1 보강 충족, REQ-007/AT-007-2는 R1 보완 필요입니다. 변경 파일은 PostPartySyncIntegrationTest.kt·PostUpdatePartyCompleteDeadlockDockerTest.kt·PartyAggregateDeadlockDockerTest.kt이며, 제공된 `./gradlew build`는 596건 실패·skip 0, `./gradlew dockerTest`는 47건 실패 0, AT-002 회귀 주입은 red이고 CI는 진행 중이며 읽기 전용 리뷰에서 재실행하지 않았습니다. 남은 blocking은 R1 1건입니다."
+  },
+  {
+   "round": 2,
+   "head_sha": "62009671def66510ec6b9168a60ddf4ae5aaa47d",
+   "decision": "approve",
+   "raw": "result: R1 해소, 신규 지적 없음.\n\ndecision: approve\nfindings: []\n\nR1 해소 근거: [PartyAggregateDeadlockDockerTest.kt:150](/Users/serendipity/IdeaProjects/meetjyou-backend-wt-t03/src/dockerTest/java/com/dogGetDrunk/meetjyou/party/PartyAggregateDeadlockDockerTest.kt:150)에서 저장된 marker의 ID를 보관하고, 381·414·443행에서 `existsById`로 직접 확인하므로 삭제된 plan 경유 조회의 거짓 green 제거; `IDENTITY`로 생성된 ID 사용 및 경쟁 작업 완료 후 조회로 새로운 flaky 요인 없음.\n\nresult: 이번 재리뷰에서 REQ-007·AT-007-2의 R1 해소 확인, 남은 코드 blocking 없음. 수정 파일은 `PartyAggregateDeadlockDockerTest.kt`이며 제공된 수정 후 `./gradlew dockerTest` 결과는 47 tests·실패 0, marker 삭제 누락 주입은 2건 red이고 직접 재실행은 하지 않음. CI는 입력 시점 진행 중이며, 구현자 모델 정보가 없어 반대 진영 확인은 escalation 필요.\n"
+  }
+ ],
+ "ci": "build-and-test SUCCESS @ 62009671",
+ "merge_commit": "1928e0e89e140b37e742e214fa6e4b2e02dbf971",
+ "note": "테스트 작성 terra(OpenAI)·리뷰 sol(OpenAI) 동일 진영, 복사·수정은 Claude"
+}
