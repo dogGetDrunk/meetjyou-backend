@@ -1,0 +1,7 @@
+key: 20261102-purge-image-retry
+title: 탈퇴 유저 purge 시 프로필 이미지 삭제 실패 재시도
+size: S
+created: '2026-11-02'
+links:
+  notion: https://app.notion.com/p/40556d9a97d981869056c2fadb499c17
+  issue: dogGetDrunk/meetjyou-backend#229
