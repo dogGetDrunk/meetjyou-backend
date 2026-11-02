@@ -9,6 +9,8 @@ import uuid
 
 from pipeline_config import project_settings
 
+FULL_VIEW_COMMANDS = ('worker-show',)
+
 
 class Orca:
     def __init__(self, root, executable='orca'):
@@ -20,6 +22,10 @@ class Orca:
     def call(self, command, *arguments):
         request = str(uuid.uuid4())
         argv = [self.executable, 'orchestration', command, *arguments, '--json']
+        # The concise worker-show view has no nested `worker`/`dispatch`/`projection` records,
+        # which every caller here reads.
+        if command in FULL_VIEW_COMMANDS:
+            argv.append('--full')
         if command in ('worker-start', 'worker-stop', 'worker-release'):
             argv += ['--retry-request', request]
         path = self.receipts / f'{request}.json'

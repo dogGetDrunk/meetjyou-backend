@@ -30,6 +30,18 @@ class RuntimeTest(unittest.TestCase):
             self.assertEqual(len(receipts), 1)
             self.assertEqual(json.loads(receipts[0].read_text())['state'], 'received')
 
+    def test_worker_show_requests_full_record(self):
+        # Orca's concise view drops the nested `worker` record; reading it raised KeyError: 'worker'.
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Orca(directory)
+            process = subprocess.CompletedProcess([], 0, '{"ok": true, "result": {"worker": {"state": "succeeded"}}}', '')
+            with patch('pipeline_runtime.subprocess.run', return_value=process) as run:
+                runtime.call('worker-show', '--dispatch', 'ctx_test')
+                self.assertIn('--full', run.call_args.args[0])
+                self.assertNotIn('--retry-request', run.call_args.args[0])
+                runtime.call('worker-start', '--spec', 'dummy')
+                self.assertNotIn('--full', run.call_args.args[0])
+
     def test_unknown_timeout_is_not_retried(self):
         with tempfile.TemporaryDirectory() as directory:
             runtime = Orca(directory)
