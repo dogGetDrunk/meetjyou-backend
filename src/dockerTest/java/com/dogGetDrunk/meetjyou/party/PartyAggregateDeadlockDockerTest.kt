@@ -8,6 +8,7 @@ import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
+import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.Plan
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.PlanService
@@ -126,12 +127,16 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         )
     }
 
-    private class Seed(val host: User, val member: User, val partyUuid: UUID, val postUuid: UUID, val oldPlan: UUID, val newPlan: UUID)
+    private class Seed(
+        val host: User, val member: User, val partyUuid: UUID, val postUuid: UUID,
+        val oldPlan: UUID, val newPlan: UUID, val markerId: Long,
+    )
 
     private fun seed(): Seed = tx.execute {
         val host = userRepository.save(buildUser())
         val member = userRepository.save(buildUser())
         val oldPlan = planRepository.save(buildPlan(host))
+        val marker = markerRepository.save(Marker(0.0, 0.0, oldPlan.itinStart, 1, 0, "Marker", plan = oldPlan))
         val newPlan = planRepository.save(buildPlan(host))
         val party = buildParty()
         party.plan = oldPlan
@@ -142,7 +147,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         chatParticipantRepository.save(ChatParticipant(user = host, room = room))
         chatParticipantRepository.save(ChatParticipant(user = member, room = room))
         val post = postRepository.save(buildPost(party, host, oldPlan))
-        Seed(host, member, party.uuid, post.uuid, oldPlan.uuid, newPlan.uuid)
+        Seed(host, member, party.uuid, post.uuid, oldPlan.uuid, newPlan.uuid, marker.id)
     } ?: error("seed failed")
 
     private fun buildUser(): User {
@@ -373,6 +378,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     if (editLost) {
                         linked shouldBe (null to null)
                         planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                        markerRepository.existsById(seed.markerId) shouldBe false
                     } else {
                         linked shouldBe (seed.newPlan to seed.newPlan)
                         planRepository.findByUuid(seed.oldPlan).shouldNotBeNull()
@@ -405,6 +411,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     }
                     state shouldBe Triple(null, null, CAPACITY + 1)
                     planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                    markerRepository.existsById(seed.markerId) shouldBe false
                 }
             }
         }
@@ -433,6 +440,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     tx.execute { postRepository.findByUuid(seed.postUuid)?.isPlanPublic } shouldBe true
                     planRepository.findByUuid(seed.newPlan).shouldNotBeNull()
                     planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                    markerRepository.existsById(seed.markerId) shouldBe false
                 }
             }
         }
