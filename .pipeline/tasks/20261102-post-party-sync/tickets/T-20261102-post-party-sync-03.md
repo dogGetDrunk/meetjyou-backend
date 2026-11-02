@@ -14,7 +14,7 @@ consumes:
   - CompPreferenceRepository (Kotlin by 위임 테스트 대역)
 produces:
   - 보조 단언 (plan·isPlanPublic·compPreference 보존, 일정 보존, marker 삭제)
-status: ready
+status: blocked
 ---
 
 ## 목표
