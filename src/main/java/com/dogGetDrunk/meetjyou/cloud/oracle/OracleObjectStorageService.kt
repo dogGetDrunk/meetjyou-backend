@@ -27,6 +27,10 @@ class OracleObjectStorageService(
 ) {
     private val log = LoggerFactory.getLogger(OracleObjectStorageService::class.java)
 
+    companion object {
+        private const val NOT_FOUND_STATUS = 404
+    }
+
     private val downloadParCache: Cache<String, ParResponse> = Caffeine.newBuilder()
         .expireAfterWrite(Duration.ofMinutes(maxOf(props.parExpirationMinutes * 4 / 5, 1L)))
         .maximumSize(1024)
@@ -67,7 +71,7 @@ class OracleObjectStorageService(
         return try {
             objectStorageClient.getObject(request).inputStream.use { it.readBytes() }
         } catch (exception: BmcException) {
-            if (exception.statusCode == 404) {
+            if (exception.statusCode == NOT_FOUND_STATUS) {
                 log.warn("Object not found in OCI Object Storage. objectKey={}", objectKey)
                 return null
             }
@@ -88,14 +92,20 @@ class OracleObjectStorageService(
 
             log.info("Deleted object from OCI Object Storage. objectKey={}", objectKey)
             true
+        } catch (exception: BmcException) {
+            if (exception.statusCode == NOT_FOUND_STATUS) {
+                log.warn("Object already absent from OCI Object Storage. objectKey={}", objectKey)
+                return true
+            }
+            logDeleteFailure(objectKey, exception)
         } catch (exception: Exception) {
-            log.error(
-                "Failed to delete object from OCI Object Storage. objectKey={}",
-                objectKey,
-                exception,
-            )
-            false
+            logDeleteFailure(objectKey, exception)
         }
+    }
+
+    private fun logDeleteFailure(objectKey: String, exception: Exception): Boolean {
+        log.error("Failed to delete object from OCI Object Storage. objectKey={}", objectKey, exception)
+        return false
     }
 
     private fun createPar(

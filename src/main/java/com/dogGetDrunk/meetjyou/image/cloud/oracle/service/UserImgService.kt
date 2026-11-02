@@ -24,8 +24,13 @@ class UserImgService(
             oracleObjectStorageService.createDownloadPar(ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(it))
         }
 
-    fun deleteUserProfileImg(uuid: UUID) {
-        oracleObjectStorageService.deleteObject(ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(uuid))
-        oracleObjectStorageService.deleteObject(ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(uuid))
+    fun deleteUserProfileImg(uuid: UUID): Boolean {
+        val originalDeleted = oracleObjectStorageService.deleteObject(
+            ImageTarget.USER_PROFILE_ORIGINAL.toObjectName(uuid),
+        )
+        val thumbnailDeleted = oracleObjectStorageService.deleteObject(
+            ImageTarget.USER_PROFILE_THUMBNAIL.toObjectName(uuid),
+        )
+        return originalDeleted && thumbnailDeleted
     }
 }

@@ -108,6 +108,17 @@ class OracleObjectStorageServiceTest : BehaviorSpec() {
             }
         }
 
+        given("삭제할 오브젝트가 없으면") {
+            `when`("deleteObject가 404를 받으면") {
+                then("이미 삭제된 것으로 처리한다") {
+                    every { objectStorageClient.deleteObject(any<DeleteObjectRequest>()) } throws
+                        BmcException(404, "Not found", "ObjectNotFound", "req-id")
+
+                    sut.deleteObject("image/post/missing.jpg") shouldBe true
+                }
+            }
+        }
+
         given("오브젝트가 존재할 때") {
             `when`("getObjectContent를 호출하면") {
                 then("바이트 배열을 반환한다") {

@@ -81,9 +81,27 @@ class UserImgServiceTest : BehaviorSpec() {
                     val uuid = UUID.randomUUID()
                     every { oracleObjectStorageService.deleteObject(any()) } returns true
 
-                    sut.deleteUserProfileImg(uuid)
+                    sut.deleteUserProfileImg(uuid) shouldBe true
 
                     verify(exactly = 1) { oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-original.jpg") }
+                    verify(exactly = 1) { oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-thumbnail.jpg") }
+                }
+            }
+        }
+
+        given("원본 삭제가 실패하면") {
+            `when`("프로필 이미지를 삭제하면") {
+                then("썸네일도 삭제 시도하고 false를 반환한다") {
+                    val uuid = UUID.randomUUID()
+                    every {
+                        oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-original.jpg")
+                    } returns false
+                    every {
+                        oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-thumbnail.jpg")
+                    } returns true
+
+                    sut.deleteUserProfileImg(uuid) shouldBe false
+
                     verify(exactly = 1) { oracleObjectStorageService.deleteObject("image/user/profile/${uuid}-thumbnail.jpg") }
                 }
             }
