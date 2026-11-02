@@ -88,14 +88,20 @@ class OracleObjectStorageService(
 
             log.info("Deleted object from OCI Object Storage. objectKey={}", objectKey)
             true
+        } catch (exception: BmcException) {
+            if (exception.statusCode == 404) {
+                log.warn("Object already absent from OCI Object Storage. objectKey={}", objectKey)
+                return true
+            }
+            logDeleteFailure(objectKey, exception)
         } catch (exception: Exception) {
-            log.error(
-                "Failed to delete object from OCI Object Storage. objectKey={}",
-                objectKey,
-                exception,
-            )
-            false
+            logDeleteFailure(objectKey, exception)
         }
+    }
+
+    private fun logDeleteFailure(objectKey: String, exception: Exception): Boolean {
+        log.error("Failed to delete object from OCI Object Storage. objectKey={}", objectKey, exception)
+        return false
     }
 
     private fun createPar(

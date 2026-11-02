@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImgService
+import com.dogGetDrunk.meetjyou.common.discord.DiscordAlertService
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.core.spec.IsolationMode
 import io.kotest.core.spec.style.BehaviorSpec
@@ -14,7 +15,8 @@ class WithdrawnUserPurgeSchedulerTest : BehaviorSpec() {
 
     private val purgeService = mockk<WithdrawnUserPurgeService>(relaxed = true)
     private val userImgService = mockk<UserImgService>(relaxed = true)
-    private val sut = WithdrawnUserPurgeScheduler(purgeService, userImgService)
+    private val discordAlertService = mockk<DiscordAlertService>(relaxed = true)
+    private val sut = WithdrawnUserPurgeScheduler(purgeService, userImgService, discordAlertService)
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
@@ -28,6 +30,7 @@ class WithdrawnUserPurgeSchedulerTest : BehaviorSpec() {
             `when`("스케줄러가 돌면") {
                 then("이미지가 있는 유저의 이미지만 먼저 지우고 DB purge를 호출한다") {
                     every { purgeService.findPurgeTargets(any()) } returns listOf(withImage, withoutImage)
+                    every { userImgService.deleteUserProfileImg(withImage.uuid) } returns true
 
                     sut.purgeExpiredWithdrawals()
 
@@ -48,6 +51,21 @@ class WithdrawnUserPurgeSchedulerTest : BehaviorSpec() {
                     sut.purgeExpiredWithdrawals()
 
                     verify(exactly = 0) { purgeService.purge(any(), any()) }
+                }
+            }
+        }
+
+        given("프로필 이미지 삭제가 실패하면") {
+            val user = UserFixtures.user(nickname = "failed").apply { hasProfileImage = true }
+            `when`("스케줄러가 돌면") {
+                then("purge하지 않고 알림을 한 번 보낸다") {
+                    every { purgeService.findPurgeTargets(any()) } returns listOf(user)
+                    every { userImgService.deleteUserProfileImg(user.uuid) } returns false
+
+                    sut.purgeExpiredWithdrawals()
+
+                    verify(exactly = 0) { purgeService.purge(any(), any()) }
+                    verify(exactly = 1) { discordAlertService.sendOperationalAlert(any(), any(), any(), any()) }
                 }
             }
         }
