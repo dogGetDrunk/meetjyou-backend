@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyCapacityBelowJoinedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
+import com.dogGetDrunk.meetjyou.plan.Plan
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyService
@@ -29,6 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.mockk.every
 import io.mockk.mockk
 import com.dogGetDrunk.meetjyou.post.dto.CompanionSpec
@@ -99,6 +101,57 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
         posts.save(post)
         Seed(host.uuid, applicant.uuid, party.uuid, post.uuid)
     } ?: error("seed failed")
+    private data class LinkedSeed(
+        val seed: Seed, val oldPlan: UUID, val newPlan: UUID, val preference: Long, val newName: String,
+    )
+
+    private fun linkedSeed(joined: Int, capacity: Int): LinkedSeed {
+        val seed = seed(joined, capacity)
+        return tx.execute {
+            val post = posts.findByUuid(seed.post) ?: error("post missing")
+            val host = post.author
+            val oldPlan = plans.save(Plan("Old plan", START, FINISH, LOCATION, 0.0, 0.0, owner = host))
+            val newPlan = plans.save(Plan("New plan", NEW_START, NEW_FINISH, "Jeju", 0.0, 0.0, owner = host))
+            post.plan = oldPlan
+            post.isPlanPublic = true
+            post.party.plan = oldPlan
+            val oldPreference = preferences.save(Preference(PreferenceType.GENDER, UUID.randomUUID().toString()))
+            val newName = UUID.randomUUID().toString()
+            preferences.save(Preference(PreferenceType.GENDER, newName))
+            compPreferences.save(CompPreference(post, oldPreference))
+            LinkedSeed(seed, oldPlan.uuid, newPlan.uuid, oldPreference.id, newName)
+        } ?: error("linked seed failed")
+    }
+
+    private fun changedRequest(linked: LinkedSeed, capacity: Int, plan: UUID = linked.newPlan): UpdatePostRequest {
+        val companion = mockk<CompanionSpec>()
+        every { companion.formalizeTypesToNames() } returns mapOf(PreferenceType.GENDER to listOf(linked.newName))
+        return request(capacity).copy(
+            content = "New content", isInstant = true, companionSpec = companion, planUuid = plan, isPlanPublic = false,
+        )
+    }
+
+    private fun inspectPreserved(linked: LinkedSeed) = tx.executeWithoutResult {
+        val post = posts.findByUuid(linked.seed.post) ?: error("post missing")
+        val party = parties.findByUuid(linked.seed.party) ?: error("party missing")
+        post.plan?.uuid shouldBe linked.oldPlan
+        party.plan?.uuid shouldBe linked.oldPlan
+        post.isPlanPublic shouldBe true
+        compPreferences.findAllByPost(post).map { it.preference.id }.toSet() shouldBe setOf(linked.preference)
+        post.content shouldBe "content"
+        post.isInstant shouldBe false
+        post.itinStart shouldBe START
+        post.itinFinish shouldBe FINISH
+        post.location shouldBe LOCATION
+        party.itinStart shouldBe START
+        party.itinFinish shouldBe FINISH
+        party.destination shouldBe LOCATION
+    }
+
+    private class FailingCompPreferences(delegate: CompPreferenceRepository) : CompPreferenceRepository by delegate {
+        override fun <S : CompPreference> saveAll(entities: Iterable<S>): MutableList<S> =
+            error(FORCED_FAILURE)
+    }
     private fun request(capacity: Int) = UpdatePostRequest("New title", "content", false, NEW_START, NEW_FINISH,
         "Jeju", capacity, null, null, null)
     private fun runAs(uuid: UUID, action: () -> Unit): Result<Unit> = runCatching {
@@ -165,43 +218,43 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
         given("AT-001-3 선호도 저장 중 실패가 발생할 때") {
             `when`("게시글과 파티 필드를 수정하면") {
                 then("트랜잭션 전체가 롤백된다") {
-                    val seed = seed(JOINED_BEFORE_APPROVAL, INITIAL_CAPACITY)
-                    // Spring Data repositories are JDK proxies that mockk can't spy on; a relaxed mock
-                    // fails the save step instead, and the Post/Party rollback is what this case checks.
-                    val failingRepository = mockk<CompPreferenceRepository>(relaxed = true)
-                    val preferenceRepository = mockk<PreferenceRepository>()
-                    val preference = mockk<Preference>()
-                    val companion = mockk<CompanionSpec>()
-                    val type = PreferenceType.entries.first()
-                    every { companion.formalizeTypesToNames() } returns mapOf(type to listOf("forced"))
-                    every { preferenceRepository.findAllByTypeAndNameIn(type, listOf("forced")) } returns
-                        listOf(preference)
-                    every { preference.name } returns "forced"
-                    every { preference.id } returns 1L
-                    every { failingRepository.saveAll(any<List<CompPreference>>()) } throws
-                        RuntimeException(FORCED_FAILURE)
+                    val linked = linkedSeed(JOINED_BEFORE_APPROVAL, INITIAL_CAPACITY)
                     val failingService = PostService(
-                        posts, users, failingRepository, preferenceRepository, partyService, plans, markers,
+                        posts, users, FailingCompPreferences(compPreferences), preferences, partyService, plans,
+                        markers,
                         memberships, mockk(relaxed = true), provider, rooms, mockk(relaxed = true),
                     )
-                    val change = request(INCREASED_CAPACITY).copy(companionSpec = companion, location = "Jeju")
-                    val failure = runAs(seed.host) { failingService.updatePost(seed.post, change) }
+                    val change = changedRequest(linked, INCREASED_CAPACITY)
+                    val failure = runAs(linked.seed.host) { failingService.updatePost(linked.seed.post, change) }
                     failure.exceptionOrNull()?.message shouldBe FORCED_FAILURE
-                    inspect(seed, INITIAL_CAPACITY, JOINED_BEFORE_APPROVAL, "Old title")
-                    tx.executeWithoutResult {
-                        posts.findByUuid(seed.post)?.location shouldBe LOCATION
-                        parties.findByUuid(seed.party)?.destination shouldBe LOCATION
-                    }
+                    inspect(linked.seed, INITIAL_CAPACITY, JOINED_BEFORE_APPROVAL, "Old title")
+                    inspectPreserved(linked)
                 }
             }
         }
         given("AT-002-2 AT-002-3 참여 인원보다 작은 정원이 요청되면") {
             `when`("게시글 수정을 시도하면") {
                 then("정원 예외가 발생하고 게시글과 파티는 유지된다") {
-                    val seed = seed(INITIAL_CAPACITY, INCREASED_CAPACITY)
-                    val result = edit(seed, JOINED_BEFORE_APPROVAL)
+                    val linked = linkedSeed(INITIAL_CAPACITY, INCREASED_CAPACITY)
+                    val result = runAs(linked.seed.host) {
+                        service.updatePost(linked.seed.post, changedRequest(linked, JOINED_BEFORE_APPROVAL))
+                    }
                     (result.exceptionOrNull() is PartyCapacityBelowJoinedException) shouldBe true
-                    inspect(seed, INCREASED_CAPACITY, INITIAL_CAPACITY, "Old title")
+                    inspect(linked.seed, INCREASED_CAPACITY, INITIAL_CAPACITY, "Old title")
+                    inspectPreserved(linked)
+                    val missingPlan = UUID.fromString("00000000-0000-0000-0000-000000000099")
+                    val rejected = runAs(linked.seed.host) {
+                        val change = changedRequest(linked, JOINED_BEFORE_APPROVAL, missingPlan)
+                        service.updatePost(linked.seed.post, change)
+                    }
+                    val failure = rejected.exceptionOrNull() as? PartyCapacityBelowJoinedException
+                        ?: error("capacity exception missing")
+                    val details = failure.message ?: error("capacity exception message missing")
+                    details shouldContain "partyUuid=${linked.seed.party}"
+                    details shouldContain "capacity=$JOINED_BEFORE_APPROVAL"
+                    details shouldContain "joined=$INITIAL_CAPACITY"
+                    inspect(linked.seed, INCREASED_CAPACITY, INITIAL_CAPACITY, "Old title")
+                    inspectPreserved(linked)
                 }
             }
         }

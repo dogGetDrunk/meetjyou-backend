@@ -8,6 +8,7 @@ import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
+import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.Plan
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.PlanService
@@ -132,6 +133,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         val host = userRepository.save(buildUser())
         val member = userRepository.save(buildUser())
         val oldPlan = planRepository.save(buildPlan(host))
+        markerRepository.save(Marker(0.0, 0.0, oldPlan.itinStart, 1, 0, "Marker", plan = oldPlan))
         val newPlan = planRepository.save(buildPlan(host))
         val party = buildParty()
         party.plan = oldPlan
@@ -373,6 +375,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     if (editLost) {
                         linked shouldBe (null to null)
                         planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                        markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(seed.oldPlan).isEmpty() shouldBe true
                     } else {
                         linked shouldBe (seed.newPlan to seed.newPlan)
                         planRepository.findByUuid(seed.oldPlan).shouldNotBeNull()
@@ -405,6 +408,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     }
                     state shouldBe Triple(null, null, CAPACITY + 1)
                     planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                    markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(seed.oldPlan).isEmpty() shouldBe true
                 }
             }
         }
@@ -433,6 +437,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     tx.execute { postRepository.findByUuid(seed.postUuid)?.isPlanPublic } shouldBe true
                     planRepository.findByUuid(seed.newPlan).shouldNotBeNull()
                     planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                    markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(seed.oldPlan).isEmpty() shouldBe true
                 }
             }
         }
