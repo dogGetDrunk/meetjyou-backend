@@ -1,6 +1,6 @@
 {
   "approved_by": "user",
   "date": "2026-11-02",
-  "source": "Claude Max 5x 전환 — 상 구현 Sonnet→Opus, 중 머지 판단 Sol→Opus 승인 (대화: '진행해')",
-  "agents_sha256": "7a842482302ed4ba34aa2f63dca85ce64c7b939649fdb10e3471a8e5453b9ab0"
+  "source": "Claude Max 5x 전환 — 상 구현 Sonnet→Opus(effort medium), 중 머지 판단 Sol→Opus 승인 (대화: '진행해', 'effort를 medium으로 낮춰주고')",
+  "agents_sha256": "1459619cdeb52558b292d4f84d95d86aa78a15fc0fb0500beb5cce45f9ac0dff"
 }

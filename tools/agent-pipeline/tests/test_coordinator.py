@@ -317,9 +317,9 @@ class GateTest(CoordinatorCase):
 
     def test_high_tier_escalates_after_failure_budget(self):
         self.ticket('T-20261102-t-1', 'high')
-        self.gate_results = [(1, 'boom')] * 6
+        self.gate_results = [(1, 'boom')] * 8
         self.c.tick()
-        for _ in range(6):
+        for _ in range(8):
             self.finish('T-20261102-t-1')
             self.c.tick()
         self.assertEqual(self.rec('T-20261102-t-1')['state'], 'escalated')
