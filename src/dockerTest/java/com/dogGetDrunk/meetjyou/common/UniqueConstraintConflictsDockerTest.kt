@@ -2,15 +2,21 @@ package com.dogGetDrunk.meetjyou.common
 
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.UniqueConstraintConflicts
+import com.dogGetDrunk.meetjyou.notification.push.PushToken
+import com.dogGetDrunk.meetjyou.notification.push.PushTokenRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.version.AppVersion
+import com.dogGetDrunk.meetjyou.version.AppVersionRepository
+import com.dogGetDrunk.meetjyou.version.Platform
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import java.util.UUID
@@ -41,7 +47,11 @@ class UniqueConstraintConflictsDockerTest : BehaviorSpec() {
 
     @SpringBootConfiguration
     @EntityScan(basePackages = [ROOT_PACKAGE])
-    @EnableJpaRepositories(basePackageClasses = [UserRepository::class, PreferenceRepository::class])
+    @EnableJpaRepositories(
+        basePackageClasses = [
+            UserRepository::class, PreferenceRepository::class, PushTokenRepository::class, AppVersionRepository::class,
+        ],
+    )
     class Config
 
     @Autowired
@@ -56,6 +66,12 @@ class UniqueConstraintConflictsDockerTest : BehaviorSpec() {
     @Autowired
     private lateinit var userPreferenceRepository: UserPreferenceRepository
 
+    @Autowired
+    private lateinit var pushTokenRepository: PushTokenRepository
+
+    @Autowired
+    private lateinit var appVersionRepository: AppVersionRepository
+
     init {
         extensions(SpringExtension())
 
@@ -65,6 +81,12 @@ class UniqueConstraintConflictsDockerTest : BehaviorSpec() {
                     val found = jdbcTemplate.queryForList(FIND_UNIQUE_INDEXES, String::class.java)
 
                     found shouldContainExactlyInAnyOrder MAPPED_CONSTRAINTS
+                }
+            }
+
+            `when`("V1에서 이름 없이 만든 push_token·chat_participant 인덱스를 조회하면") {
+                then("AT-1-1 V42가 바꾼 뒤라 자동 생성 이름은 남아 있지 않다") {
+                    jdbcTemplate.queryForList(FIND_AUTO_NAMED_INDEXES, String::class.java).shouldBeEmpty()
                 }
             }
         }
@@ -84,7 +106,30 @@ class UniqueConstraintConflictsDockerTest : BehaviorSpec() {
                 }
             }
         }
+
+        given("같은 푸시 토큰을 두 번 insert하면") {
+            `when`("두 번째 insert가 uk_push_token_token에 걸리면") {
+                then("AT-2-1 MySQL 예외에서 제약 이름을 읽어 409 CONCURRENT_REQUEST_CONFLICT로 매핑한다") {
+                    val user = saveUser()
+                    val version = "9.9.${UUID.randomUUID().hashCode()}"
+                    val appVersion = appVersionRepository.save(
+                        AppVersion(platform = Platform.ANDROID, version = version, forceUpdate = false),
+                    )
+                    val token = "token-${UUID.randomUUID()}"
+                    pushTokenRepository.saveAndFlush(pushToken(token, user, appVersion))
+
+                    val e = shouldThrow<DataIntegrityViolationException> {
+                        pushTokenRepository.saveAndFlush(pushToken(token, user, appVersion))
+                    }
+
+                    UniqueConstraintConflicts.errorCodeFor(e) shouldBe ErrorCode.CONCURRENT_REQUEST_CONFLICT
+                }
+            }
+        }
     }
+
+    private fun pushToken(token: String, user: User, appVersion: AppVersion) =
+        PushToken(token = token, platform = PushToken.PushPlatform.ANDROID, user = user, appVersion = appVersion)
 
     private fun saveUser(): User {
         val subject = "unique-race-${UUID.randomUUID()}"
@@ -110,6 +155,9 @@ class UniqueConstraintConflictsDockerTest : BehaviorSpec() {
             "uk_user_party",
             "uq_user_preference",
             "uk_unp_user_type",
+            "uk_push_token_token",
+            "uk_chat_participant_user_room",
+            "uq_comp_preference",
             "uk_terms_type_version",
             "uk_version_platform",
         )
@@ -117,6 +165,12 @@ class UniqueConstraintConflictsDockerTest : BehaviorSpec() {
             SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS
             WHERE TABLE_SCHEMA = DATABASE() AND NON_UNIQUE = 0
               AND INDEX_NAME IN (${MAPPED_CONSTRAINTS.joinToString { "'$it'" }})
+        """.trimIndent()
+        private val FIND_AUTO_NAMED_INDEXES = """
+            SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND ((TABLE_NAME = 'push_token' AND INDEX_NAME = 'token')
+                OR (TABLE_NAME = 'chat_participant' AND INDEX_NAME = 'user_id'))
         """.trimIndent()
     }
 }

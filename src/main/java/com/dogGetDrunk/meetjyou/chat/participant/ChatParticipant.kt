@@ -10,12 +10,13 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 
 @Entity
 @Table(
     name = "chat_participant",
     uniqueConstraints = [
-        jakarta.persistence.UniqueConstraint(columnNames = ["user_id", "room_id"])
+        UniqueConstraint(name = ChatParticipant.UNIQUE_USER_ROOM, columnNames = ["user_id", "room_id"])
     ]
 )
 class ChatParticipant(
@@ -30,4 +31,8 @@ class ChatParticipant(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id", nullable = false)
     val room: ChatRoom,
-)
+) {
+    companion object {
+        const val UNIQUE_USER_ROOM = "uk_chat_participant_user_room"
+    }
+}

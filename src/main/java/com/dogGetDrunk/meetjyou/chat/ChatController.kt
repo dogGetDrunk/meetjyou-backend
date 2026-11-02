@@ -1,12 +1,15 @@
 package com.dogGetDrunk.meetjyou.chat
 
 import com.dogGetDrunk.meetjyou.chat.connection.ChatSessionAttributes
+import com.dogGetDrunk.meetjyou.chat.message.ChatMessage
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRequest
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 import com.dogGetDrunk.meetjyou.common.exception.business.auth.UnauthenticatedException
+import com.dogGetDrunk.meetjyou.common.exception.violatedConstraintName
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor
@@ -41,6 +44,19 @@ class ChatController(
     fun handleBusinessException(e: BusinessException): ErrorResponse {
         log.info("Chat message rejected: {}", e.errorCode)
         return ErrorResponse(e.errorCode, e.value)
+    }
+
+    /**
+     * A resend racing its own original past the clientMessageId check: the original already
+     * persisted and broadcast, so the resend is dropped like the pre-check would have. A null
+     * return sends no frame.
+     */
+    @MessageExceptionHandler(DataIntegrityViolationException::class)
+    @SendToUser(ERROR_QUEUE, broadcast = false)
+    fun handleDataIntegrityViolation(e: DataIntegrityViolationException): ErrorResponse? {
+        if (e.violatedConstraintName() != ChatMessage.UNIQUE_CLIENT_MESSAGE_ID) return handleUnexpectedException(e)
+        log.info("Concurrent duplicate chat message submission ignored.")
+        return null
     }
 
     @MessageExceptionHandler(Exception::class)

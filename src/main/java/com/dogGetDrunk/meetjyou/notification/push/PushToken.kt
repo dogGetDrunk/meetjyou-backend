@@ -11,11 +11,14 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.JdbcTypeCode
 import java.sql.Types
 import java.util.UUID
 
 @Entity
+@Table(uniqueConstraints = [UniqueConstraint(name = PushToken.UNIQUE_TOKEN, columnNames = ["token"])])
 class PushToken(
     val token: String,
 
@@ -41,5 +44,8 @@ class PushToken(
     val uuid: UUID = UUID.randomUUID()
 
     enum class PushPlatform { ANDROID, IOS, WEB }
-}
 
+    companion object {
+        const val UNIQUE_TOKEN = "uk_push_token_token"
+    }
+}
