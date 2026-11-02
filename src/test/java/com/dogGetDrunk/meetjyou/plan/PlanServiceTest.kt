@@ -326,7 +326,7 @@ class PlanServiceTest : BehaviorSpec() {
             }
 
             `when`("파티와 모집글이 이 계획서를 참조하고 있으면") {
-                then("게시글 → 파티 순으로 FK 참조를 해제한 뒤 Plan을 삭제한다") {
+                then("AT-007-1 파티 → 게시글 순으로 FK 참조를 해제한 뒤 Plan을 삭제한다") {
                     every { planRepository.findByUuid(plan.uuid) } returns plan
                     every { currentUserProvider.uuid } returns owner.uuid
                     every { postRepository.detachPlan(plan) } returns 1
@@ -335,11 +335,15 @@ class PlanServiceTest : BehaviorSpec() {
                     sut.deletePlan(plan.uuid)
 
                     verifyOrder {
-                        postRepository.detachPlan(plan)
                         partyRepository.detachPlan(plan)
+                        postRepository.detachPlan(plan)
                         markerRepository.deleteAllByPlan(plan)
                         planRepository.delete(plan)
                     }
+                    verify(exactly = 1) { partyRepository.detachPlan(plan) }
+                    verify(exactly = 1) { postRepository.detachPlan(plan) }
+                    verify(exactly = 1) { markerRepository.deleteAllByPlan(plan) }
+                    verify(exactly = 1) { planRepository.delete(plan) }
                 }
             }
         }

@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
@@ -340,12 +341,11 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
 
         given("호스트가 게시글의 여행 계획서를 다른 것으로 바꾸는 중일 때") {
             `when`("같은 호스트가 기존 계획서를 동시에 삭제하면") {
-                then("삭제는 게시글 행에서 기다렸다가 교착 없이 옛 계획서만 떼어내고, 새 계획서 연결은 남는다") {
+                then("AT-007-2 삭제는 파티 행에서 기다렸다가 교착 없이 새 계획서 연결을 유지한다") {
                     val seed = seed()
                     val request = switchPlanRequest(seed)
-                    // The edit's flush writes post, then party; it stops between the two. deletePlan
-                    // detaches post first, so it waits on the post row before touching party — the
-                    // same order as the edit, which removed the deadlock accepted in #165.
+                    // The edit holds the party lock before its flush. deletePlan detaches party first,
+                    // so its first update waits until the edit commits.
                     val outcome = race(
                         pauseBeforeSql = UPDATE_PARTY,
                         holder = seed.host to { postService.updatePost(seed.postUuid, request) },
@@ -361,6 +361,8 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                         post.plan?.uuid to post.party.plan?.uuid
                     }
                     linked shouldBe (seed.newPlan to seed.newPlan)
+                    tx.execute { postRepository.findByUuid(seed.postUuid)?.isPlanPublic } shouldBe true
+                    planRepository.findByUuid(seed.newPlan).shouldNotBeNull()
                     planRepository.findByUuid(seed.oldPlan).shouldBeNull()
                 }
             }
@@ -368,7 +370,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
 
         given("호스트가 기존 계획서를 삭제하는 중일 때 (#201)") {
             `when`("삭제가 쓰기 직전인 사이에 같은 호스트가 게시글 계획서를 새것으로 바꿔 커밋하면") {
-                then("삭제는 옛 계획서만 떼어내고, 방금 연결한 새 계획서 연결은 남는다") {
+                then("AT-007-2 삭제는 옛 계획서만 떼어내고 방금 연결한 새 계획서를 유지한다") {
                     val seed = seed()
                     val request = switchPlanRequest(seed)
                     // deletePlan has read the old links but written nothing yet, so it holds no row
@@ -387,6 +389,8 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                         post.plan?.uuid to post.party.plan?.uuid
                     }
                     linked shouldBe (seed.newPlan to seed.newPlan)
+                    tx.execute { postRepository.findByUuid(seed.postUuid)?.isPlanPublic } shouldBe true
+                    planRepository.findByUuid(seed.newPlan).shouldNotBeNull()
                     planRepository.findByUuid(seed.oldPlan).shouldBeNull()
                 }
             }

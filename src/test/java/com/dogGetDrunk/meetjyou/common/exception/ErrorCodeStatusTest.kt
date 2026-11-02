@@ -78,6 +78,8 @@ private val EXPECTED_STATUS: Map<ErrorCode, HttpStatus> = mapOf(
     ErrorCode.DUPLICATE_VERSION to HttpStatus.CONFLICT,
     ErrorCode.IDEMPOTENCY_KEY_REUSED to HttpStatus.CONFLICT,
     ErrorCode.LAST_SOCIAL_ACCOUNT_UNLINK to HttpStatus.CONFLICT,
+    // AT-002-3
+    ErrorCode.PARTY_CAPACITY_BELOW_JOINED to HttpStatus.CONFLICT,
     ErrorCode.PARTY_FULL to HttpStatus.CONFLICT,
     ErrorCode.PARTY_HOST_LEAVE_NOT_ALLOWED to HttpStatus.CONFLICT,
     ErrorCode.PARTY_INACTIVE_MEMBER_BAN to HttpStatus.CONFLICT,
