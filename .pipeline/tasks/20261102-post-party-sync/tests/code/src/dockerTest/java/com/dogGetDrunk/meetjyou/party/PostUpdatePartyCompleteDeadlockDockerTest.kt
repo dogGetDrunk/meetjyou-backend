@@ -81,7 +81,7 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
         PartyService(
             partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
             mockk(relaxed = true), mockk(relaxed = true), userPartyRepository, userRepository,
-            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper(),
+            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper().findAndRegisterModules(),
             currentUserProvider,
         )
     }
