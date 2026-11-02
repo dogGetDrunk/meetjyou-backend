@@ -62,4 +62,20 @@ class Party(
         progressStatus = PartyProgressStatus.COMPLETED
         recruitmentStatus = PartyRecruitmentStatus.CLOSED
     }
+
+    // Plain assignment: the caller holds the party row lock and validates capacity against joined.
+    fun syncFromPost(capacity: Int, itinStart: Instant, itinFinish: Instant, destination: String) {
+        this.capacity = capacity
+        this.itinStart = itinStart
+        this.itinFinish = itinFinish
+        this.destination = destination
+    }
+
+    fun closeRecruitment() {
+        recruitmentStatus = PartyRecruitmentStatus.CLOSED
+    }
+
+    fun openRecruitment() {
+        recruitmentStatus = PartyRecruitmentStatus.OPEN
+    }
 }

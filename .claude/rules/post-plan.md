@@ -23,7 +23,8 @@ Opting a new create endpoint in:
 ## Post ↔ party ↔ plan
 - Creating a post also creates its Party and ChatRoom; deleting a post does not delete the party
 - A post may only attach a plan owned by its author (`resolvePlanReference`) — otherwise `isPlanPublic=true` exposes someone else's plan. Plan changes sync to `party.plan`
-- Posts of a COMPLETED party are read-only. A write to post `status` takes the party row lock (`PartyService.lockPartyOfPost`) before loading the post — `completeParty` writes the same column under that lock (see party rules)
+- Posts of a COMPLETED party are read-only. `updatePost` and `updatePostStatus` take the party row lock (`PartyService.lockPartyOfPost`) before loading the post, then the post row (`PostRepository.lockByUuid`) — `completeParty` writes post `status` under that lock, and `updatePost` writes party `capacity`/itinerary/`destination` (see party rules)
+- `updatePost` syncs `capacity`/`itinStart`/`itinFinish`/`location` to the party (`Party.syncFromPost`) and rejects `capacity < party.joined` with 409 `PARTY_CAPACITY_BELOW_JOINED` before any plan/field/compPreference change. `updatePostStatus` syncs party `recruitmentStatus` (RECRUITMENT_COMPLETED → CLOSED, RECRUITING → OPEN)
 - Plan read access goes through `PlanAccessGuard.validateReadAccess` (owner / public post / JOINED member)
 - No ON DELETE CASCADE on plan FKs — deleting a plan detaches `party.plan`, `post.plan`, `post.isPlanPublic` first
-- That detach is a bulk `UPDATE ... WHERE plan = ?` (`detachPlan`), post before party — never load-and-null the rows: a snapshot read would overwrite a link switched to another plan meanwhile (#201), and post-first matches `updatePost`'s write order (no deadlock)
+- That detach is a bulk `UPDATE ... WHERE plan = ?` (`detachPlan`), party before post — never load-and-null the rows: a snapshot read would overwrite a link switched to another plan meanwhile (#201), and party-first matches `updatePost`'s party-row-first lock order (no deadlock)
