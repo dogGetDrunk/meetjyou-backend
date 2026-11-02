@@ -20,7 +20,7 @@ consumes:
 produces:
   - UniqueConstraintConflicts 매핑 3건 추가 (uk_push_token_token, uk_chat_participant_user_room, uq_comp_preference)
   - ChatController DataIntegrityViolationException 전용 @MessageExceptionHandler
-status: ready
+status: merged
 ---
 
 ## 목표
