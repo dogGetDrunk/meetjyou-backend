@@ -31,7 +31,6 @@ import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.spyk
 import com.dogGetDrunk.meetjyou.post.dto.CompanionSpec
 import com.dogGetDrunk.meetjyou.preference.CompPreference
 import com.dogGetDrunk.meetjyou.preference.Preference
@@ -55,7 +54,9 @@ import org.springframework.test.context.ActiveProfiles
 // Services use real repositories inside TransactionTemplate to reproduce commit boundaries.
 @SpringBootTest
 @ActiveProfiles("test")
-@MockBean(FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class)
+@MockBean(
+    FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class,
+)
 class PostPartySyncIntegrationTest : BehaviorSpec() {
     @Autowired private lateinit var users: UserRepository
     @Autowired private lateinit var parties: PartyRepository
@@ -72,7 +73,8 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
     private val tx by lazy { TransactionTemplate(manager) }
     private val partyService by lazy {
         PartyService(parties, posts, plans, markers, rooms, mockk(relaxed = true), mockk(relaxed = true),
-            memberships, users, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper(), provider)
+            memberships, users, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper(),
+            provider)
     }
     private val service by lazy {
         PostService(posts, users, compPreferences, preferences, partyService, plans, markers, memberships,
@@ -81,7 +83,10 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
     private data class Seed(val host: UUID, val applicant: UUID, val party: UUID, val post: UUID)
     private fun user(): User {
         val tag = UUID.randomUUID().toString().take(TAG_LENGTH)
-        return users.save(User(email = "$tag@example.com", nickname = "h$tag", authProvider = AuthProvider.KAKAO, externalId = tag))
+        val user = User(
+            email = "$tag@example.com", nickname = "h$tag", authProvider = AuthProvider.KAKAO, externalId = tag,
+        )
+        return users.save(user)
     }
     private fun seed(joined: Int = INITIAL_JOINED, capacity: Int = INITIAL_CAPACITY): Seed = tx.execute {
         val host = user()
@@ -89,7 +94,7 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
         val party = parties.save(Party(itinStart = START, itinFinish = FINISH, destination = LOCATION,
             joined = joined, capacity = capacity, name = "Party"))
         memberships.save(UserParty(party, host, PartyRole.HOST))
-                val post = Post(party, false, "Old title", "content", START, FINISH, LOCATION, capacity)
+        val post = Post(party, false, "Old title", "content", START, FINISH, LOCATION, capacity)
         post.author = host
         posts.save(post)
         Seed(host.uuid, applicant.uuid, party.uuid, post.uuid)
@@ -113,6 +118,12 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
     private fun status(seed: Seed, value: PostStatus) = runAs(seed.host) {
         service.updatePostStatus(seed.post, UpdatePostStatusRequest(value))
     }
+    private fun requestJoin(seed: Seed, note: String = "Jeju trip") =
+        runAs(seed.applicant) { partyService.requestJoinParty(seed.party, note) }
+    private fun approve(seed: Seed) = runAs(seed.host) { partyService.approveJoinRequest(seed.party, seed.applicant) }
+    private fun memberStatus(seed: Seed) =
+        memberships.findByParty_UuidAndUser_Uuid(seed.party, seed.applicant)?.memberStatus
+
     init {
         extensions(SpringExtension())
         beforeSpec { every { provider.uuid } answers { current.get() } }
@@ -142,11 +153,11 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
                 then("신청과 승인이 성공하고 참여 인원이 증가한다") {
                     val seed = seed(INITIAL_CAPACITY)
                     edit(seed, INCREASED_CAPACITY).isSuccess shouldBe true
-                    runAs(seed.applicant) { partyService.requestJoinParty(seed.party, "Jeju trip") }.isSuccess shouldBe true
-                    runAs(seed.host) { partyService.approveJoinRequest(seed.party, seed.applicant) }.isSuccess shouldBe true
+                    requestJoin(seed).isSuccess shouldBe true
+                    approve(seed).isSuccess shouldBe true
                     inspect(seed, INCREASED_CAPACITY, INITIAL_CAPACITY + 1, "New title")
                     tx.executeWithoutResult {
-                        memberships.findByParty_UuidAndUser_Uuid(seed.party, seed.applicant)?.memberStatus shouldBe MemberStatus.JOINED
+                        memberStatus(seed) shouldBe MemberStatus.JOINED
                     }
                 }
             }
@@ -155,21 +166,27 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
             `when`("게시글과 파티 필드를 수정하면") {
                 then("트랜잭션 전체가 롤백된다") {
                     val seed = seed(JOINED_BEFORE_APPROVAL, INITIAL_CAPACITY)
-                    val failingRepository = spyk(compPreferences)
+                    // Spring Data repositories are JDK proxies that mockk can't spy on; a relaxed mock
+                    // fails the save step instead, and the Post/Party rollback is what this case checks.
+                    val failingRepository = mockk<CompPreferenceRepository>(relaxed = true)
                     val preferenceRepository = mockk<PreferenceRepository>()
                     val preference = mockk<Preference>()
                     val companion = mockk<CompanionSpec>()
                     val type = PreferenceType.entries.first()
                     every { companion.formalizeTypesToNames() } returns mapOf(type to listOf("forced"))
-                    every { preferenceRepository.findAllByTypeAndNameIn(type, listOf("forced")) } returns listOf(preference)
+                    every { preferenceRepository.findAllByTypeAndNameIn(type, listOf("forced")) } returns
+                        listOf(preference)
                     every { preference.name } returns "forced"
                     every { preference.id } returns 1L
-                    every { failingRepository.saveAll(any<List<CompPreference>>()) } throws RuntimeException("forced-comp-preference-failure")
-                    val failingService = PostService(posts, users, failingRepository, preferenceRepository, partyService,
-                        plans, markers, memberships, mockk(relaxed = true), provider, rooms, mockk(relaxed = true))
+                    every { failingRepository.saveAll(any<List<CompPreference>>()) } throws
+                        RuntimeException(FORCED_FAILURE)
+                    val failingService = PostService(
+                        posts, users, failingRepository, preferenceRepository, partyService, plans, markers,
+                        memberships, mockk(relaxed = true), provider, rooms, mockk(relaxed = true),
+                    )
                     val change = request(INCREASED_CAPACITY).copy(companionSpec = companion, location = "Jeju")
                     val failure = runAs(seed.host) { failingService.updatePost(seed.post, change) }
-                    failure.exceptionOrNull()?.message shouldBe "forced-comp-preference-failure"
+                    failure.exceptionOrNull()?.message shouldBe FORCED_FAILURE
                     inspect(seed, INITIAL_CAPACITY, JOINED_BEFORE_APPROVAL, "Old title")
                     tx.executeWithoutResult {
                         posts.findByUuid(seed.post)?.location shouldBe LOCATION
@@ -195,13 +212,15 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
                     repeat(2) { status(seed, PostStatus.RECRUITMENT_COMPLETED).isSuccess shouldBe true }
                     val closed = runAs(seed.applicant) { partyService.requestJoinParty(seed.party, "Closed") }
                     (closed.exceptionOrNull() is PartyRecruitmentClosedException) shouldBe true
-                    tx.executeWithoutResult { parties.findByUuid(seed.party)?.recruitmentStatus shouldBe PartyRecruitmentStatus.CLOSED }
+                    tx.executeWithoutResult {
+                        parties.findByUuid(seed.party)?.recruitmentStatus shouldBe PartyRecruitmentStatus.CLOSED
+                    }
                     repeat(2) { status(seed, PostStatus.RECRUITING).isSuccess shouldBe true }
-                    runAs(seed.applicant) { partyService.requestJoinParty(seed.party, "Reopened") }.isSuccess shouldBe true
+                    requestJoin(seed, "Reopened").isSuccess shouldBe true
                     tx.executeWithoutResult {
                         posts.findByUuid(seed.post)?.status shouldBe PostStatus.RECRUITING
                         parties.findByUuid(seed.party)?.recruitmentStatus shouldBe PartyRecruitmentStatus.OPEN
-                        memberships.findByParty_UuidAndUser_Uuid(seed.party, seed.applicant)?.memberStatus shouldBe MemberStatus.PENDING
+                        memberStatus(seed) shouldBe MemberStatus.PENDING
                     }
                 }
             }
@@ -210,13 +229,13 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
             `when`("모집 완료 후 기존 신청을 승인하면") {
                 then("승인이 성공하고 모집은 닫힌 상태로 유지된다") {
                     val seed = seed()
-                    runAs(seed.applicant) { partyService.requestJoinParty(seed.party, "Pending") }.isSuccess shouldBe true
+                    requestJoin(seed, "Pending").isSuccess shouldBe true
                     status(seed, PostStatus.RECRUITMENT_COMPLETED).isSuccess shouldBe true
-                    runAs(seed.host) { partyService.approveJoinRequest(seed.party, seed.applicant) }.isSuccess shouldBe true
+                    approve(seed).isSuccess shouldBe true
                     tx.executeWithoutResult {
                         parties.findByUuid(seed.party)?.joined shouldBe JOINED_BEFORE_APPROVAL
                         parties.findByUuid(seed.party)?.recruitmentStatus shouldBe PartyRecruitmentStatus.CLOSED
-                        memberships.findByParty_UuidAndUser_Uuid(seed.party, seed.applicant)?.memberStatus shouldBe MemberStatus.JOINED
+                        memberStatus(seed) shouldBe MemberStatus.JOINED
                     }
                 }
             }
@@ -227,7 +246,9 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
                     listOf(PostStatus.RECRUITING, PostStatus.RECRUITMENT_COMPLETED).forEach {
                         (status(seed, it).exceptionOrNull() is InvalidInputException) shouldBe true
                     }
-                    tx.executeWithoutResult { parties.findByUuid(seed.party)?.progressStatus shouldBe PartyProgressStatus.COMPLETED }
+                    tx.executeWithoutResult {
+                        parties.findByUuid(seed.party)?.progressStatus shouldBe PartyProgressStatus.COMPLETED
+                    }
                 }
             }
         }
@@ -239,6 +260,7 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
         private const val INITIAL_CAPACITY = 3
         private const val INCREASED_CAPACITY = 10
         private const val LOCATION = "Busan"
+        private const val FORCED_FAILURE = "forced-comp-preference-failure"
         private val START = Instant.parse("2030-05-01T00:00:00Z")
         private val FINISH = Instant.parse("2030-05-03T00:00:00Z")
         private val NEW_START = Instant.parse("2030-06-01T00:00:00Z")
