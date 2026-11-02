@@ -141,8 +141,10 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
     private fun editRequest(seed: Seed, changePlan: Boolean): UpdatePostRequest {
         val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
         return UpdatePostRequest(
-            title = "New title", content = post.content, isInstant = post.isInstant, itinStart = post.itinStart,
-            itinFinish = post.itinFinish, location = "Jeju", capacity = NEW_CAPACITY,
+            title = "New title", content = post.content, isInstant = post.isInstant,
+            itinStart = post.itinStart.plus(EDIT_OFFSET_DAYS, ChronoUnit.DAYS),
+            itinFinish = post.itinFinish.plus(EDIT_OFFSET_DAYS, ChronoUnit.DAYS),
+            location = "Jeju", capacity = NEW_CAPACITY,
             companionSpec = null, planUuid = if (changePlan) seed.newPlan else seed.oldPlan, isPlanPublic = true,
         )
     }
@@ -221,6 +223,7 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
         private const val CAPACITY = 4
         private const val NEW_CAPACITY = 6
         private const val TRIP_DAYS = 3L
+        private const val EDIT_OFFSET_DAYS = 30L
         private const val LOCATION = "Busan"
         private const val TIMEOUT_SECONDS = 30L
         private const val LOCK_WAIT_TIMEOUT_MILLIS = 10_000L
@@ -240,6 +243,10 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
                 `when`("AT-004-1 계획서 변경 여부가 $changePlan 인 편집이 대기하면") {
                     then("완료 후 편집은 거부되고 기존 데이터가 유지된다") {
                         val seed = seed()
+                        val original = tx.execute {
+                            val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
+                            post.itinStart to post.itinFinish
+                        } ?: error("snapshot missing")
                         val outcome = race(seed, editRequest(seed, changePlan))
                         assertWaitedOnLock(outcome.editWaitedOnLock, outcome.edit)
                         outcome.completion.exceptionOrNull().shouldBeNull()
@@ -255,6 +262,10 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
                             party.capacity shouldBe CAPACITY
                             post.location shouldBe LOCATION
                             party.destination shouldBe LOCATION
+                            post.itinStart shouldBe original.first
+                            post.itinFinish shouldBe original.second
+                            party.itinStart shouldBe original.first
+                            party.itinFinish shouldBe original.second
                             post.plan?.uuid shouldBe seed.oldPlan
                             party.plan?.uuid shouldBe seed.oldPlan
                             post.isPlanPublic shouldBe true
