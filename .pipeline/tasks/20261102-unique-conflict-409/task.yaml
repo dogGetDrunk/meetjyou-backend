@@ -1,0 +1,7 @@
+key: 20261102-unique-conflict-409
+title: 동시 요청 유니크 제약 경합 시 500 나는 4곳 정리
+size: S
+created: '2026-11-02'
+links:
+  notion: https://app.notion.com/p/40556d9a97d98161958cdc8fbcc62797
+  issue: dogGetDrunk/meetjyou-backend#247
