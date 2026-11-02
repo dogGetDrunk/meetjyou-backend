@@ -193,6 +193,8 @@ class PlanService(
         // are detached first. Bulk UPDATEs match on the latest row, not this transaction's snapshot,
         // so a link switched to another plan meanwhile survives (#201). Party goes first: updatePost
         // locks the party row before the post row, so waiting on the party row keeps the same order.
+        // An edit that switches plans can still deadlock here on the party plan_id index entry;
+        // that rare overlap is accepted and surfaces as a 409 (see party rules).
         partyRepository.detachPlan(plan)
         postRepository.detachPlan(plan)
 

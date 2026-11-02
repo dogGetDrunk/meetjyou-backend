@@ -106,7 +106,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         PartyService(
             partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
             chatParticipantService, mockk(relaxed = true), userPartyRepository, userRepository,
-            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper(),
+            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper().findAndRegisterModules(),
             currentUserProvider,
         )
     }
@@ -183,6 +183,16 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
             title = post.title, content = post.content, isInstant = post.isInstant, itinStart = post.itinStart,
             itinFinish = post.itinFinish, location = post.location, capacity = post.capacity,
             companionSpec = null, planUuid = seed.newPlan, isPlanPublic = true,
+        )
+    }
+
+    // Same plan as the seed, one more seat: the edit writes the party row but not its plan_id.
+    private fun keepPlanRequest(seed: Seed): UpdatePostRequest {
+        val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
+        return UpdatePostRequest(
+            title = post.title, content = post.content, isInstant = post.isInstant, itinStart = post.itinStart,
+            itinFinish = post.itinFinish, location = post.location, capacity = post.capacity + 1,
+            companionSpec = null, planUuid = seed.oldPlan, isPlanPublic = true,
         )
     }
 
@@ -341,11 +351,44 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
 
         given("호스트가 게시글의 여행 계획서를 다른 것으로 바꾸는 중일 때") {
             `when`("같은 호스트가 기존 계획서를 동시에 삭제하면") {
-                then("AT-007-2 삭제는 파티 행에서 기다렸다가 교착 없이 새 계획서 연결을 유지한다") {
+                then("AT-007-2 교착으로 한쪽이 409 대상 예외로 통째로 롤백되고, 이긴 쪽 변경만 남는다") {
                     val seed = seed()
                     val request = switchPlanRequest(seed)
-                    // The edit holds the party lock before its flush. deletePlan detaches party first,
-                    // so its first update waits until the edit commits.
+                    // Accepted deadlock: the edit holds the party row (uuid path), deletePlan's bulk
+                    // detach holds the party plan_id index entry and waits on that row, then the
+                    // edit's flush needs the same index entry to change plan_id.
+                    val outcome = race(
+                        pauseBeforeSql = UPDATE_PARTY,
+                        holder = seed.host to { postService.updatePost(seed.postUuid, request) },
+                        contender = seed.host to { planService.deletePlan(seed.oldPlan) },
+                    )
+                    report(outcome)
+
+                    outcome.contenderWaitedOnLock shouldBe true
+                    val editLost = firstLostDeadlock(outcome.holder, outcome.contender)
+                    val linked = tx.execute {
+                        val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
+                        post.plan?.uuid to post.party.plan?.uuid
+                    }
+                    if (editLost) {
+                        linked shouldBe (null to null)
+                        planRepository.findByUuid(seed.oldPlan).shouldBeNull()
+                    } else {
+                        linked shouldBe (seed.newPlan to seed.newPlan)
+                        planRepository.findByUuid(seed.oldPlan).shouldNotBeNull()
+                    }
+                    planRepository.findByUuid(seed.newPlan).shouldNotBeNull()
+                }
+            }
+        }
+
+        given("호스트가 계획서는 그대로 두고 게시글 정원을 바꾸는 중일 때") {
+            `when`("같은 호스트가 그 계획서를 동시에 삭제하면") {
+                then("AT-007-2 삭제는 파티 행에서 기다렸다가 교착 없이 편집 뒤에 계획서를 떼어낸다") {
+                    val seed = seed()
+                    val request = keepPlanRequest(seed)
+                    // The edit never touches plan_id, so party-first detach only waits on the
+                    // party row the edit holds — no shared index entry, no deadlock.
                     val outcome = race(
                         pauseBeforeSql = UPDATE_PARTY,
                         holder = seed.host to { postService.updatePost(seed.postUuid, request) },
@@ -356,13 +399,11 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
                     outcome.contenderWaitedOnLock shouldBe true
                     outcome.holder.exceptionOrNull().shouldBeNull()
                     outcome.contender.exceptionOrNull().shouldBeNull()
-                    val linked = tx.execute {
+                    val state = tx.execute {
                         val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
-                        post.plan?.uuid to post.party.plan?.uuid
+                        Triple(post.plan?.uuid, post.party.plan?.uuid, post.party.capacity)
                     }
-                    linked shouldBe (seed.newPlan to seed.newPlan)
-                    tx.execute { postRepository.findByUuid(seed.postUuid)?.isPlanPublic } shouldBe true
-                    planRepository.findByUuid(seed.newPlan).shouldNotBeNull()
+                    state shouldBe Triple(null, null, CAPACITY + 1)
                     planRepository.findByUuid(seed.oldPlan).shouldBeNull()
                 }
             }

@@ -63,14 +63,15 @@
   - 근거: REQ-004로 `updatePost`가 party → post 순서가 됨. 기존 post-first는 옛 `updatePost` 쓰기 순서(post → party)에 맞춘 것(#201) → 그대로 두면 `deletePlan ↔ updatePost` 교착 재발. 409 수용 대신 순서 정렬: #201로 제거된 교착을 되살리지 않음, 변경 2줄
 - 수용 기준:
   - `PlanServiceTest` verifyOrder: party detach → post detach → marker 삭제 → plan 삭제
-  - plan 전환 편집 ↔ deletePlan 동시 실행 시 교착 없음, 새 plan 연결 유지 (`PartyAggregateDeadlockDockerTest` plan 시나리오 갱신: 편집이 파티 락 보유 중 deletePlan이 party 행에서 대기)
+  - plan 유지 편집(정원 등) ↔ deletePlan: 교착 없음, deletePlan이 party 행에서 대기 후 편집 뒤에 detach (party-first의 효과)
+  - plan 전환 편집(삭제 대상 plan → 다른 plan) ↔ deletePlan: **accepted deadlock** — 편집이 party 행(uuid 경로), deletePlan bulk detach가 party `plan_id` 보조 인덱스 엔트리를 선점 → 편집 flush의 plan_id 변경과 순환 대기. 한쪽만 `PessimisticLockingFailureException`(409 `CONCURRENT_REQUEST_CONFLICT`)로 전체 롤백, 이긴 쪽 변경만 남음 (MySQL 실측, T-01 구현자 escalation 2026-11-02)
   - #201 시나리오(삭제 쓰기 직전 편집 커밋 → 새 연결 유지) 계속 통과
 - 수용 테스트 ID: AT-007-1, AT-007-2
 
 ### REQ-005 규칙 문서·기존 테스트 정리
 
 - 요구사항:
-  - `.claude/rules/party.md`: "Locked today"에 `capacity`·일정·목적지(`PostService.updatePost`, `lockPartyOfPost` 경유) 추가, "Accepted deadlocks (#165)"에서 `updatePost ↔ completeParty` 제거
+  - `.claude/rules/party.md`: "Locked today"에 `capacity`·일정·목적지(`PostService.updatePost`, `lockPartyOfPost` 경유) 추가, "Accepted deadlocks (#165)"에서 `updatePost ↔ completeParty` 제거, `updatePost`(plan 전환) ↔ `deletePlan` 추가 (plan_id 보조 인덱스 경유, 원인 1줄)
   - `.claude/rules/post-plan.md`: detach 순서 "party before post", 근거를 party-row-first로 갱신. "write to post `status` takes the party row lock" 문장에 `updatePost`(정원·일정) 포함
   - `PostUpdatePartyCompleteDeadlockDockerTest`: 데드락 고정 시나리오 → AT-004-1(데드락 없음·편집 거부)로 대체, KDoc 갱신
   - party.md 같은 문단의 `deletePlan` 괄호 설명을 party → post 순서로 수정, "Pinned by" 포인터는 남은 시나리오에 맞게 정리 (C2-1)
