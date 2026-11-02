@@ -1,9 +1,12 @@
 package com.dogGetDrunk.meetjyou.chat.connection
 
 import com.dogGetDrunk.meetjyou.chat.ChatReadService
+import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipant
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
+import com.dogGetDrunk.meetjyou.common.exception.violatedConstraintName
 import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.messaging.SessionConnectEvent
@@ -35,7 +38,7 @@ class WebSocketEventListener(
 
         chatSessionTracker.connectUser(roomUuid, userUuid, sessionId)
         try {
-            chatParticipantService.enterRoom(roomUuid, userUuid)
+            enterRoom(roomUuid, userUuid)
             chatReadService.markLatestMessageAsRead(roomUuid, userUuid)
         } catch (e: Exception) {
             chatSessionTracker.disconnectUser(roomUuid, userUuid, sessionId)
@@ -43,6 +46,17 @@ class WebSocketEventListener(
         }
 
         log.info("WebSocket connection established. roomUuid={}, userUuid={}, sessionId={}", roomUuid, userUuid, sessionId)
+    }
+
+    // Two sessions of the same user connecting at once both pass enterRoom's existence check; the
+    // loser's own transaction rolled back, and the winner's row already records the entry.
+    private fun enterRoom(roomUuid: UUID, userUuid: UUID) {
+        try {
+            chatParticipantService.enterRoom(roomUuid, userUuid)
+        } catch (e: DataIntegrityViolationException) {
+            if (e.violatedConstraintName() != ChatParticipant.UNIQUE_USER_ROOM) throw e
+            log.info("Concurrent connect already tracked the room entry. roomUuid={}, userUuid={}", roomUuid, userUuid)
+        }
     }
 
     @EventListener

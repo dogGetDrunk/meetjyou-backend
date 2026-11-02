@@ -26,7 +26,7 @@ import java.util.UUID
 @Table(
     uniqueConstraints = [
         UniqueConstraint(
-            name = "uk_chat_message_room_sender_client_id",
+            name = ChatMessage.UNIQUE_CLIENT_MESSAGE_ID,
             columnNames = ["room_id", "sender_id", "client_message_id"],
         )
     ],
@@ -61,4 +61,8 @@ class ChatMessage(
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now()
-)
+) {
+    companion object {
+        const val UNIQUE_CLIENT_MESSAGE_ID = "uk_chat_message_room_sender_client_id"
+    }
+}
