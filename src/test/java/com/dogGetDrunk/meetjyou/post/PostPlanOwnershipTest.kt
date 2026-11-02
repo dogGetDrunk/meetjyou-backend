@@ -79,7 +79,7 @@ class PostPlanOwnershipTest : BehaviorSpec() {
             SecurityContextHolder.getContext().authentication =
                 UsernamePasswordAuthenticationToken(principal, null, emptyList())
             every { currentUserProvider.uuid } returns user.uuid
-            every { postRepository.findByUuid(post.uuid) } returns post
+            every { postRepository.lockByUuid(post.uuid) } returns post
         }
 
         afterEach { SecurityContextHolder.clearContext() }

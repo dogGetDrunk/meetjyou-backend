@@ -191,10 +191,12 @@ class PlanService(
 
         // party.plan_id and post.plan_id reference plan without ON DELETE CASCADE, so linked rows
         // are detached first. Bulk UPDATEs match on the latest row, not this transaction's snapshot,
-        // so a link switched to another plan meanwhile survives (#201). Post goes first: a concurrent
-        // updatePost writes post then party, so waiting on the post row here keeps the same order.
-        postRepository.detachPlan(plan)
+        // so a link switched to another plan meanwhile survives (#201). Party goes first: updatePost
+        // locks the party row before the post row, so waiting on the party row keeps the same order.
+        // An edit that switches plans can still deadlock here on the party plan_id index entry;
+        // that rare overlap is accepted and surfaces as a 409 (see party rules).
         partyRepository.detachPlan(plan)
+        postRepository.detachPlan(plan)
 
         markerRepository.deleteAllByPlan(plan)
         planRepository.delete(plan)

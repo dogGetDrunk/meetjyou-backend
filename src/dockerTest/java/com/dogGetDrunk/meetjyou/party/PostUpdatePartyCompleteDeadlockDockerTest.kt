@@ -12,7 +12,8 @@ import com.dogGetDrunk.meetjyou.post.PostStatus
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
-import com.dogGetDrunk.meetjyou.support.firstLostDeadlock
+import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
+import com.dogGetDrunk.meetjyou.support.assertWaitedOnLock
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
@@ -22,7 +23,8 @@ import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
-import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
@@ -34,7 +36,6 @@ import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.domain.EntityScan
@@ -50,16 +51,7 @@ import org.springframework.transaction.support.TransactionTemplate
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.utility.DockerImageName
 
-/**
- * Issue #165: PostService.updatePost (no lock, post row written before party row at flush) and
- * PartyService.completeParty (party row locked first, post row written at flush) take the same
- * two row locks in opposite order. H2 has no InnoDB deadlock detection, so this needs MySQL.
- *
- * The interleaving is forced: completion takes the party lock and stays open, the edit runs until
- * it waits on the party row, then completion commits and needs the post row. The deadlock is
- * accepted (rare, unnatural overlap) and handled as a 409 instead of restructuring lock order:
- * this pins that the loser fails with the mapped exception type and leaves no partial state.
- */
+/** Completion and editing serialize on the party row; a completed party rejects the edit. */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -81,7 +73,6 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
     @Autowired private lateinit var preferenceRepository: PreferenceRepository
     @Autowired private lateinit var transactionManager: PlatformTransactionManager
 
-    private val log = LoggerFactory.getLogger(javaClass)
     private val currentUserUuid = ThreadLocal<UUID>()
     private val currentUserProvider = mockk<CurrentUserProvider>()
     private val tx by lazy { TransactionTemplate(transactionManager) }
@@ -90,7 +81,7 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
         PartyService(
             partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
             mockk(relaxed = true), mockk(relaxed = true), userPartyRepository, userRepository,
-            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper(),
+            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper().findAndRegisterModules(),
             currentUserProvider,
         )
     }
@@ -103,17 +94,22 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
         )
     }
 
-    private class Seed(val host: User, val partyUuid: UUID, val postUuid: UUID, val planUuid: UUID)
+    private class Seed(val host: User, val partyUuid: UUID, val postUuid: UUID, val oldPlan: UUID, val newPlan: UUID)
 
     private fun seed(): Seed = tx.execute {
         val host = userRepository.save(buildUser())
         val plan = planRepository.save(buildPlan(host))
-        val party = partyRepository.save(buildParty())
+        val newPlan = planRepository.save(buildPlan(host))
+        val party = buildParty()
+        party.plan = plan
+        partyRepository.save(party)
         userPartyRepository.save(UserParty(party, host, PartyRole.HOST))
         val post = buildPost(party)
         post.author = host
+        post.plan = plan
+        post.isPlanPublic = true
         postRepository.save(post)
-        Seed(host, party.uuid, post.uuid, plan.uuid)
+        Seed(host, party.uuid, post.uuid, plan.uuid, newPlan.uuid)
     } ?: error("seed failed")
 
     private fun buildUser(): User {
@@ -142,14 +138,12 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
         itinStart = party.itinStart, itinFinish = party.itinFinish, location = LOCATION, capacity = CAPACITY,
     )
 
-    // Same fields as the seeded post, plus a plan: the plan change is what makes the edit
-    // write the party row too (party.plan), which is the second lock of the deadlock.
-    private fun planChangeRequest(seed: Seed): UpdatePostRequest {
+    private fun editRequest(seed: Seed, changePlan: Boolean): UpdatePostRequest {
         val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
         return UpdatePostRequest(
             title = "New title", content = post.content, isInstant = post.isInstant, itinStart = post.itinStart,
-            itinFinish = post.itinFinish, location = post.location, capacity = post.capacity,
-            companionSpec = null, planUuid = seed.planUuid, isPlanPublic = true,
+            itinFinish = post.itinFinish, location = "Jeju", capacity = NEW_CAPACITY,
+            companionSpec = null, planUuid = if (changePlan) seed.newPlan else seed.oldPlan, isPlanPublic = true,
         )
     }
 
@@ -165,7 +159,7 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
                 runAs(seed.host) {
                     partyService.completeParty(seed.partyUuid)
                     locked.countDown()
-                    release.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    check(release.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)) { "completion release timed out" }
                 }
             }
             locked.await(TIMEOUT_SECONDS, TimeUnit.SECONDS) shouldBe true
@@ -174,6 +168,7 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
             release.countDown()
             return Outcome(completion.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), edit.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), waited)
         } finally {
+            release.countDown()
             executor.shutdownNow()
         }
     }
@@ -195,15 +190,6 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
         false
     }
 
-    private fun latestDeadlockReport(): String = asRoot { root ->
-        root.createStatement().use { statement ->
-            statement.executeQuery(INNODB_STATUS).use { rs ->
-                rs.next()
-                rs.getString(INNODB_STATUS_COLUMN).substringAfter(DEADLOCK_SECTION, "").substringBefore(TRANSACTIONS_SECTION)
-            }
-        }
-    }
-
     private fun <T> asRoot(block: (Connection) -> T): T =
         DriverManager.getConnection(mysql.jdbcUrl, ROOT_USER, mysql.password).use(block)
 
@@ -214,10 +200,6 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
                 rs.getInt(1)
             }
         }
-
-    private fun describe(result: Result<Unit>): String =
-        result.exceptionOrNull()?.let { error -> generateSequence(error) { it.cause }.joinToString(" <- ") { "${it.javaClass.simpleName}: ${it.message}" } }
-            ?: "success"
 
     companion object {
         private val mysql = MySQLContainer(DockerImageName.parse("mysql:8.0.41")).apply { start() }
@@ -237,16 +219,13 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
         private const val ROOT_USER = "root"
         private const val TAG_LENGTH = 8
         private const val CAPACITY = 4
+        private const val NEW_CAPACITY = 6
         private const val TRIP_DAYS = 3L
         private const val LOCATION = "Busan"
         private const val TIMEOUT_SECONDS = 30L
         private const val LOCK_WAIT_TIMEOUT_MILLIS = 10_000L
         private const val POLL_INTERVAL_MILLIS = 50L
         private const val COUNT_LOCK_WAITS = "SELECT COUNT(*) FROM performance_schema.data_lock_waits"
-        private const val INNODB_STATUS = "SHOW ENGINE INNODB STATUS"
-        private const val INNODB_STATUS_COLUMN = "Status"
-        private const val DEADLOCK_SECTION = "LATEST DETECTED DEADLOCK"
-        private const val TRANSACTIONS_SECTION = "TRANSACTIONS\n"
     }
 
     init {
@@ -256,26 +235,30 @@ class PostUpdatePartyCompleteDeadlockDockerTest : BehaviorSpec() {
             every { currentUserProvider.uuid } answers { currentUserUuid.get() }
         }
 
-        given("호스트가 파티 완료를 요청해 파티 행 잠금이 잡혀 있을 때 (#165, 교착 허용)") {
-            `when`("같은 호스트가 plan을 바꾸는 게시글 수정을 동시에 보내면") {
-                then("교착으로 한쪽이 409 대상 예외로 통째로 롤백되고, 이긴 쪽 변경만 남는다") {
-                    val seed = seed()
-                    val outcome = race(seed, planChangeRequest(seed))
-                    log.info("completion={} / edit={}", describe(outcome.completion), describe(outcome.edit))
-                    log.info("InnoDB latest deadlock:{}", latestDeadlockReport().ifBlank { " none" })
-
-                    outcome.editWaitedOnLock shouldBe true
-                    val completionLost = firstLostDeadlock(outcome.completion, outcome.edit)
-                    val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
-                    val party = partyRepository.findByUuid(seed.partyUuid) ?: error("party missing")
-                    if (completionLost) {
-                        party.progressStatus shouldNotBe PartyProgressStatus.COMPLETED
-                        post.status shouldBe PostStatus.RECRUITING
-                        post.title shouldBe "New title"
-                    } else {
-                        party.progressStatus shouldBe PartyProgressStatus.COMPLETED
-                        post.status shouldBe PostStatus.RECRUITMENT_COMPLETED
-                        post.title shouldBe "Old title"
+        given("완료 트랜잭션이 파티 락을 보유한 경우") {
+            listOf(false, true).forEach { changePlan ->
+                `when`("AT-004-1 계획서 변경 여부가 $changePlan 인 편집이 대기하면") {
+                    then("완료 후 편집은 거부되고 기존 데이터가 유지된다") {
+                        val seed = seed()
+                        val outcome = race(seed, editRequest(seed, changePlan))
+                        assertWaitedOnLock(outcome.editWaitedOnLock, outcome.edit)
+                        outcome.completion.exceptionOrNull().shouldBeNull()
+                        outcome.edit.exceptionOrNull().shouldBeInstanceOf<InvalidInputException>()
+                        tx.executeWithoutResult {
+                            val post = postRepository.findByUuid(seed.postUuid) ?: error("post missing")
+                            val party = partyRepository.findByUuid(seed.partyUuid) ?: error("party missing")
+                            party.progressStatus shouldBe PartyProgressStatus.COMPLETED
+                            party.recruitmentStatus shouldBe PartyRecruitmentStatus.CLOSED
+                            post.status shouldBe PostStatus.RECRUITMENT_COMPLETED
+                            post.title shouldBe "Old title"
+                            post.capacity shouldBe CAPACITY
+                            party.capacity shouldBe CAPACITY
+                            post.location shouldBe LOCATION
+                            party.destination shouldBe LOCATION
+                            post.plan?.uuid shouldBe seed.oldPlan
+                            party.plan?.uuid shouldBe seed.oldPlan
+                            post.isPlanPublic shouldBe true
+                        }
                     }
                 }
             }

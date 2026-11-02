@@ -22,6 +22,8 @@ import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import io.mockk.verifyOrder
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 
@@ -60,6 +62,14 @@ class UpdatePostPlanSyncTest : BehaviorSpec() {
         isPlanPublic = isPlanPublic,
     )
 
+    private fun verifyLockOrder(post: Post) {
+        verifyOrder {
+            partyService.lockPartyOfPost(post.uuid)
+            postRepository.lockByUuid(post.uuid)
+        }
+        verify(exactly = 0) { postRepository.findByUuid(post.uuid) }
+    }
+
     init {
         val user = UserFixtures.user()
         val party = NotificationCenterFixtures.party()
@@ -71,27 +81,54 @@ class UpdatePostPlanSyncTest : BehaviorSpec() {
             SecurityContextHolder.getContext().authentication =
                 UsernamePasswordAuthenticationToken(principal, null, emptyList())
             every { currentUserProvider.uuid } returns user.uuid
-            every { postRepository.findByUuid(post.uuid) } returns post
+            every { postRepository.lockByUuid(post.uuid) } returns post
         }
 
         afterEach { SecurityContextHolder.clearContext() }
 
         given("updatePost 호출 시 planUuid가 함께 전달되면") {
             `when`("새 여행 계획서로 교체하면") {
-                then("모집글과 연결된 파티의 plan이 함께 갱신된다") {
+                then("AT-001-1 모집글과 연결된 파티의 plan이 함께 갱신된다") {
                     val newPlan = PlanFixtures.plan(owner = user)
                     every { planRepository.findByUuid(newPlan.uuid) } returns newPlan
 
                     sut.updatePost(post.uuid, updateRequest(post, newPlan.uuid, true))
 
+                    verifyLockOrder(post)
                     post.plan shouldBe newPlan
                     post.isPlanPublic shouldBe true
                     party.plan shouldBe newPlan
                 }
             }
 
+            `when`("기존 계획서를 유지하면") {
+                then("AT-001-1 잠근 후 같은 계획서 연결을 유지한다") {
+                    val existingPlan = PlanFixtures.plan(owner = user)
+                    post.plan = existingPlan
+                    post.isPlanPublic = true
+                    party.plan = existingPlan
+                    every { planRepository.findByUuid(existingPlan.uuid) } returns existingPlan
+
+                    sut.updatePost(post.uuid, updateRequest(post, existingPlan.uuid, true))
+
+                    verifyLockOrder(post)
+                    post.plan shouldBe existingPlan
+                    party.plan shouldBe existingPlan
+                }
+            }
+
+            `when`("계획서가 없는 상태를 유지하면") {
+                then("AT-001-1 잠근 후 계획서가 없는 상태를 유지한다") {
+                    sut.updatePost(post.uuid, updateRequest(post, null, null))
+
+                    verifyLockOrder(post)
+                    post.plan shouldBe null
+                    party.plan shouldBe null
+                }
+            }
+
             `when`("planUuid가 null이면") {
-                then("모집글과 연결된 파티의 plan이 함께 해제된다") {
+                then("AT-001-1 모집글과 연결된 파티의 plan이 함께 해제된다") {
                     val existingPlan = PlanFixtures.plan(owner = user)
                     post.plan = existingPlan
                     post.isPlanPublic = true
@@ -99,6 +136,7 @@ class UpdatePostPlanSyncTest : BehaviorSpec() {
 
                     sut.updatePost(post.uuid, updateRequest(post, null, null))
 
+                    verifyLockOrder(post)
                     post.plan shouldBe null
                     post.isPlanPublic shouldBe null
                     party.plan shouldBe null
