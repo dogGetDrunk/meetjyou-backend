@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshToken
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.CustomJwtException
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import com.dogGetDrunk.meetjyou.support.assertWaitedOnLock
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
@@ -11,8 +12,6 @@ import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.mockk
-import java.sql.Connection
-import java.sql.DriverManager
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -32,8 +31,6 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * Runs refresh-token rotation and logout against a real MySQL, two transactions at a time. H2
@@ -150,26 +147,17 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
 
     // performance_schema needs more than the app user's privileges. data_lock_waits, not
     // innodb_trx.trx_state: the latter is a cached view and missed a real wait in CI (#200).
-    private fun awaitLockWait(maxMillis: Long): Boolean =
-        DriverManager.getConnection(mysql.jdbcUrl, ROOT_USER, mysql.password).use { root ->
-            val deadline = System.currentTimeMillis() + maxMillis
-            while (System.currentTimeMillis() < deadline) {
-                if (countLockWaits(root) >= 1) return@use true
-                Thread.sleep(POLL_INTERVAL_MILLIS)
-            }
-            false
+    private fun awaitLockWait(maxMillis: Long): Boolean {
+        val deadline = System.currentTimeMillis() + maxMillis
+        while (System.currentTimeMillis() < deadline) {
+            if (mysql.countLockWaits() >= 1) return true
+            Thread.sleep(POLL_INTERVAL_MILLIS)
         }
-
-    private fun countLockWaits(connection: Connection): Int =
-        connection.createStatement().use { statement ->
-            statement.executeQuery(COUNT_LOCK_WAITS).use { rs ->
-                rs.next()
-                rs.getInt(1)
-            }
-        }
+        return false
+    }
 
     companion object {
-        private val mysql = MySQLContainer(DockerImageName.parse("mysql:8.0.41")).apply { start() }
+        private val mysql = SharedMySql.newDatabase()
 
         @JvmStatic
         @DynamicPropertySource
@@ -187,11 +175,9 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
         private const val REFRESH_EXPIRATION_MILLIS = 2_592_000_000L
         private const val ROTATION_OVERLAP_SECONDS = 30L
         private const val POOL_SIZE = 5
-        private const val ROOT_USER = "root"
         private const val TIMEOUT_SECONDS = 30L
         private const val LOCK_WAIT_TIMEOUT_MILLIS = 10_000L
         private const val POLL_INTERVAL_MILLIS = 50L
-        private const val COUNT_LOCK_WAITS = "SELECT COUNT(*) FROM performance_schema.data_lock_waits"
         private const val COUNT_VALID_TOKENS =
             "SELECT COUNT(*) FROM refresh_token WHERE user_id = ? AND revoked = FALSE AND expires_at > NOW()"
         private const val SELECT_REPLACED_BY = "SELECT replaced_by_jti FROM refresh_token WHERE jti = ?"

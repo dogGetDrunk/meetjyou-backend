@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.party
 
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.shouldBe
@@ -19,8 +20,6 @@ import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * Guards #172: the party row lock must hand back the committed row even when the party was already
@@ -57,7 +56,7 @@ class PartyLockFreshReadDockerTest : BehaviorSpec() {
     } ?: error("seed failed")
 
     companion object {
-        private val mysql = MySQLContainer(DockerImageName.parse("mysql:8.0.41")).apply { start() }
+        private val mysql = SharedMySql.newDatabase()
 
         @JvmStatic
         @DynamicPropertySource

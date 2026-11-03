@@ -1,13 +1,13 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.support.MySqlDatabase
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import java.sql.DriverManager
 import java.sql.SQLIntegrityConstraintViolationException
 import org.flywaydb.core.Flyway
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * V37 moves the social identity into user_social_account. The backfill and the unique keys exist
@@ -15,16 +15,14 @@ import org.testcontainers.utility.DockerImageName
  * so both need real MySQL.
  */
 class UserSocialAccountMigrationDockerTest : BehaviorSpec({
-    val mysql = MySQLContainer(DockerImageName.parse(MYSQL_IMAGE))
+    val mysql = SharedMySql.newDatabase()
 
     beforeSpec {
-        mysql.start()
         migrate(mysql, target = VERSION_BEFORE_SOCIAL_ACCOUNT)
         insertUser(mysql, uuid = KAKAO_USER_UUID, provider = "KAKAO", externalId = "kakao-1", nickname = "kakaoUser")
         insertUser(mysql, uuid = GOOGLE_USER_UUID, provider = "GOOGLE", externalId = "google-1", nickname = "googleUser")
         migrate(mysql, target = VERSION_SOCIAL_ACCOUNT)
     }
-    afterSpec { mysql.stop() }
 
     Given("V37 이전에 가입한 유저가 있는 DB에") {
         When("V37 마이그레이션을 적용하면") {
@@ -62,7 +60,6 @@ class UserSocialAccountMigrationDockerTest : BehaviorSpec({
     }
 })
 
-private const val MYSQL_IMAGE = "mysql:8.0.41"
 private const val VERSION_BEFORE_SOCIAL_ACCOUNT = "36"
 private const val VERSION_SOCIAL_ACCOUNT = "37"
 private const val KAKAO_USER_UUID = "11111111-1111-1111-1111-111111111111"
@@ -80,7 +77,7 @@ private val SELECT_SOCIAL_ACCOUNTS = """
     ORDER BY a.id
 """.trimIndent()
 
-private fun migrate(mysql: MySQLContainer<*>, target: String) {
+private fun migrate(mysql: MySqlDatabase, target: String) {
     Flyway.configure()
         .dataSource(mysql.jdbcUrl, mysql.username, mysql.password)
         .target(target)
@@ -88,7 +85,7 @@ private fun migrate(mysql: MySQLContainer<*>, target: String) {
         .migrate()
 }
 
-private fun insertUser(mysql: MySQLContainer<*>, uuid: String, provider: String, externalId: String, nickname: String) {
+private fun insertUser(mysql: MySqlDatabase, uuid: String, provider: String, externalId: String, nickname: String) {
     DriverManager.getConnection(mysql.jdbcUrl, mysql.username, mysql.password).use { connection ->
         connection.prepareStatement(INSERT_USER).use { statement ->
             statement.setString(1, uuid)
@@ -101,7 +98,7 @@ private fun insertUser(mysql: MySQLContainer<*>, uuid: String, provider: String,
     }
 }
 
-private fun insertSocialAccount(mysql: MySQLContainer<*>, userUuid: String, provider: String, externalId: String) {
+private fun insertSocialAccount(mysql: MySqlDatabase, userUuid: String, provider: String, externalId: String) {
     DriverManager.getConnection(mysql.jdbcUrl, mysql.username, mysql.password).use { connection ->
         connection.prepareStatement(INSERT_SOCIAL_ACCOUNT).use { statement ->
             statement.setString(1, provider)
@@ -112,7 +109,7 @@ private fun insertSocialAccount(mysql: MySQLContainer<*>, userUuid: String, prov
     }
 }
 
-private fun socialAccountsOf(mysql: MySQLContainer<*>, userUuid: String): List<String> =
+private fun socialAccountsOf(mysql: MySqlDatabase, userUuid: String): List<String> =
     DriverManager.getConnection(mysql.jdbcUrl, mysql.username, mysql.password).use { connection ->
         connection.prepareStatement(SELECT_SOCIAL_ACCOUNTS).use { statement ->
             statement.setString(1, userUuid)

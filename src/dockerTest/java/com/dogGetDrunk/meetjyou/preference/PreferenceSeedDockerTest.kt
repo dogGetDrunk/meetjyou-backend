@@ -1,11 +1,11 @@
 package com.dogGetDrunk.meetjyou.preference
 
+import com.dogGetDrunk.meetjyou.support.MySqlDatabase
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import java.sql.DriverManager
 import org.flywaydb.core.Flyway
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * Guards the invariant that the preference enums and the Flyway seed data stay in sync
@@ -15,10 +15,7 @@ import org.testcontainers.utility.DockerImageName
  * Runs in the `dockerTest` Gradle task, not in `test`, because it needs a Docker daemon.
  */
 class PreferenceSeedDockerTest : BehaviorSpec({
-    val mysql = MySQLContainer(DockerImageName.parse(MYSQL_IMAGE))
-
-    beforeSpec { mysql.start() }
-    afterSpec { mysql.stop() }
+    val mysql = SharedMySql.newDatabase()
 
     Given("Flyway 마이그레이션을 실제 MySQL에 적용하면") {
         When("preference 테이블의 시드 데이터를 읽으면") {
@@ -31,12 +28,11 @@ class PreferenceSeedDockerTest : BehaviorSpec({
     }
 })
 
-private const val MYSQL_IMAGE = "mysql:8.0.41"
 private const val TYPE_COLUMN = "type"
 private const val NAME_COLUMN = "name"
 private const val SELECT_PREFERENCES = "SELECT type, name FROM preference"
 
-private fun migrate(mysql: MySQLContainer<*>) {
+private fun migrate(mysql: MySqlDatabase) {
     Flyway.configure()
         .dataSource(mysql.jdbcUrl, mysql.username, mysql.password)
         .load()
@@ -52,7 +48,7 @@ private fun expectedPreferences(): Map<String, Set<String>> = mapOf(
     PreferenceType.ETC.name to Etc.entries.map { it.name }.toSet(),
 )
 
-private fun readSeededPreferences(mysql: MySQLContainer<*>): Map<String, Set<String>> {
+private fun readSeededPreferences(mysql: MySqlDatabase): Map<String, Set<String>> {
     val seeded = mutableMapOf<String, MutableSet<String>>()
     DriverManager.getConnection(mysql.jdbcUrl, mysql.username, mysql.password).use { connection ->
         connection.createStatement().use { statement ->
