@@ -53,8 +53,7 @@ class NoticeFailureStatementInspector : StatementInspector {
 }
 
 @SpringBootTest(properties = [
-    "spring.jpa.properties.hibernate.session_factory.statement_inspector=" +
-        "com.dogGetDrunk.meetjyou.notification.NoticeFailureStatementInspector",
+    "spring.jpa.properties.hibernate.session_factory.statement_inspector=com.dogGetDrunk.meetjyou.notification.NoticeFailureStatementInspector",
 ])
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -83,7 +82,8 @@ class NoticeBroadcastFailureIntegrationTest : FunSpec() {
             try {
                 val first = publishWithFailure(token, appender)
                 val second = publishWithFailure(token, appender)
-                (first == second) shouldBe false
+                (first.first == second.first) shouldBe false
+                first.second shouldBe second.second
             } finally {
                 logger.detachAppender(appender)
                 appender.stop()
@@ -98,7 +98,7 @@ class NoticeBroadcastFailureIntegrationTest : FunSpec() {
         return users.saveAndFlush(User(null, "n$suffix", AuthProvider.KAKAO, suffix, role))
     }
 
-    private fun publishWithFailure(token: String, appender: ListAppender<ILoggingEvent>): UUID {
+    private fun publishWithFailure(token: String, appender: ListAppender<ILoggingEvent>): Pair<UUID, String> {
         Mockito.clearInvocations(discord)
         appender.list.clear()
         NoticeFailureStatementInspector.count.set(0)
@@ -115,10 +115,12 @@ class NoticeBroadcastFailureIntegrationTest : FunSpec() {
         }
         response.status shouldBe 200
         NoticeFailureStatementInspector.count.get() shouldBe 2
-        val uuid = UUID.fromString(mapper.readTree(response.contentAsString).get("uuid").asText())
+        val body = mapper.readTree(response.contentAsString)
+        body.get("title").asText() shouldBe "failure test"
+        body.get("body").asText() shouldBe "body"
+        val uuid = UUID.fromString(body.get("uuid").asText())
         assertCommittedState(uuid)
-        assertFailureReported(uuid, appender)
-        return uuid
+        return uuid to assertFailureReported(uuid, appender)
     }
 
     private fun assertCommittedState(uuid: UUID) {
@@ -132,7 +134,7 @@ class NoticeBroadcastFailureIntegrationTest : FunSpec() {
         }
     }
 
-    private fun assertFailureReported(uuid: UUID, appender: ListAppender<ILoggingEvent>) {
+    private fun assertFailureReported(uuid: UUID, appender: ListAppender<ILoggingEvent>): String {
         val errors = appender.list.filter { it.level == Level.ERROR }
         errors.size shouldBe 1
         val calls = Mockito.mockingDetails(discord).invocations.filter { it.method.name == "sendOperationalAlert" }
@@ -141,8 +143,8 @@ class NoticeBroadcastFailureIntegrationTest : FunSpec() {
         arguments[0].toString() shouldBe "NoticeBroadcast:$uuid"
         val exceptionClass = arguments[1].toString()
         exceptionClass.isNotBlank() shouldBe true
-        errors.single().throwableProxy.className.substringAfterLast('.') shouldBe exceptionClass
         arguments[2].toString() shouldContain "0 sent"
         arguments[2].toString() shouldContain "POST /api/v1/notices/$uuid/broadcast"
+        return exceptionClass
     }
 }

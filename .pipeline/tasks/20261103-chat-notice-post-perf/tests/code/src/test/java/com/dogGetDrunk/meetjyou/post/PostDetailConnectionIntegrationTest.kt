@@ -7,8 +7,11 @@ import ch.qos.logback.core.read.ListAppender
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyRepository
+import com.dogGetDrunk.meetjyou.plan.Plan
+import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.post.view.PostViewCount
 import com.dogGetDrunk.meetjyou.post.view.PostViewCountRepository
+import com.dogGetDrunk.meetjyou.post.view.PostViewLogId
 import com.dogGetDrunk.meetjyou.post.view.PostViewLogRepository
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
@@ -38,6 +41,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.support.TransactionTemplate
 import org.springframework.web.context.request.RequestContextHolder
 import org.springframework.web.context.request.ServletRequestAttributes
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -51,24 +55,31 @@ class PostDetailConnectionIntegrationTest {
     @Autowired private lateinit var users: UserRepository
     @Autowired private lateinit var parties: PartyRepository
     @Autowired private lateinit var posts: PostRepository
+    @Autowired private lateinit var plans: PlanRepository
     @Autowired private lateinit var logs: PostViewLogRepository
     @Autowired private lateinit var transaction: TransactionTemplate
     @Autowired private lateinit var entityManager: EntityManager
     @Autowired private lateinit var dataSource: HikariDataSource
     @SpyBean private lateinit var counts: PostViewCountRepository
 
-    private data class Fixture(val post: UUID, val postId: Long, val user: UUID, val userId: Long, val party: UUID)
+    private data class Fixture(
+        val post: UUID, val postId: Long, val user: UUID, val userId: Long, val party: UUID,
+        val plan: UUID, val nickname: String,
+    )
 
     private fun fixture(): Fixture = transaction.execute {
         val suffix = UUID.randomUUID().toString()
         val user = users.save(User(null, suffix.take(10), AuthProvider.KAKAO, suffix))
         val now = Instant.now()
         val party = parties.save(Party(now, now.plusSeconds(3600), "Seoul", 1, 4, "Trip"))
+        val plan = plans.save(Plan("Plan", now, now.plusSeconds(3600), "Seoul", 37.5, 127.0, owner = user))
         val post = Post(party, false, "Title", "Content", now, now.plusSeconds(3600), "Seoul", 4)
         post.author = user
+        post.plan = plan
+        post.isPlanPublic = true
         posts.saveAndFlush(post)
         counts.saveAndFlush(PostViewCount(post.id, 7))
-        Fixture(post.uuid, post.id, user.uuid, user.id, party.uuid)
+        Fixture(post.uuid, post.id, user.uuid, user.id, party.uuid, plan.uuid, user.nickname)
     } ?: error("Fixture transaction returned null")
 
     private fun requestAs(uuid: UUID) {
@@ -87,8 +98,15 @@ class PostDetailConnectionIntegrationTest {
         assertEquals("Title", response.title)
         assertEquals("Content", response.content)
         assertEquals(f.user, response.authorUuid)
+        assertEquals(f.user, response.author.uuid)
+        assertEquals(f.nickname, response.author.nickname)
         assertEquals(f.party, response.partyUuid)
         assertEquals(1, response.joined)
+        assertEquals(f.plan, response.planUuid)
+        assertEquals(true, response.isPlanPublic)
+        assertEquals(f.plan, response.plan?.uuid)
+        assertEquals("Plan", response.plan?.title)
+        assertEquals(f.user, response.plan?.userUuid)
         assertEquals(views, response.views)
     }
 
@@ -111,12 +129,16 @@ class PostDetailConnectionIntegrationTest {
     @Test
     fun `AT-002-2 duplicate and missing user preserve count`() {
         val f = fixture()
+        val firstRequestAt = Instant.now()
         requestAs(f.user)
         assertDto(f, 7, controller.getPostByUuid(f.post))
         assertEquals(8L to 1, state(f))
+        val viewedAt = transaction.execute { logs.findById(PostViewLogId(f.userId, f.postId)).orElseThrow().viewedAt }
         requestAs(f.user)
         assertDto(f, 8, controller.getPostByUuid(f.post))
+        assertTrue(Duration.between(firstRequestAt, Instant.now()) < Duration.ofMinutes(10))
         assertEquals(8L to 1, state(f))
+        assertEquals(viewedAt, transaction.execute { logs.findById(PostViewLogId(f.userId, f.postId)).orElseThrow().viewedAt })
         val other = fixture()
         requestAs(UUID.randomUUID())
         assertDto(other, 7, service.getPostByUuid(other.post))
@@ -135,6 +157,12 @@ class PostDetailConnectionIntegrationTest {
             doAnswer { invocation ->
                 invocation.callRealMethod()
                 entityManager.flush()
+                val count = entityManager.createNativeQuery("select views from post_view_counts where post_id = :id")
+                    .setParameter("id", f.postId).singleResult as Number
+                val logCount = entityManager.createNativeQuery("select count(*) from post_view_logs where post_id = :id")
+                    .setParameter("id", f.postId).singleResult as Number
+                assertEquals(8L, count.toLong())
+                assertEquals(1L, logCount.toLong())
                 injected.set(true)
                 throw IllegalStateException("injected after view writes")
             }.`when`(counts).upsertIncrement(anyLong())

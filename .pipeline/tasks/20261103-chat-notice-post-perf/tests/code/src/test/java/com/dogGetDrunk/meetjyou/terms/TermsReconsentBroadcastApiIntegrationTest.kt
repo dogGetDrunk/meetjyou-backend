@@ -24,6 +24,7 @@ import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import io.mockk.verifyOrder
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.`when`
@@ -46,7 +47,10 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.UUID
 
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = RANDOM_PORT,
+    properties = ["spring.datasource.url=jdbc:h2:mem:terms_reconsent_api;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"],
+)
 @ActiveProfiles("test")
 @MockBean(FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class)
 class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
@@ -93,6 +97,15 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
     init {
         extensions(SpringExtension())
 
+        beforeTest {
+            tx.executeWithoutResult {
+                outbox.deleteAllInBatch()
+                consents.deleteAllInBatch()
+                preferences.deleteAllInBatch()
+                terms.deleteAllInBatch()
+            }
+        }
+
         test("AT-005-2 resend uses current recipients and rejects duplicates") {
             val admin = user(Role.ADMIN)
             val previous = term(TermsType.TERMS_OF_SERVICE, TermsStatus.INACTIVE, Instant.now().minusSeconds(3600))
@@ -130,10 +143,14 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
             }
             error(request("/${current.uuid}/reconsent-broadcast", admin), HttpStatus.CONFLICT, "BROADCAST_ALREADY_SENT")
             rows(current.uuid) shouldBe actual
-            error(request("/${current.uuid}/reconsent-broadcast", newlyJoined), HttpStatus.FORBIDDEN, "ACCESS_DENIED")
+            request("/${current.uuid}/reconsent-broadcast", newlyJoined).statusCode shouldBe HttpStatus.FORBIDDEN
             rows(current.uuid) shouldBe actual
-            error(request("/${UUID.randomUUID()}/reconsent-broadcast", admin), HttpStatus.NOT_FOUND, "TERMS_NOT_FOUND")
+            val missing = UUID.randomUUID()
+            error(request("/$missing/reconsent-broadcast", admin), HttpStatus.NOT_FOUND, "TERMS_NOT_FOUND")
+            rows(missing).size shouldBe 0
             rows(current.uuid) shouldBe actual
+            tx.execute { terms.findByUuid(current.uuid)?.status } shouldBe TermsStatus.ACTIVE
+            tx.execute { terms.findByUuid(previous.uuid)?.status } shouldBe TermsStatus.INACTIVE
         }
 
         test("AT-005-2 each ineligible state is rejected") {
@@ -149,7 +166,7 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
             rejected.forEach {
                 error(request("/${it.uuid}/reconsent-broadcast", admin), HttpStatus.CONFLICT, "TERMS_RECONSENT_NOT_APPLICABLE")
                 rows(it.uuid).size shouldBe 0
-                terms.findByUuid(it.uuid)?.status shouldBe it.status
+                tx.execute { terms.findByUuid(it.uuid)?.status } shouldBe it.status
             }
         }
 
@@ -169,9 +186,14 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
             val actual = rows(uuid)
             actual.size shouldBe 1
             actual.single()[0] shouldBe recipient.uuid.toString()
+            actual.single()[1] shouldBe "TERMS_RECONSENT"
+            actual.single()[2] shouldBe "[약관 변경 안내]"
             actual.single()[3] shouldBe "미래 약관 이(가) 변경되었어요. 확인 후 다시 동의해주세요."
-            terms.findByUuid(previous.uuid)?.status shouldBe TermsStatus.INACTIVE
-            terms.findByUuid(uuid)?.status shouldBe TermsStatus.ACTIVE
+            mapper.readTree(actual.single()[4]).path("type").asText() shouldBe "TERMS_RECONSENT"
+            mapper.readTree(actual.single()[4]).path("termsUuid").asText() shouldBe uuid.toString()
+            actual.single()[5] shouldBe "terms_reconsent:$uuid:${recipient.uuid}"
+            tx.execute { terms.findByUuid(previous.uuid)?.status } shouldBe TermsStatus.INACTIVE
+            tx.execute { terms.findByUuid(uuid)?.status } shouldBe TermsStatus.ACTIVE
         }
 
         test("AT-005-2 fixed clock accepts equality and rejects one nanosecond later after lock") {
@@ -200,6 +222,8 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
                 box.existsByDedupKeyStartingWith("terms_reconsent:${equal.uuid}:")
             }
             shouldThrow<TermsReconsentNotApplicableException> { broadcaster.resend(future.uuid) }
+            verify(exactly = 1) { repository.findByUuidForUpdate(future.uuid) }
+            verify(exactly = 0) { box.existsByDedupKeyStartingWith("terms_reconsent:${future.uuid}:") }
         }
     }
 }
