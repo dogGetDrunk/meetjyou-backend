@@ -7,6 +7,7 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.common.exception.business.user.LastSocialAccountUnlinkException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.SocialAccountAlreadyLinkedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import com.dogGetDrunk.meetjyou.support.assertWaitedOnLock
 import com.dogGetDrunk.meetjyou.user.dto.LinkSocialAccountRequest
 import io.kotest.core.spec.style.BehaviorSpec
@@ -16,8 +17,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
-import java.sql.Connection
-import java.sql.DriverManager
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -37,8 +36,6 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * Runs SocialAccountService against a real MySQL, two transactions at a time. H2 neither locks
@@ -131,26 +128,17 @@ class SocialAccountConcurrencyDockerTest : BehaviorSpec() {
 
     // performance_schema needs more than the app user's privileges. data_lock_waits, not
     // innodb_trx.trx_state: the latter is a cached view and missed a real wait in CI (#200).
-    private fun awaitLockWait(maxMillis: Long): Boolean =
-        DriverManager.getConnection(mysql.jdbcUrl, ROOT_USER, mysql.password).use { root ->
-            val deadline = System.currentTimeMillis() + maxMillis
-            while (System.currentTimeMillis() < deadline) {
-                if (countLockWaits(root) >= 1) return@use true
-                Thread.sleep(POLL_INTERVAL_MILLIS)
-            }
-            false
+    private fun awaitLockWait(maxMillis: Long): Boolean {
+        val deadline = System.currentTimeMillis() + maxMillis
+        while (System.currentTimeMillis() < deadline) {
+            if (mysql.countLockWaits() >= 1) return true
+            Thread.sleep(POLL_INTERVAL_MILLIS)
         }
-
-    private fun countLockWaits(connection: Connection): Int =
-        connection.createStatement().use { statement ->
-            statement.executeQuery(COUNT_LOCK_WAITS).use { rs ->
-                rs.next()
-                rs.getInt(1)
-            }
-        }
+        return false
+    }
 
     companion object {
-        private val mysql = MySQLContainer(DockerImageName.parse("mysql:8.0.41")).apply { start() }
+        private val mysql = SharedMySql.newDatabase()
 
         @JvmStatic
         @DynamicPropertySource
@@ -163,14 +151,12 @@ class SocialAccountConcurrencyDockerTest : BehaviorSpec() {
         }
 
         private const val POOL_SIZE = 5
-        private const val ROOT_USER = "root"
         private const val ID_TOKEN = "id-token"
         private const val NONCE = "nonce"
         private const val TIMEOUT_SECONDS = 30L
         private const val LOCK_WAIT_TIMEOUT_MILLIS = 10_000L
         private const val NO_LOCK_EXPECTED_WAIT_MILLIS = 2_000L
         private const val POLL_INTERVAL_MILLIS = 50L
-        private const val COUNT_LOCK_WAITS = "SELECT COUNT(*) FROM performance_schema.data_lock_waits"
         private const val SELECT_PROVIDERS =
             "SELECT a.provider FROM user_social_account a JOIN `user` u ON u.id = a.user_id WHERE u.uuid = ?"
     }

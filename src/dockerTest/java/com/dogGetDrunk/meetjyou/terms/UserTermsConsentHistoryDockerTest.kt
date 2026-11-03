@@ -1,13 +1,12 @@
 package com.dogGetDrunk.meetjyou.terms
 
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.Statement
 import org.flywaydb.core.Flyway
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * Guards #224: user_terms is an append-only consent history (one row per change, latest id wins),
@@ -16,10 +15,7 @@ import org.testcontainers.utility.DockerImageName
  * schema is generated from the entity), so this needs real MySQL.
  */
 class UserTermsConsentHistoryDockerTest : BehaviorSpec({
-    val mysql = MySQLContainer(DockerImageName.parse(MYSQL_IMAGE))
-
-    beforeSpec { mysql.start() }
-    afterSpec { mysql.stop() }
+    val mysql = SharedMySql.newDatabase()
 
     Given("Flyway 마이그레이션을 실제 MySQL에 적용하고") {
         When("같은 약관 버전에 동의 → 철회 → 재동의 이력을 차례로 저장하면") {
@@ -42,7 +38,6 @@ class UserTermsConsentHistoryDockerTest : BehaviorSpec({
     }
 })
 
-private const val MYSQL_IMAGE = "mysql:8.0.41"
 private const val AGREED = "AGREED"
 private const val WITHDRAWN = "WITHDRAWN"
 private val CONSENT_ROUND_TRIP = listOf(AGREED, WITHDRAWN, AGREED)

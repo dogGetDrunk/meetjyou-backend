@@ -7,6 +7,7 @@ import com.dogGetDrunk.meetjyou.notification.push.PushTokenRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.UserPreference
 import com.dogGetDrunk.meetjyou.preference.UserPreferenceRepository
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
@@ -32,8 +33,6 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * The global unique-race handler maps by constraint name, which H2 can't check: the names must
@@ -139,7 +138,7 @@ class UniqueConstraintConflictsDockerTest : BehaviorSpec() {
     }
 
     companion object {
-        private val mysql = MySQLContainer(DockerImageName.parse("mysql:8.0.41")).apply { start() }
+        private val mysql = SharedMySql.newDatabase()
 
         @JvmStatic
         @DynamicPropertySource

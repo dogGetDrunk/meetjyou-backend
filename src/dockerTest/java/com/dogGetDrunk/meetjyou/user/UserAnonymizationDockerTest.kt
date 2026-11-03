@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.support.MySqlDatabase
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
@@ -9,8 +11,6 @@ import java.sql.DriverManager
 import java.sql.SQLException
 import java.util.UUID
 import org.flywaydb.core.Flyway
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * The purge job writes generated values into columns whose limits exist only in the MySQL schema
@@ -18,13 +18,11 @@ import org.testcontainers.utility.DockerImageName
  * comes from the entity with default lengths, so an overflow there would pass silently.
  */
 class UserAnonymizationDockerTest : BehaviorSpec({
-    val mysql = MySQLContainer(DockerImageName.parse(MYSQL_IMAGE))
+    val mysql = SharedMySql.newDatabase()
 
     beforeSpec {
-        mysql.start()
         Flyway.configure().dataSource(mysql.jdbcUrl, mysql.username, mysql.password).load().migrate()
     }
-    afterSpec { mysql.stop() }
 
     Given("user.id가 INT 최댓값인 탈퇴 유저를") {
         When("purge 잡과 같은 값으로 익명화하면") {
@@ -93,7 +91,6 @@ private fun insertWithStatus(connection: Connection, id: Long, nickname: String,
     }
 }
 
-private const val MYSQL_IMAGE = "mysql:8.0.41"
 private const val MAX_INT_ID = Int.MAX_VALUE.toLong()
 private const val PURGED_ID = 10L
 private const val RENEWED_ID = 11L
@@ -119,7 +116,7 @@ private val INSERT_WITH_STATUS = """
 private const val SELECT_NICKNAME_STATUS = "SELECT nickname, status FROM user WHERE id = ?"
 private const val COUNT_BY_EXTERNAL_ID = "SELECT COUNT(*) FROM user WHERE external_id = ?"
 
-private fun connect(mysql: MySQLContainer<*>): Connection =
+private fun connect(mysql: MySqlDatabase): Connection =
     DriverManager.getConnection(mysql.jdbcUrl, mysql.username, mysql.password)
 
 private fun insertUser(connection: Connection, id: Long, uuid: UUID, nickname: String, externalId: String) {

@@ -13,6 +13,7 @@ import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostStatusRequest
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import com.dogGetDrunk.meetjyou.support.assertWaitedOnLock
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
@@ -27,7 +28,6 @@ import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
-import java.sql.DriverManager
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
@@ -45,8 +45,6 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 // The preload variant covers both the existing persistence-context entry and the RR snapshot.
 @DataJpaTest
@@ -102,15 +100,13 @@ class PostLockFreshReadDockerTest : BehaviorSpec() {
         current.set(uuid)
         try { tx.executeWithoutResult { action() } } finally { current.remove() }
     }
-    private fun waited(): Boolean = DriverManager.getConnection(mysql.jdbcUrl, ROOT_USER, mysql.password).use { connection ->
+    private fun waited(): Boolean {
         val deadline = System.currentTimeMillis() + WAIT_MILLIS
         while (System.currentTimeMillis() < deadline) {
-            connection.createStatement().use { statement ->
-                statement.executeQuery(LOCK_WAITS).use { rs -> if (rs.next() && rs.getInt(1) > 0) return true }
-            }
+            if (mysql.countLockWaits() > 0) return true
             Thread.sleep(POLL_MILLIS)
         }
-        false
+        return false
     }
     private fun race(seed: Seed, first: () -> Unit, second: () -> Unit): Pair<Result<Unit>, Result<Unit>> {
         val ready = CountDownLatch(1)
@@ -182,7 +178,7 @@ class PostLockFreshReadDockerTest : BehaviorSpec() {
         }
     }
     companion object {
-        private val mysql = MySQLContainer(DockerImageName.parse("mysql:8.0.41")).apply { start() }
+        private val mysql = SharedMySql.newDatabase()
         @JvmStatic @DynamicPropertySource
         fun mysqlProperties(registry: DynamicPropertyRegistry) {
             registry.add("spring.datasource.url") { mysql.jdbcUrl }
@@ -190,7 +186,6 @@ class PostLockFreshReadDockerTest : BehaviorSpec() {
             registry.add("spring.datasource.password") { mysql.password }
         }
         private const val BASE_PACKAGE = "com.dogGetDrunk.meetjyou"
-        private const val ROOT_USER = "root"
         private const val TAG_LENGTH = 8
         private const val INITIAL_JOINED = 1
         private const val JOINED_BEFORE_APPROVAL = 2
@@ -200,7 +195,6 @@ class PostLockFreshReadDockerTest : BehaviorSpec() {
         private const val WAIT_MILLIS = 10_000L
         private const val POLL_MILLIS = 50L
         private const val LOCATION = "Busan"
-        private const val LOCK_WAITS = "SELECT COUNT(*) FROM performance_schema.data_lock_waits"
         private val START = Instant.parse("2030-05-01T00:00:00Z")
         private val FINISH = Instant.parse("2030-05-03T00:00:00Z")
     }
