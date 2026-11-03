@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.config
 
+import com.dogGetDrunk.meetjyou.support.MySqlDatabase
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.kotest.assertions.throwables.shouldThrow
@@ -14,8 +16,6 @@ import java.sql.SQLException
 import java.sql.Statement
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean
 import org.springframework.core.io.ClassPathResource
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * Issue #154: the DB VM is CPU-capped, so every extra round trip per request lowers the
@@ -24,17 +24,15 @@ import org.testcontainers.utility.DockerImageName
  * same connection calls Spring makes around a read-only transaction and checks what MySQL saw.
  */
 class JdbcSessionStateRoundTripDockerTest : BehaviorSpec({
-    val mysql = MySQLContainer(DockerImageName.parse(MYSQL_IMAGE))
+    val mysql = SharedMySql.newDatabase()
     lateinit var dataSource: HikariDataSource
 
     beforeSpec {
-        mysql.start()
         dataSource = HikariDataSource(buildHikariConfig(mysql))
         dataSource.connection.use { connection -> connection.createStatement().use { it.execute(CREATE_PROBE_TABLE) } }
     }
     afterSpec {
         dataSource.close()
-        mysql.stop()
     }
 
     Given("application.yml의 드라이버 속성을 적용한 커넥션 풀에서") {
@@ -97,7 +95,6 @@ class JdbcSessionStateRoundTripDockerTest : BehaviorSpec({
     }
 })
 
-private const val MYSQL_IMAGE = "mysql:8.0.41"
 private const val APPLICATION_YAML = "application.yml"
 private const val DRIVER_PROPERTY_PREFIX = "spring.datasource.hikari.data-source-properties."
 private const val PROBE_QUERY = "SELECT ?"
@@ -105,7 +102,6 @@ private const val PROBE_SQL = "SELECT 42"
 private const val READ_ONLY_SWITCH = "SET SESSION TRANSACTION READ ONLY"
 private const val RESET_DIGESTS = "TRUNCATE performance_schema.events_statements_summary_by_digest"
 private const val READ_ONLY_PROBE = "transaction_read_only"
-private const val ROOT_USER = "root"
 private const val CREATE_PROBE_TABLE = "CREATE TABLE probe (id BIGINT AUTO_INCREMENT PRIMARY KEY, v INT NOT NULL)"
 private const val INSERT_PROBE = "INSERT INTO probe (v) VALUES (1)"
 private const val UPDATE_PROBE = "UPDATE probe SET v = 2"
@@ -114,14 +110,15 @@ private const val COUNT_PROBE = "SELECT COUNT(*) FROM probe"
 private const val INSERT_KEYWORD = "INSERT"
 // Connector/J's own error, not the server's ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION (25006).
 private const val DRIVER_READ_ONLY_SQL_STATE = "S1009"
-// Excludes the observer's own TRUNCATE and this SELECT.
+// Excludes the observer's own TRUNCATE and this SELECT, and other specs' databases on the shared server.
 private val SELECT_DIGESTS = """
     SELECT DIGEST_TEXT
     FROM performance_schema.events_statements_summary_by_digest
     WHERE DIGEST_TEXT NOT LIKE 'TRUNCATE%' AND DIGEST_TEXT NOT LIKE '%events_statements_summary_by_digest%'
+      AND SCHEMA_NAME = ?
 """.trimIndent()
 
-private fun buildHikariConfig(mysql: MySQLContainer<*>): HikariConfig {
+private fun buildHikariConfig(mysql: MySqlDatabase): HikariConfig {
     val config = HikariConfig()
     config.jdbcUrl = mysql.jdbcUrl
     config.username = mysql.username
@@ -156,7 +153,7 @@ private fun insideReadOnlyTransaction(connection: Connection, work: () -> Unit) 
     connection.isReadOnly = false
 }
 
-private fun countProbeRows(mysql: MySQLContainer<*>): Long =
+private fun countProbeRows(mysql: MySqlDatabase): Long =
     DriverManager.getConnection(mysql.jdbcUrl, mysql.username, mysql.password).use { connection ->
         connection.createStatement().use { statement ->
             statement.executeQuery(COUNT_PROBE).use { rows ->
@@ -166,18 +163,19 @@ private fun countProbeRows(mysql: MySQLContainer<*>): Long =
         }
     }
 
-private fun resetStatementDigests(mysql: MySQLContainer<*>) =
+private fun resetStatementDigests(mysql: MySqlDatabase) =
     observe(mysql) { observer -> observer.createStatement().use { it.execute(RESET_DIGESTS) } }
 
-private fun statementDigestsSinceReset(mysql: MySQLContainer<*>): List<String> =
+private fun statementDigestsSinceReset(mysql: MySqlDatabase): List<String> =
     observe(mysql) { observer ->
-        observer.createStatement().use { statement ->
-            statement.executeQuery(SELECT_DIGESTS).use { rows ->
+        observer.prepareStatement(SELECT_DIGESTS).use { statement ->
+            statement.setString(1, mysql.name)
+            statement.executeQuery().use { rows ->
                 generateSequence { if (rows.next()) rows.getString(1) else null }.toList()
             }
         }
     }
 
 // performance_schema needs more than the container's default per-database user.
-private fun <T> observe(mysql: MySQLContainer<*>, block: (Connection) -> T): T =
-    DriverManager.getConnection(mysql.jdbcUrl, ROOT_USER, mysql.password).use(block)
+private fun <T> observe(mysql: MySqlDatabase, block: (Connection) -> T): T =
+    mysql.rootConnection().use(block)

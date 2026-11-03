@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.notification.outbox
 
+import com.dogGetDrunk.meetjyou.support.MySqlDatabase
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.longs.shouldBeInRange
 import io.kotest.matchers.shouldBe
@@ -7,8 +9,6 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.util.UUID
 import org.flywaydb.core.Flyway
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * Guards the outbox claim query against a real MySQL (issue #150). The query relies on
@@ -18,13 +18,11 @@ import org.testcontainers.utility.DockerImageName
  * Runs the same SQL constant the repository uses, so the two cannot drift apart.
  */
 class NotificationOutboxClaimDockerTest : BehaviorSpec({
-    val mysql = MySQLContainer(DockerImageName.parse(MYSQL_IMAGE))
+    val mysql = SharedMySql.newDatabase()
 
     beforeSpec {
-        mysql.start()
         Flyway.configure().dataSource(mysql.jdbcUrl, mysql.username, mysql.password).load().migrate()
     }
-    afterSpec { mysql.stop() }
 
     Given("상태와 available_at이 서로 다른 outbox 행들이 있을 때") {
         When("claim 쿼리를 실행하면") {
@@ -77,7 +75,6 @@ class NotificationOutboxClaimDockerTest : BehaviorSpec({
     }
 })
 
-private const val MYSQL_IMAGE = "mysql:8.0.41"
 private const val PAST = "NOW() - INTERVAL 1 MINUTE"
 private const val FUTURE = "NOW() + INTERVAL 10 MINUTE"
 private const val DUE_PENDING = "due-pending"
@@ -102,7 +99,7 @@ private const val UPDATE_DELIVERED = "UPDATE notification_outbox SET delivered_t
 private const val SELECT_DELIVERED_LENGTH =
     "SELECT JSON_LENGTH(delivered_token_ids) FROM notification_outbox WHERE dedup_key = ?"
 
-private fun connect(mysql: MySQLContainer<*>): Connection {
+private fun connect(mysql: MySqlDatabase): Connection {
     val connection = DriverManager.getConnection(mysql.jdbcUrl, mysql.username, mysql.password)
     // Rows reference a user that does not exist; only the outbox columns matter here.
     connection.createStatement().use { it.execute("SET FOREIGN_KEY_CHECKS = 0") }

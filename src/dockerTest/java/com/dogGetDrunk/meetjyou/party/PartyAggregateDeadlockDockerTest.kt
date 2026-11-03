@@ -18,6 +18,7 @@ import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.post.dto.UpdatePostRequest
 import com.dogGetDrunk.meetjyou.preference.CompPreferenceRepository
 import com.dogGetDrunk.meetjyou.preference.PreferenceRepository
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import com.dogGetDrunk.meetjyou.support.SqlPausePoint
 import com.dogGetDrunk.meetjyou.support.firstLostDeadlock
 import com.dogGetDrunk.meetjyou.user.AuthProvider
@@ -36,7 +37,6 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import java.sql.Connection
-import java.sql.DriverManager
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
@@ -55,8 +55,6 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * Deadlock candidates of the same shape as #165: two writes inside one party's rows (party, post,
@@ -248,13 +246,13 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
     }
 
     // data_lock_waits, not innodb_trx.trx_state: the latter is a cached view that can miss a wait.
-    private fun awaitLockWait(): Boolean = asRoot { root ->
+    private fun awaitLockWait(): Boolean {
         val deadline = System.currentTimeMillis() + LOCK_WAIT_TIMEOUT_MILLIS
         while (System.currentTimeMillis() < deadline) {
-            if (queryInt(root, COUNT_LOCK_WAITS) >= 1) return@asRoot true
+            if (mysql.countLockWaits() >= 1) return true
             Thread.sleep(POLL_INTERVAL_MILLIS)
         }
-        false
+        return false
     }
 
     private fun latestDeadlockReport(): String = asRoot { root ->
@@ -267,15 +265,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
     }
 
     private fun <T> asRoot(block: (Connection) -> T): T =
-        DriverManager.getConnection(mysql.jdbcUrl, ROOT_USER, mysql.password).use(block)
-
-    private fun queryInt(connection: Connection, sql: String): Int =
-        connection.createStatement().use { statement ->
-            statement.executeQuery(sql).use { rs ->
-                rs.next()
-                rs.getInt(1)
-            }
-        }
+        mysql.rootConnection().use(block)
 
     private fun report(outcome: Outcome) {
         log.info("holder={} / contender={}", describe(outcome.holder), describe(outcome.contender))
@@ -287,7 +277,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
             ?: "success"
 
     companion object {
-        private val mysql = MySQLContainer(DockerImageName.parse("mysql:8.0.41")).apply { start() }
+        private val mysql = SharedMySql.newDatabase()
 
         @JvmStatic
         @DynamicPropertySource
@@ -302,7 +292,6 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
 
         private const val BASE_PACKAGE = "com.dogGetDrunk.meetjyou"
         private const val POOL_SIZE = 5
-        private const val ROOT_USER = "root"
         private const val TAG_LENGTH = 8
         private const val CAPACITY = 4
         private const val TRIP_DAYS = 3L
@@ -310,7 +299,6 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         private const val TIMEOUT_SECONDS = 30L
         private const val LOCK_WAIT_TIMEOUT_MILLIS = 10_000L
         private const val POLL_INTERVAL_MILLIS = 50L
-        private const val COUNT_LOCK_WAITS = "SELECT COUNT(*) FROM performance_schema.data_lock_waits"
         private const val INNODB_STATUS = "SHOW ENGINE INNODB STATUS"
         private const val INNODB_STATUS_COLUMN = "Status"
         private const val DEADLOCK_SECTION = "LATEST DETECTED DEADLOCK"
