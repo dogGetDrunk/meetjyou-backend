@@ -1,0 +1,7 @@
+key: 20261103-chat-notice-post-perf
+title: 채팅방 목록·공지 발송·게시글 상세 서버 속도 개선
+size: M
+created: '2026-11-03'
+links:
+  notion: https://app.notion.com/p/40556d9a97d981d2be12cf9996734dfc
+  issue: dogGetDrunk/meetjyou-backend#225
