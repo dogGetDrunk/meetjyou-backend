@@ -28,7 +28,7 @@ produces:
   - 'BroadcastResultResponse(val recipientCount: Int), companion of(count: Int)'
   - 'TermsReconsentBroadcaster.resend(termsUuid: UUID): Int (REQUIRES_NEW, 잠금 후 적격성 검사)'
   - 'TERMS_RECONSENT_NOT_APPLICABLE(409)'
-status: ready
+status: merged
 ---
 
 ## 목표
@@ -52,6 +52,7 @@ status: ready
 - 재발송 수신자 = 호출 시점의 NORMAL/notified/해당 타입 preference 규칙, 가입·설정 변경 반영
 - dockerTest: 공지/약관 × 재발송/재발송·원 발송/재발송 = 4개; 원 발송은 실제 발행 API AFTER_COMMIT, SqlPausePoint로 잠금 취득 후 insert 직전 정지, data_lock_waits 폴링으로 실제 대기 확인
 - 제외: failed original 뒤 대기 재발송 복구의 추가 경쟁 시나리오(C-r1-06 기각), 자동 재시도·푸시 직접 전송·원 발행 정책 수정·운영 부하 테스트
+- 허용(triage 2 명확화): `terms.effective_at`은 `TIMESTAMP`(소수 초 없음)라 MySQL이 소수 초를 반올림해 `Instant.now()` 기본값이 최대 0.5초 미래로 저장됨 → 발행 직후 `resend`의 `effectiveAt<=now`가 거짓(AT-005-4 약관 CI 간헐 실패). `TermsService.publishTerms`의 기본값만 `Instant.now().truncatedTo(ChronoUnit.SECONDS)`로 바꾸는 정밀도 수정은 원 발행 정책 수정이 아님(즉시 발효 의미 유지, 요청 effectiveAt 값·원 발송 경로 불변)
 
 ## 참고할 기존 패턴
 

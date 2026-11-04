@@ -176,14 +176,14 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
                 term(TermsType.AGE_OVER_14, TermsStatus.ACTIVE, Instant.now().minusSeconds(3600)),
                 term(TermsType.MARKETING_SNS_EVENTS, TermsStatus.ACTIVE, Instant.now().minusSeconds(3600)),
             )
-            rejected.forEach {
+            rejected.forEach { target ->
                 error(
-                    request("/${it.uuid}/reconsent-broadcast", admin),
+                    request("/${target.uuid}/reconsent-broadcast", admin),
                     HttpStatus.CONFLICT,
                     "TERMS_RECONSENT_NOT_APPLICABLE",
                 )
-                rows(it.uuid).size shouldBe 0
-                tx.execute { terms.findByUuid(it.uuid)?.status } shouldBe it.status
+                rows(target.uuid).size shouldBe 0
+                tx.execute { terms.findByUuid(target.uuid)?.status } shouldBe target.status
             }
         }
 

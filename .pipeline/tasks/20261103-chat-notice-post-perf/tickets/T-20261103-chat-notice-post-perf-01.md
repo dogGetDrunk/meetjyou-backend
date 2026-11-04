@@ -18,7 +18,7 @@ consumes:
 produces:
   - 'ChatMessageRepository.countUnreadByRoomUuids(roomUuids, requesterUuid): List<RoomUnreadCountProjection>'
   - 'ChatReadService: 방 0개면 집계 0회, 방 1개·10개면 집계 1회'
-status: blocked
+status: merged
 ---
 
 ## 목표

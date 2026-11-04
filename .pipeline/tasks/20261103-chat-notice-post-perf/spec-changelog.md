@@ -18,3 +18,4 @@
 | 2026-11-04 | REQ-002 | AT-002-3 실패 주입을 `callRealMethod()` → spy 기본 answer 위임으로 교체, 단언 불변 | Spring Data 인터페이스 spy라 `callRealMethod` 불가(MockitoException) → 주입 미발동, `runCatching` 제거 시 RED 확인 | Claude |
 | 2026-11-04 | REQ-003~005 | T-03·T-04 티켓의 약관 발송 시그니처를 `broadcastOnPublish`·`resend` 두 메서드로 통일 | brief 점검 B-r1-01, spec 확정 인터페이스와 티켓 표기 불일치 | Claude |
 | 2026-11-04 | REQ-005 | AT-005-3·4 `race` 헬퍼 분리(30줄 상한), 단언 불변 | brief 점검 B-r1-02 | Claude |
+| 2026-11-05 | REQ-005 | AT-005-1 `override fun extensions()` → `init { extensions(SpringExtension()) }`, AT-005-2 forEach 파라미터 `target` 명명(`tx.execute` 안 `it` 가림), 단언 불변 | T-04 구현자 보고 컴파일 오류 2건(Kotest 6 final, 미해결 참조), triage ctx_04e178b68d95 수정·`compileTestKotlin` 검증 — 대상 API 부재로 설계 때 컴파일 미검증 | triage(claude-opus-5-5) |

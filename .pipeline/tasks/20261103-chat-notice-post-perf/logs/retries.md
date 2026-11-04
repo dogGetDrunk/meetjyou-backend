@@ -40,3 +40,10 @@
 | 2026-11-04T10:56:53.922625+00:00 | T-20261103-chat-notice-post-perf-03 | claude-opus-5-5 | xhigh | retry | task_69aa0bafaedc | ctx_bea069510b28 |
 | 2026-11-04T11:13:01.990741+00:00 | T-20261103-chat-notice-post-perf-03 | claude-opus-5-5 | xhigh | retry | task_5ba37fe019d2 | ctx_1751d674570a |
 | 2026-11-04T11:19:43.075802+00:00 | T-20261103-chat-notice-post-perf-03 | claude-opus-5-5 | max | retry | task_5ba37fe019d2 | ctx_9406e5e6ad3e |
+| 2026-11-04T14:33:06.142479+00:00 | T-20261103-chat-notice-post-perf-01 | claude-opus-5-5 | medium | retry | task_3595cd22479a | ctx_092612957052 |
+| 2026-11-04T14:33:11.026069+00:00 | T-20261103-chat-notice-post-perf-02 | claude-opus-5-5 | medium | retry | task_c4bf0342afa6 | ctx_8918261ec982 |
+| 2026-11-04T14:33:22.723126+00:00 | T-20261103-chat-notice-post-perf-03 | claude-opus-5-5 | medium | retry | task_5ba37fe019d2 | ctx_c581f8c11ed3 |
+| 2026-11-04T14:34:30.023937+00:00 | T-20261103-chat-notice-post-perf-03 | claude-opus-5-5 | high | retry | task_5ba37fe019d2 | ctx_59e405d4fa0d |
+| 2026-11-04T15:06:56.340582+00:00 | T-20261103-chat-notice-post-perf-03 | claude-opus-5-5 | medium | retry | task_cf4592a0b177 | ctx_1146eb56d10a |
+| 2026-11-04T22:36:13.937203+00:00 | T-20261103-chat-notice-post-perf-04 | claude-opus-5-5 | medium | retry | task_bcbe1b55cee5 | ctx_64f14a633c4c |
+| 2026-11-04T22:51:29.373930+00:00 | T-20261103-chat-notice-post-perf-04 | claude-opus-5-5 | medium | retry | task_945987236ca4 | ctx_614787ef7a17 |
