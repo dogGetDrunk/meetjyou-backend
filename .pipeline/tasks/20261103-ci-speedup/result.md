@@ -39,7 +39,7 @@
 
 - AT-001 판정 스크립트 15개 사례: `Verify pipeline policy` step에서 매 실행 통과
 - 코드 PR 전체 빌드: PR #257 run 41732228113 — `Docs-only classification: false`, JDK·Gradle·리포트 step 실행
-- 문서 전용 PR: 이 결과 PR — 아래 "문서 전용 PR 실행" 참조
+- 문서 전용 PR: 결과 PR #259 run 41798169219, job 11s — 아래 "문서 전용 PR 실행" 참조
 
 ### REQ-002
 
@@ -71,7 +71,9 @@
 
 ### 문서 전용 PR 실행
 
-- (결과 PR CI 완료 후 기록)
+- 결과 PR #259 run 41798169219 (attempt 1, head `c920a2d`): job **11s**, `build-and-test` 성공
+- 판정 step `true` → JDK 설정·Gradle·테스트 리포트 step `skipped`, `Verify pipeline policy`는 실행·통과
+- 1분 이내 목표 달성 (기존 문서 PR도 전체 빌드 약 5~7분)
 
 ## 남은 후속 작업
 
