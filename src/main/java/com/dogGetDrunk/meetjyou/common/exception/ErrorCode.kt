@@ -100,6 +100,9 @@ enum class ErrorCode(
     SOCIAL_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Social login provider is unavailable"),
     IMAGE_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Image storage is unavailable"),
 
+    // Notification
+    BROADCAST_ALREADY_SENT(HttpStatus.CONFLICT, "Broadcast was already sent"),
+
     // Idempotency
     IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, "Idempotency key reused with a different request body"),
 
