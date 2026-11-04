@@ -17,7 +17,7 @@ consumes:
 produces:
   - 'PostService.getPostByUuid: 비트랜잭션 조정, readOnly 안에서 완성 DTO 생성 후 조회수 증가'
   - 'PostViewService.incrementIfEligible: 기본 @Transactional (REQUIRES_NEW 제거)'
-status: in_progress
+status: blocked
 ---
 
 ## 목표
