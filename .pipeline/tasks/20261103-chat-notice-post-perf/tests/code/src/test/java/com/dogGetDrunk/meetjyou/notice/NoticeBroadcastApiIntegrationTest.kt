@@ -31,12 +31,19 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
 import java.util.UUID
 
+private const val H2_URL = "jdbc:h2:mem:notice_broadcast_api;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"
+
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["spring.datasource.url=jdbc:h2:mem:notice_broadcast_api;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"],
+    properties = ["spring.datasource.url=$H2_URL"],
 )
 @ActiveProfiles("test")
-@MockBean(FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class)
+@MockBean(
+    FirebaseApp::class,
+    AuthenticationDetailsProvider::class,
+    ObjectStorageClient::class,
+    WorkRequestClient::class,
+)
 class NoticeBroadcastApiIntegrationTest : BehaviorSpec() {
     @Autowired private lateinit var rest: TestRestTemplate
     @Autowired private lateinit var jwt: JwtProvider
@@ -59,7 +66,14 @@ class NoticeBroadcastApiIntegrationTest : BehaviorSpec() {
         val withdrawn: UUID,
     )
 
-    private data class Row(val recipient: UUID, val type: NotificationType, val title: String?, val body: String?, val data: String, val key: String?)
+    private data class Row(
+        val recipient: UUID,
+        val type: NotificationType,
+        val title: String?,
+        val body: String?,
+        val data: String,
+        val key: String?,
+    )
 
     private fun newUser(role: Role = Role.USER, notified: Boolean = true): User {
         val id = UUID.randomUUID().toString()
@@ -91,26 +105,29 @@ class NoticeBroadcastApiIntegrationTest : BehaviorSpec() {
                 noPreference.uuid, globalOff.uuid, withdrawn.uuid)
         } ?: error("Fixture transaction failed")
         val joined = tx.execute {
-            val enabled = entityManager.createQuery(
-                "select p from UserNotificationPreference p where p.user.uuid = :uuid and p.notificationType = :type",
-                UserNotificationPreference::class.java,
-            ).setParameter("uuid", initial[3]).setParameter("type", NotificationType.NOTICE).singleResult
-            enabled.enabled = true
-            val disabled = entityManager.createQuery(
-                "select p from UserNotificationPreference p where p.user.uuid = :uuid and p.notificationType = :type",
-                UserNotificationPreference::class.java,
-            ).setParameter("uuid", initial[4]).setParameter("type", NotificationType.NOTICE).singleResult
-            disabled.enabled = false
+            noticePreference(initial[3]).enabled = true
+            noticePreference(initial[4]).enabled = false
             newUser().uuid
         } ?: error("Update transaction failed")
-        return Fixture(initial[0], initial[1], initial[2], initial[3], initial[4], joined, initial[5], initial[6], initial[7], initial[8])
+        return Fixture(
+            initial[0], initial[1], initial[2], initial[3], initial[4],
+            joined, initial[5], initial[6], initial[7], initial[8],
+        )
     }
+
+    private fun noticePreference(user: UUID): UserNotificationPreference = entityManager.createQuery(
+        "select p from UserNotificationPreference p where p.user.uuid = :uuid and p.notificationType = :type",
+        UserNotificationPreference::class.java,
+    ).setParameter("uuid", user).setParameter("type", NotificationType.NOTICE).singleResult
 
     private fun expectedRecipients(critical: Boolean): Set<UUID> = tx.execute {
         val users = entityManager.createQuery("select u from User u where u.status = :status", User::class.java)
             .setParameter("status", UserStatus.NORMAL).resultList
         val disabled = entityManager.createQuery(
-            "select p.user.uuid from UserNotificationPreference p where p.notificationType = :type and p.enabled = false",
+            """
+            select p.user.uuid from UserNotificationPreference p
+            where p.notificationType = :type and p.enabled = false
+            """.trimIndent(),
             UUID::class.java,
         ).setParameter("type", NotificationType.NOTICE).resultList.toSet()
         users.filter { it.notified && (critical || it.uuid !in disabled) }.map { it.uuid }.toSet()
@@ -179,9 +196,13 @@ class NoticeBroadcastApiIntegrationTest : BehaviorSpec() {
                     val sent = tx.execute {
                         val notice = Notice("Sent", "Sent body")
                         entityManager.persist(notice)
-                        val recipient = entityManager.createQuery("select u from User u where u.uuid = :uuid", User::class.java)
+                        val recipient = entityManager
+                            .createQuery("select u from User u where u.uuid = :uuid", User::class.java)
                             .setParameter("uuid", f.enabledLater).singleResult
-                        entityManager.persist(NotificationOutbox(recipient, NotificationType.NOTICE, "old", "old", "{}", "notice:${notice.uuid}:${recipient.uuid}"))
+                        val key = "notice:${notice.uuid}:${recipient.uuid}"
+                        entityManager.persist(
+                            NotificationOutbox(recipient, NotificationType.NOTICE, "old", "old", "{}", key),
+                        )
                         notice.uuid
                     } ?: error("Sent fixture transaction failed")
                     val beforeSent = rows(sent)

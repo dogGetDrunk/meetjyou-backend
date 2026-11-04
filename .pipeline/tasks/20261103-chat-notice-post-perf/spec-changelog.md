@@ -13,3 +13,6 @@
 | 2026-11-04 | REQ-001 | AT-001-2 측정 대상을 unread 집계 SELECT(`chat_message` + `count(`)로 한정 | 최신 메시지 조회도 `chat_message`를 읽어 "SELECT 전체 1회" 달성 불가, 해당 조회는 범위 밖 | Claude |
 | 2026-11-04 | 전체 | 티켓·AT 경로 `src/*/kotlin` → `src/*/java` | 이 레포 Kotlin 소스 위치는 `src/main/java` | Claude |
 | 2026-11-04 | REQ-002·004·005 | AT-002·004-1·004-2·005-2 케이스에 test-writer 단계 완료 기준 명시(대상 클래스 부재·소스셋 밖 컴파일 불가는 실패 사유 아님), AT-002-2 "비로그인" → "유저 row 없음", AT-004-1 tx 종료 실패 문구 제거 | 같은 조건에서 워커별 성공/실패 판정이 갈려 check-tests 차단 반복 | Claude |
+| 2026-11-04 | 전체 | 보호 테스트 10개 파일 detekt 위반 62건 정리(줄바꿈·헬퍼 추출·`check()`/`error()`·파라미터 묶음), 단언 불변 | 구현 GREEN인데 보호 테스트 lint로 CI 실패 → T-01·T-02 재시도 max까지 반복 | Claude |
+| 2026-11-04 | REQ-004 | AT-004-2 `@DirtiesContext` 제거(잘못된 import + 공유 H2 스키마 삭제로 무관 party 테스트 8건 실패) | T-03 워커 escalation, 별도 property로 이미 독립 context | Claude |
+| 2026-11-04 | REQ-002 | AT-002-3 실패 주입을 `callRealMethod()` → spy 기본 answer 위임으로 교체, 단언 불변 | Spring Data 인터페이스 spy라 `callRealMethod` 불가(MockitoException) → 주입 미발동, `runCatching` 제거 시 RED 확인 | Claude |

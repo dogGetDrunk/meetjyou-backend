@@ -41,7 +41,7 @@ class NoticeFailureStatementInspector : StatementInspector {
         if (armed.get() == true && sql.trimStart().lowercase().startsWith("insert into notification_outbox")) {
             val next = count.get() + 1
             count.set(next)
-            if (next == 2) throw IllegalStateException("injected second outbox insert failure")
+            check(next != 2) { "injected second outbox insert failure" }
         }
         return sql
     }
@@ -52,12 +52,19 @@ class NoticeFailureStatementInspector : StatementInspector {
     }
 }
 
+private const val STATEMENT_INSPECTOR_KEY = "spring.jpa.properties.hibernate.session_factory.statement_inspector"
+
 @SpringBootTest(properties = [
-    "spring.jpa.properties.hibernate.session_factory.statement_inspector=com.dogGetDrunk.meetjyou.notification.NoticeFailureStatementInspector",
+    "$STATEMENT_INSPECTOR_KEY=com.dogGetDrunk.meetjyou.notification.NoticeFailureStatementInspector",
 ])
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@MockBean(FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class)
+@MockBean(
+    FirebaseApp::class,
+    AuthenticationDetailsProvider::class,
+    ObjectStorageClient::class,
+    WorkRequestClient::class,
+)
 class NoticeBroadcastFailureIntegrationTest : FunSpec() {
     @Autowired private lateinit var mvc: MockMvc
     @Autowired private lateinit var mapper: ObjectMapper
@@ -125,7 +132,11 @@ class NoticeBroadcastFailureIntegrationTest : FunSpec() {
 
     private fun assertCommittedState(uuid: UUID) {
         TransactionTemplate(transactionManager).executeWithoutResult {
-            jdbc.queryForObject("select count(*) from notice where uuid = ?", Long::class.java, uuid.toString()) shouldBe 1L
+            jdbc.queryForObject(
+                "select count(*) from notice where uuid = ?",
+                Long::class.java,
+                uuid.toString(),
+            ) shouldBe 1L
             jdbc.queryForObject(
                 "select count(*) from notification_outbox where dedup_key like ?",
                 Long::class.java,

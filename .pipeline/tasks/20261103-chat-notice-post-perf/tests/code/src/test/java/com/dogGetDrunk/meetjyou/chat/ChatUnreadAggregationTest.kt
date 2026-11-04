@@ -26,7 +26,13 @@ class ChatUnreadAggregationTest : StringSpec({
         val roomsRepository = mockk<ChatRoomRepository>(relaxed = true)
         val membershipsRepository = mockk<UserPartyRepository>(relaxed = true)
         val currentUser = mockk<CurrentUserProvider>()
-        val service = ChatReadService(messages, roomsRepository, membershipsRepository, mockk<ChatRoomEventBroadcaster>(), currentUser)
+        val service = ChatReadService(
+            messages,
+            roomsRepository,
+            membershipsRepository,
+            mockk<ChatRoomEventBroadcaster>(),
+            currentUser,
+        )
         val requester = UUID.randomUUID()
         every { currentUser.uuid } returns requester
 

@@ -16,6 +16,7 @@ import com.dogGetDrunk.meetjyou.notification.event.NoticeBroadcastEvent
 import com.dogGetDrunk.meetjyou.notification.event.NoticeBroadcastEventHandler
 import com.dogGetDrunk.meetjyou.notification.event.TermsReconsentEvent
 import com.dogGetDrunk.meetjyou.notification.event.TermsReconsentEventHandler
+import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox
 import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutboxRepository
 import com.dogGetDrunk.meetjyou.notification.preference.UserNotificationPreferenceRepository
 import com.dogGetDrunk.meetjyou.notification.template.NotificationTemplateFactory
@@ -59,7 +60,7 @@ class BroadcastAlreadySentTest {
         }
         verify(exactly = 2) { notices.findByUuidForUpdate(uuid) }
         verify(exactly = 2) { outbox.existsByDedupKeyStartingWith("notice:$uuid:") }
-        verify(exactly = 0) { outbox.saveAll(any<Iterable<com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox>>()) }
+        verify(exactly = 0) { outbox.saveAll(any<Iterable<NotificationOutbox>>()) }
         verify(exactly = 0) { alert.sendOperationalAlert(any(), any(), any(), any()) }
     }
 
@@ -68,7 +69,14 @@ class BroadcastAlreadySentTest {
         val terms = mockk<TermsRepository>()
         every { terms.findByUuidForUpdate(uuid) } returns mockk<Terms>()
         every { outbox.existsByDedupKeyStartingWith("terms_reconsent:$uuid:") } returns true
-        val broadcaster = TermsReconsentBroadcaster(terms, mockk<UserTermsRepository>(), preference, outbox, templates, mapper)
+        val broadcaster = TermsReconsentBroadcaster(
+            terms,
+            mockk<UserTermsRepository>(),
+            preference,
+            outbox,
+            templates,
+            mapper,
+        )
         val handler = TermsReconsentEventHandler(broadcaster, alert)
         withLogs(TermsReconsentEventHandler::class.java) { logs ->
             repeat(2) { handler.on(termsEvent) }
@@ -76,7 +84,7 @@ class BroadcastAlreadySentTest {
         }
         verify(exactly = 2) { terms.findByUuidForUpdate(uuid) }
         verify(exactly = 2) { outbox.existsByDedupKeyStartingWith("terms_reconsent:$uuid:") }
-        verify(exactly = 0) { outbox.saveAll(any<Iterable<com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox>>()) }
+        verify(exactly = 0) { outbox.saveAll(any<Iterable<NotificationOutbox>>()) }
         verify(exactly = 0) { alert.sendOperationalAlert(any(), any(), any(), any()) }
     }
 
@@ -91,7 +99,7 @@ class BroadcastAlreadySentTest {
             assertSkipLogs(logs, 1)
         }
         verify(exactly = 0) { outbox.existsByDedupKeyStartingWith(any()) }
-        verify(exactly = 0) { outbox.saveAll(any<Iterable<com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox>>()) }
+        verify(exactly = 0) { outbox.saveAll(any<Iterable<NotificationOutbox>>()) }
         verify(exactly = 0) { alert.sendOperationalAlert(any(), any(), any(), any()) }
     }
 
@@ -109,14 +117,20 @@ class BroadcastAlreadySentTest {
             handler.on(noticeEvent)
             assertEquals(1, logs.list.count { it.level == Level.ERROR })
         }
-        verify(exactly = 1) { alert.sendOperationalAlert("NoticeBroadcast:$uuid", "UnexpectedRollbackException", any(), any()) }
+        verify(exactly = 1) {
+            alert.sendOperationalAlert("NoticeBroadcast:$uuid", "UnexpectedRollbackException", any(), any())
+        }
     }
 
     @Test
     fun `terms handler distinguishes skipped exceptions from commit failure`() {
         val broadcaster = mockk<TermsReconsentBroadcaster>()
         val handler = TermsReconsentEventHandler(broadcaster, alert)
-        listOf(BroadcastAlreadySentException("terms_reconsent:$uuid:"), TermsNotFoundException(uuid.toString())).forEach { failure ->
+        val skipped = listOf(
+            BroadcastAlreadySentException("terms_reconsent:$uuid:"),
+            TermsNotFoundException(uuid.toString()),
+        )
+        skipped.forEach { failure ->
             every { broadcaster.broadcastOnPublish(uuid) } throws failure
             handler.on(termsEvent)
         }
@@ -126,7 +140,9 @@ class BroadcastAlreadySentTest {
             handler.on(termsEvent)
             assertEquals(1, logs.list.count { it.level == Level.ERROR })
         }
-        verify(exactly = 1) { alert.sendOperationalAlert("TermsReconsentBroadcast:$uuid", "UnexpectedRollbackException", any(), any()) }
+        verify(exactly = 1) {
+            alert.sendOperationalAlert("TermsReconsentBroadcast:$uuid", "UnexpectedRollbackException", any(), any())
+        }
     }
 
     private fun withLogs(type: Class<*>, block: (ListAppender<ILoggingEvent>) -> Unit) {
@@ -144,7 +160,8 @@ class BroadcastAlreadySentTest {
 
     private fun assertSkipLogs(logs: ListAppender<ILoggingEvent>, expected: Int) {
         assertEquals(expected, logs.list.count { it.level == Level.INFO })
-        assertTrue(logs.list.filter { it.level == Level.INFO }.all { it.formattedMessage.contains("skip", ignoreCase = true) })
+        val infoLogs = logs.list.filter { it.level == Level.INFO }
+        assertTrue(infoLogs.all { it.formattedMessage.contains("skip", ignoreCase = true) })
         assertEquals(0, logs.list.count { it.level == Level.ERROR })
     }
 }

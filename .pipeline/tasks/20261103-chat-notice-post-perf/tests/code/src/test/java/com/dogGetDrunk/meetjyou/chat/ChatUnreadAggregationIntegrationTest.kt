@@ -48,8 +48,10 @@ class UnreadSqlInspector : StatementInspector {
     }
 }
 
+private const val STATEMENT_INSPECTOR_KEY = "spring.jpa.properties.hibernate.session_factory.statement_inspector"
+
 @SpringBootTest(properties = [
-    "spring.jpa.properties.hibernate.session_factory.statement_inspector=com.dogGetDrunk.meetjyou.chat.UnreadSqlInspector",
+    "$STATEMENT_INSPECTOR_KEY=com.dogGetDrunk.meetjyou.chat.UnreadSqlInspector",
     "spring.jpa.properties.hibernate.cache.use_query_cache=false",
     "spring.jpa.properties.hibernate.cache.use_second_level_cache=false",
 ])
@@ -99,7 +101,12 @@ class ChatUnreadAggregationIntegrationTest : BehaviorSpec() {
                         prepare(a)
 
                         val actual = chatReadService.getChatRooms().rooms.associate { it.roomUuid to it.unreadCount }
-                        actual shouldBe mapOf(r1.first.uuid to 3L, r2.first.uuid to 2L, r3.first.uuid to 0L, r4.first.uuid to 0L)
+                        actual shouldBe mapOf(
+                            r1.first.uuid to 3L,
+                            r2.first.uuid to 2L,
+                            r3.first.uuid to 0L,
+                            r4.first.uuid to 0L,
+                        )
                     }
                 }
             }
@@ -121,7 +128,8 @@ class ChatUnreadAggregationIntegrationTest : BehaviorSpec() {
                             }.toMap()
                             prepare(a)
 
-                            val actual = chatReadService.getChatRooms().rooms.associate { it.roomUuid to it.unreadCount }
+                            val actual = chatReadService.getChatRooms().rooms
+                                .associate { it.roomUuid to it.unreadCount }
                             actual shouldBe rooms
                             UnreadSqlInspector.unreadSelectCount() shouldBe if (roomCount == 0) 0 else 1
                         }
@@ -142,7 +150,12 @@ class ChatUnreadAggregationIntegrationTest : BehaviorSpec() {
     }
 
     private fun user(name: String): User {
-        val user = User(email = "$name@example.com", nickname = name, authProvider = AuthProvider.KAKAO, externalId = name)
+        val user = User(
+            email = "$name@example.com",
+            nickname = name,
+            authProvider = AuthProvider.KAKAO,
+            externalId = name,
+        )
         entityManager.persist(user)
         return user
     }

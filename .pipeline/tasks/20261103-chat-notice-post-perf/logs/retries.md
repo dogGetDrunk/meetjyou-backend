@@ -20,3 +20,15 @@
 | 2026-11-03T19:46:00.265503+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/notification/TermsReconsentFailureIntegrationTest.kt | gpt-6.1-terra | xhigh | 이전 dispatch ctx_4e4a1c168e31 stopped | task_4f1fc254b409 | ctx_f77af019f362 |
 | 2026-11-03T19:46:05.200244+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/post/PostDetailConnectionIntegrationTest.kt | gpt-6.1-terra | xhigh | 이전 dispatch ctx_5a5353aa3e3a stopped | task_333c4242906e | ctx_b4307d3190ee |
 | 2026-11-03T19:46:10.171649+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/terms/TermsReconsentBroadcastApiIntegrationTest.kt | gpt-6.1-terra | xhigh | 이전 dispatch ctx_49755653e3b6 stopped | task_a6a6365877b6 | ctx_99db2536aa8d |
+| 2026-11-04T09:55:24.226408+00:00 | T-20261103-chat-notice-post-perf-01 | claude-opus-5-5 | medium | retry | task_b33e32df718f | ctx_50f464161b9f |
+| 2026-11-04T09:56:34.442689+00:00 | T-20261103-chat-notice-post-perf-02 | claude-opus-5-5 | medium | retry | task_1110eb5b0359 | ctx_43593aac19e7 |
+| 2026-11-04T09:59:32.882673+00:00 | T-20261103-chat-notice-post-perf-01 | claude-opus-5-5 | high | retry | task_b33e32df718f | ctx_25e1dcd6e25e |
+| 2026-11-04T10:00:11.419477+00:00 | T-20261103-chat-notice-post-perf-02 | claude-opus-5-5 | high | retry | task_1110eb5b0359 | ctx_51237021a625 |
+| 2026-11-04T10:04:24.004947+00:00 | T-20261103-chat-notice-post-perf-02 | claude-opus-5-5 | high | retry | task_1110eb5b0359 | ctx_9931da951b55 |
+| 2026-11-04T10:05:18.428896+00:00 | T-20261103-chat-notice-post-perf-01 | claude-opus-5-5 | high | retry | task_b33e32df718f | ctx_627c3c8599b1 |
+| 2026-11-04T10:07:40.267605+00:00 | T-20261103-chat-notice-post-perf-02 | claude-opus-5-5 | xhigh | retry | task_1110eb5b0359 | ctx_08b924ef020a |
+| 2026-11-04T10:10:16.179605+00:00 | T-20261103-chat-notice-post-perf-01 | claude-opus-5-5 | xhigh | retry | task_b33e32df718f | ctx_7f2fb642557a |
+| 2026-11-04T10:17:10.465875+00:00 | T-20261103-chat-notice-post-perf-02 | claude-opus-5-5 | xhigh | retry | task_1110eb5b0359 | ctx_1d8c12679f54 |
+| 2026-11-04T10:17:41.969015+00:00 | T-20261103-chat-notice-post-perf-01 | claude-opus-5-5 | xhigh | retry | task_b33e32df718f | ctx_33456a89c8f5 |
+| 2026-11-04T10:19:43.346384+00:00 | T-20261103-chat-notice-post-perf-01 | claude-opus-5-5 | max | retry | task_b33e32df718f | ctx_3a88584f5158 |
+| 2026-11-04T10:22:39.358805+00:00 | T-20261103-chat-notice-post-perf-02 | claude-opus-5-5 | max | retry | task_1110eb5b0359 | ctx_3f55e3eac2a2 |

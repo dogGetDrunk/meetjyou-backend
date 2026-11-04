@@ -41,7 +41,6 @@ import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.test.context.DirtiesContext
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -73,14 +72,15 @@ class TermsOutboxFailureInspector : StatementInspector {
 
 class InjectedTermsOutboxFailure : RuntimeException("injected second outbox insert failure")
 
+private const val STATEMENT_INSPECTOR_KEY = "spring.jpa.properties.hibernate.session_factory.statement_inspector"
+
 @SpringBootTest(
     properties = [
-        "spring.jpa.properties.hibernate.session_factory.statement_inspector=com.dogGetDrunk.meetjyou.notification.TermsOutboxFailureInspector",
+        "$STATEMENT_INSPECTOR_KEY=com.dogGetDrunk.meetjyou.notification.TermsOutboxFailureInspector",
     ],
 )
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @MockBean(
     FirebaseApp::class,
     AuthenticationDetailsProvider::class,

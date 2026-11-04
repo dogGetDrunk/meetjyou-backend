@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.TermsReconsentNotApplicableException
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.broadcast.TermsReconsentBroadcaster
+import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox
 import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutboxRepository
 import com.dogGetDrunk.meetjyou.notification.preference.UserNotificationPreference
 import com.dogGetDrunk.meetjyou.notification.preference.UserNotificationPreferenceRepository
@@ -47,12 +48,19 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.UUID
 
+private const val H2_URL = "jdbc:h2:mem:terms_reconsent_api;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"
+
 @SpringBootTest(
     webEnvironment = RANDOM_PORT,
-    properties = ["spring.datasource.url=jdbc:h2:mem:terms_reconsent_api;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"],
+    properties = ["spring.datasource.url=$H2_URL"],
 )
 @ActiveProfiles("test")
-@MockBean(FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class)
+@MockBean(
+    FirebaseApp::class,
+    AuthenticationDetailsProvider::class,
+    ObjectStorageClient::class,
+    WorkRequestClient::class,
+)
 class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
     @Autowired private lateinit var http: TestRestTemplate
     @Autowired private lateinit var jwt: JwtProvider
@@ -118,8 +126,12 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
             listOf(enabledLater, disabledLater, globallyDisabled, withdrawn).forEach {
                 consents.saveAndFlush(UserTerms(previous, it))
             }
-            val enabledPreference = preferences.saveAndFlush(UserNotificationPreference(enabledLater, NotificationType.TERMS_RECONSENT, false))
-            val disabledPreference = preferences.saveAndFlush(UserNotificationPreference(disabledLater, NotificationType.TERMS_RECONSENT, true))
+            val enabledPreference = preferences.saveAndFlush(
+                UserNotificationPreference(enabledLater, NotificationType.TERMS_RECONSENT, false),
+            )
+            val disabledPreference = preferences.saveAndFlush(
+                UserNotificationPreference(disabledLater, NotificationType.TERMS_RECONSENT, true),
+            )
             consents.saveAndFlush(UserTerms(previous, newlyJoined))
             enabledPreference.enabled = true
             disabledPreference.enabled = false
@@ -132,7 +144,8 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
             response.statusCode shouldBe HttpStatus.OK
             mapper.readTree(response.body).path("recipientCount").asInt() shouldBe 2
             val actual = rows(current.uuid)
-            actual.map { it[0] } shouldContainExactlyInAnyOrder listOf(newlyJoined.uuid.toString(), enabledLater.uuid.toString())
+            actual.map { it[0] } shouldContainExactlyInAnyOrder
+                listOf(newlyJoined.uuid.toString(), enabledLater.uuid.toString())
             actual.forEach {
                 it[1] shouldBe "TERMS_RECONSENT"
                 it[2] shouldBe "[약관 변경 안내]"
@@ -164,7 +177,11 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
                 term(TermsType.MARKETING_SNS_EVENTS, TermsStatus.ACTIVE, Instant.now().minusSeconds(3600)),
             )
             rejected.forEach {
-                error(request("/${it.uuid}/reconsent-broadcast", admin), HttpStatus.CONFLICT, "TERMS_RECONSENT_NOT_APPLICABLE")
+                error(
+                    request("/${it.uuid}/reconsent-broadcast", admin),
+                    HttpStatus.CONFLICT,
+                    "TERMS_RECONSENT_NOT_APPLICABLE",
+                )
                 rows(it.uuid).size shouldBe 0
                 tx.execute { terms.findByUuid(it.uuid)?.status } shouldBe it.status
             }
@@ -205,16 +222,26 @@ class TermsReconsentBroadcastApiIntegrationTest : FunSpec() {
             val prefs = mockk<UserNotificationPreferenceRepository>()
             val box = mockk<NotificationOutboxRepository>()
             val factory = mockk<NotificationTemplateFactory>(relaxed = true)
-            val broadcaster = TermsReconsentBroadcaster(repository, userTerms, prefs, box, factory, ObjectMapper(), Clock.fixed(now, ZoneOffset.UTC))
+            val broadcaster = TermsReconsentBroadcaster(
+                repository,
+                userTerms,
+                prefs,
+                box,
+                factory,
+                ObjectMapper(),
+                Clock.fixed(now, ZoneOffset.UTC),
+            )
             val equal = Terms(TermsType.AGE_OVER_14, "1", "약관", true, "key", "hash", TermsStatus.ACTIVE, now)
-            val future = Terms(TermsType.AGE_OVER_14, "2", "약관", true, "key", "hash", TermsStatus.ACTIVE, now.plusNanos(1))
+            val future = Terms(
+                TermsType.AGE_OVER_14, "2", "약관", true, "key", "hash", TermsStatus.ACTIVE, now.plusNanos(1),
+            )
             every { repository.findByUuidForUpdate(equal.uuid) } returns equal
             every { repository.findByUuidForUpdate(future.uuid) } returns future
             every { repository.existsByTypeAndStatus(equal.type, TermsStatus.INACTIVE) } returns true
             every { box.existsByDedupKeyStartingWith(any()) } returns false
             every { userTerms.findLatestByTermsType(equal.type, TermsAgreementAction.AGREED) } returns emptyList()
             every { prefs.findDisabledUserIdsByType(NotificationType.TERMS_RECONSENT) } returns emptySet()
-            every { box.saveAll(any<Iterable<com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox>>()) } returns emptyList()
+            every { box.saveAll(any<Iterable<NotificationOutbox>>()) } returns emptyList()
             broadcaster.resend(equal.uuid) shouldBe 0
             verifyOrder {
                 repository.findByUuidForUpdate(equal.uuid)
