@@ -49,4 +49,6 @@ interface TermsRepository : JpaRepository<Terms, Long> {
     fun findByTypeAndStatus(type: TermsType, status: TermsStatus): Terms?
 
     fun existsByTypeAndVersion(type: TermsType, version: String): Boolean
+
+    fun existsByTypeAndStatus(type: TermsType, status: TermsStatus): Boolean
 }

@@ -93,6 +93,7 @@ private val EXPECTED_STATUS: Map<ErrorCode, HttpStatus> = mapOf(
     ErrorCode.PARTY_RECRUITMENT_CLOSED to HttpStatus.CONFLICT,
     ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED to HttpStatus.CONFLICT,
     ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED to HttpStatus.CONFLICT,
+    ErrorCode.TERMS_RECONSENT_NOT_APPLICABLE to HttpStatus.CONFLICT,
     // 429
     ErrorCode.RATE_LIMIT_EXCEEDED to HttpStatus.TOO_MANY_REQUESTS,
     // 500
