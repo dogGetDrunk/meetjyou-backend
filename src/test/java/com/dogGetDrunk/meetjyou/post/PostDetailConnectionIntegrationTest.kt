@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mockito.doAnswer
+import org.mockito.Mockito.mockingDetails
 import org.mockito.Mockito.reset
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -46,9 +47,19 @@ import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
-@SpringBootTest(properties = ["spring.datasource.hikari.maximum-pool-size=1", "spring.datasource.hikari.connection-timeout=300"])
+@SpringBootTest(
+    properties = [
+        "spring.datasource.hikari.maximum-pool-size=1",
+        "spring.datasource.hikari.connection-timeout=300",
+    ],
+)
 @ActiveProfiles("test")
-@MockBean(FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class)
+@MockBean(
+    FirebaseApp::class,
+    AuthenticationDetailsProvider::class,
+    ObjectStorageClient::class,
+    WorkRequestClient::class,
+)
 class PostDetailConnectionIntegrationTest {
     @Autowired private lateinit var controller: PostController
     @Autowired private lateinit var service: PostService
@@ -133,12 +144,12 @@ class PostDetailConnectionIntegrationTest {
         requestAs(f.user)
         assertDto(f, 7, controller.getPostByUuid(f.post))
         assertEquals(8L to 1, state(f))
-        val viewedAt = transaction.execute { logs.findById(PostViewLogId(f.userId, f.postId)).orElseThrow().viewedAt }
+        val viewedAt = viewedAt(f)
         requestAs(f.user)
         assertDto(f, 8, controller.getPostByUuid(f.post))
         assertTrue(Duration.between(firstRequestAt, Instant.now()) < Duration.ofMinutes(10))
         assertEquals(8L to 1, state(f))
-        assertEquals(viewedAt, transaction.execute { logs.findById(PostViewLogId(f.userId, f.postId)).orElseThrow().viewedAt })
+        assertEquals(viewedAt, viewedAt(f))
         val other = fixture()
         requestAs(UUID.randomUUID())
         assertDto(other, 7, service.getPostByUuid(other.post))
@@ -154,26 +165,39 @@ class PostDetailConnectionIntegrationTest {
         appender.start()
         logger.addAppender(appender)
         try {
-            doAnswer { invocation ->
-                invocation.callRealMethod()
-                entityManager.flush()
-                val count = entityManager.createNativeQuery("select views from post_view_counts where post_id = :id")
-                    .setParameter("id", f.postId).singleResult as Number
-                val logCount = entityManager.createNativeQuery("select count(*) from post_view_logs where post_id = :id")
-                    .setParameter("id", f.postId).singleResult as Number
-                assertEquals(8L, count.toLong())
-                assertEquals(1L, logCount.toLong())
-                injected.set(true)
-                throw IllegalStateException("injected after view writes")
-            }.`when`(counts).upsertIncrement(anyLong())
+            failAfterViewWrites(f, injected)
             requestAs(f.user)
             assertDto(f, 7, controller.getPostByUuid(f.post))
             assertEquals(7L to 0, state(f))
             assertTrue(injected.get())
-            assertTrue(appender.list.any { it.level == Level.WARN && it.formattedMessage.contains("Failed to increment") })
+            assertTrue(
+                appender.list.any { it.level == Level.WARN && it.formattedMessage.contains("Failed to increment") },
+            )
         } finally {
             logger.detachAppender(appender)
             appender.stop()
         }
     }
+
+    // Lets the real view writes run and flush, checks they reached the DB, then throws
+    // so the rollback of those writes can be asserted.
+    // The spy wraps a Spring Data interface proxy, so callRealMethod() has no body to call;
+    // the spy's default answer delegates to the real repository bean instead.
+    private fun failAfterViewWrites(f: Fixture, injected: AtomicBoolean) {
+        val realCall = mockingDetails(counts).mockCreationSettings.defaultAnswer
+        doAnswer { invocation ->
+            realCall.answer(invocation)
+            entityManager.flush()
+            assertEquals(8L, countByPost("select views from post_view_counts where post_id = :id", f.postId))
+            assertEquals(1L, countByPost("select count(*) from post_view_logs where post_id = :id", f.postId))
+            injected.set(true)
+            error("injected after view writes")
+        }.`when`(counts).upsertIncrement(anyLong())
+    }
+
+    private fun countByPost(sql: String, postId: Long): Long =
+        (entityManager.createNativeQuery(sql).setParameter("id", postId).singleResult as Number).toLong()
+
+    private fun viewedAt(f: Fixture) =
+        transaction.execute { logs.findById(PostViewLogId(f.userId, f.postId)).orElseThrow().viewedAt }
 }
