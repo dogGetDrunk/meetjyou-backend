@@ -1,13 +1,13 @@
 package com.dogGetDrunk.meetjyou.user
 
+import com.dogGetDrunk.meetjyou.support.MySqlDatabase
+import com.dogGetDrunk.meetjyou.support.SharedMySql
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import java.sql.Connection
 import java.sql.DriverManager
 import java.util.UUID
 import org.flywaydb.core.Flyway
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.utility.DockerImageName
 
 /**
  * An account may sign up without an email, so V39 drops NOT NULL from both email columns. The H2
@@ -15,15 +15,13 @@ import org.testcontainers.utility.DockerImageName
  * every H2 test and fail the first email-less sign-up in production.
  */
 class UserEmailNullableDockerTest : BehaviorSpec({
-    val mysql = MySQLContainer(DockerImageName.parse(MYSQL_IMAGE))
+    val mysql = SharedMySql.newDatabase()
 
     beforeSpec {
-        mysql.start()
         migrate(mysql, target = VERSION_BEFORE_NULLABLE_EMAIL)
         connect(mysql).use { connection -> insertPurgedUserWithBlankEmail(connection) }
         migrate(mysql, target = VERSION_NULLABLE_EMAIL)
     }
-    afterSpec { mysql.stop() }
 
     Given("V39 이후 user·user_social_account 테이블에") {
         When("email 없는 유저와 소셜 계정을 저장하면") {
@@ -49,7 +47,6 @@ class UserEmailNullableDockerTest : BehaviorSpec({
     }
 })
 
-private const val MYSQL_IMAGE = "mysql:8.0.41"
 private const val VERSION_BEFORE_NULLABLE_EMAIL = "38"
 private const val VERSION_NULLABLE_EMAIL = "39"
 private const val PURGED_USER_ID = 10L
@@ -74,7 +71,7 @@ private const val SELECT_USER_EMAIL = "SELECT email FROM user WHERE id = ?"
 private const val COUNT_NULL_EMAIL_SOCIAL_ACCOUNTS =
     "SELECT COUNT(*) FROM user_social_account WHERE user_id = ? AND email IS NULL"
 
-private fun migrate(mysql: MySQLContainer<*>, target: String) {
+private fun migrate(mysql: MySqlDatabase, target: String) {
     Flyway.configure()
         .dataSource(mysql.jdbcUrl, mysql.username, mysql.password)
         .target(target)
@@ -82,7 +79,7 @@ private fun migrate(mysql: MySQLContainer<*>, target: String) {
         .migrate()
 }
 
-private fun connect(mysql: MySQLContainer<*>): Connection =
+private fun connect(mysql: MySqlDatabase): Connection =
     DriverManager.getConnection(mysql.jdbcUrl, mysql.username, mysql.password)
 
 private fun insertPurgedUserWithBlankEmail(connection: Connection) {

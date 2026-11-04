@@ -1,69 +1,47 @@
 package com.dogGetDrunk.meetjyou.notification.event
 
-import com.dogGetDrunk.meetjyou.notification.NotificationPayload
-import com.dogGetDrunk.meetjyou.notification.NotificationType
-import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox
-import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutboxRepository
-import com.dogGetDrunk.meetjyou.notification.preference.NotificationPreferenceService
-import com.dogGetDrunk.meetjyou.notification.template.NotificationTemplateFactory
-import com.dogGetDrunk.meetjyou.terms.TermsAgreementAction
-import com.dogGetDrunk.meetjyou.terms.UserTermsRepository
-import com.dogGetDrunk.meetjyou.user.UserStatus
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.dogGetDrunk.meetjyou.common.discord.DiscordAlertService
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.TermsNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notification.BroadcastAlreadySentException
+import com.dogGetDrunk.meetjyou.notification.broadcast.TermsReconsentBroadcaster
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
-import java.util.Locale
 
+// Not transactional for the same reason as NoticeBroadcastEventHandler.
 @Service
 class TermsReconsentEventHandler(
-    private val userTermsRepository: UserTermsRepository,
-    private val preferenceService: NotificationPreferenceService,
-    private val templateFactory: NotificationTemplateFactory,
-    private val outboxRepository: NotificationOutboxRepository,
-    private val objectMapper: ObjectMapper,
+    private val termsReconsentBroadcaster: TermsReconsentBroadcaster,
+    private val discordAlertService: DiscordAlertService,
 ) {
     private val log = LoggerFactory.getLogger(TermsReconsentEventHandler::class.java)
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // Skip cases are expected outcomes, logged at INFO without the exception on purpose.
+    @Suppress("TooGenericExceptionCaught", "SwallowedException")
     fun on(event: TermsReconsentEvent) {
-        val payload = NotificationPayload(
-            type = NotificationType.TERMS_RECONSENT,
-            bodyArgs = mapOf("displayText" to event.displayText),
-            data = mapOf(
-                "type" to "TERMS_RECONSENT",
-                "termsUuid" to event.termsUuid.toString(),
-            ),
-        )
-        val template = templateFactory.templateOf(NotificationType.TERMS_RECONSENT)
-        val title = template.makeTitle(Locale.KOREAN, payload)
-        val body = template.makeBody(Locale.KOREAN, payload)
-        val dataJson = objectMapper.writeValueAsString(payload.data)
+        val uuid = event.termsUuid
+        try {
+            val count = termsReconsentBroadcaster.broadcastOnPublish(uuid)
+            log.info("Terms reconsent notification queued: termsUuid={}, recipientCount={}", uuid, count)
+        } catch (e: BroadcastAlreadySentException) {
+            log.info("Terms reconsent broadcast skipped, already sent: termsUuid={}", uuid)
+        } catch (e: TermsNotFoundException) {
+            log.info("Terms reconsent broadcast skipped, terms not found: termsUuid={}", uuid)
+        } catch (e: Exception) {
+            log.error("Terms reconsent broadcast failed, nothing queued: termsUuid={}", uuid, e)
+            val resend = "POST /api/v1/terms/$uuid/reconsent-broadcast"
+            discordAlertService.sendOperationalAlert(
+                source = "$ALERT_SOURCE:$uuid",
+                exceptionClass = e.javaClass.simpleName,
+                summary = "Terms reconsent broadcast failed, 0 sent. Resend with $resend",
+                detail = e.message,
+            )
+        }
+    }
 
-        val outboxRows = userTermsRepository.findLatestByTermsType(event.termsType, TermsAgreementAction.AGREED)
-            .map { it.user }
-            .filter { user -> user.status == UserStatus.NORMAL }
-            .filter { user -> preferenceService.isEnabled(user, NotificationType.TERMS_RECONSENT) }
-            .map { user ->
-                NotificationOutbox(
-                    user = user,
-                    type = NotificationType.TERMS_RECONSENT,
-                    title = title,
-                    body = body,
-                    dataJson = dataJson,
-                    dedupKey = "terms_reconsent:${event.termsUuid}:${user.uuid}",
-                )
-            }
-
-        outboxRepository.saveAll(outboxRows)
-        log.info(
-            "Terms reconsent notification queued: termsUuid={}, recipientCount={}",
-            event.termsUuid,
-            outboxRows.size,
-        )
+    private companion object {
+        const val ALERT_SOURCE = "TermsReconsentBroadcast"
     }
 }

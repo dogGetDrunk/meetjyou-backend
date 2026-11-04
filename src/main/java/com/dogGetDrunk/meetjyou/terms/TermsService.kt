@@ -7,6 +7,8 @@ import com.dogGetDrunk.meetjyou.common.exception.business.terms.InvalidTermsAgre
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.InvalidTermsUuidException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.MissingRequiredTermsAgreementException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.TermsContentVerificationException
+import com.dogGetDrunk.meetjyou.notification.broadcast.TermsReconsentBroadcaster
+import com.dogGetDrunk.meetjyou.notification.broadcast.dto.BroadcastResultResponse
 import com.dogGetDrunk.meetjyou.notification.event.TermsReconsentEvent
 import com.dogGetDrunk.meetjyou.terms.dto.GetTermsContentUrlResponse
 import com.dogGetDrunk.meetjyou.terms.dto.GetTermsResponse
@@ -18,14 +20,18 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
+// Admin resend entry point lives here by the agreed API contract; it only delegates to the broadcaster.
+@Suppress("TooManyFunctions")
 @Service
 class TermsService(
     private val termsRepository: TermsRepository,
     private val userTermsRepository: UserTermsRepository,
     private val termsContentUrlGenerator: TermsContentUrlGenerator,
     private val publisher: ApplicationEventPublisher,
+    private val termsReconsentBroadcaster: TermsReconsentBroadcaster,
 ) {
     private val log = LoggerFactory.getLogger(TermsService::class.java)
 
@@ -191,7 +197,9 @@ class TermsService(
                 required = request.required,
                 contentObjectKey = objectKey,
                 contentHash = request.contentHash,
-                effectiveAt = request.effectiveAt ?: Instant.now(),
+                // terms.effective_at has no fractional seconds and MySQL rounds them up, so truncate
+                // to keep an immediate publish from being stored up to 0.5s in the future
+                effectiveAt = request.effectiveAt ?: Instant.now().truncatedTo(ChronoUnit.SECONDS),
             ),
         )
 
@@ -202,6 +210,14 @@ class TermsService(
         log.info("Completed terms publish. termsUuid={}", newTerms.uuid)
 
         return GetTermsResponse.of(newTerms)
+    }
+
+    // No outer transaction on purpose: the broadcaster runs REQUIRES_NEW, and an outer one
+    // would hold a second connection for the whole broadcast.
+    fun resendReconsentBroadcast(termsUuid: UUID): BroadcastResultResponse {
+        val count = termsReconsentBroadcaster.resend(termsUuid)
+        log.info("Terms reconsent broadcast resent. termsUuid={}, recipients={}", termsUuid, count)
+        return BroadcastResultResponse.of(count)
     }
 
     private fun supersede(previousTerms: Terms, newTerms: Terms) {

@@ -95,10 +95,14 @@ enum class ErrorCode(
     MISSING_REQUIRED_TERMS_AGREEMENT(HttpStatus.BAD_REQUEST, "Missing required terms agreement"),
     TERMS_CONTENT_VERIFICATION_FAILED(HttpStatus.BAD_REQUEST, "Terms content object could not be verified"),
     DUPLICATE_TERMS_VERSION(HttpStatus.CONFLICT, "Duplicate terms version for type"),
+    TERMS_RECONSENT_NOT_APPLICABLE(HttpStatus.CONFLICT, "Terms are not eligible for a reconsent broadcast"),
 
     // External service (provider outage, not the client's fault)
     SOCIAL_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Social login provider is unavailable"),
     IMAGE_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Image storage is unavailable"),
+
+    // Notification
+    BROADCAST_ALREADY_SENT(HttpStatus.CONFLICT, "Broadcast was already sent"),
 
     // Idempotency
     IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, "Idempotency key reused with a different request body"),

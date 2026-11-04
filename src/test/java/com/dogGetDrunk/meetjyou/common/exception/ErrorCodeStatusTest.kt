@@ -70,6 +70,7 @@ private val EXPECTED_STATUS: Map<ErrorCode, HttpStatus> = mapOf(
     ErrorCode.PAYLOAD_TOO_LARGE to HttpStatus.PAYLOAD_TOO_LARGE,
     ErrorCode.UNSUPPORTED_MEDIA_TYPE to HttpStatus.UNSUPPORTED_MEDIA_TYPE,
     // 409
+    ErrorCode.BROADCAST_ALREADY_SENT to HttpStatus.CONFLICT,
     ErrorCode.CONCURRENT_REQUEST_CONFLICT to HttpStatus.CONFLICT,
     ErrorCode.DUPLICATE to HttpStatus.CONFLICT,
     ErrorCode.DUPLICATE_NICKNAME to HttpStatus.CONFLICT,
@@ -92,6 +93,7 @@ private val EXPECTED_STATUS: Map<ErrorCode, HttpStatus> = mapOf(
     ErrorCode.PARTY_RECRUITMENT_CLOSED to HttpStatus.CONFLICT,
     ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED to HttpStatus.CONFLICT,
     ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED to HttpStatus.CONFLICT,
+    ErrorCode.TERMS_RECONSENT_NOT_APPLICABLE to HttpStatus.CONFLICT,
     // 429
     ErrorCode.RATE_LIMIT_EXCEEDED to HttpStatus.TOO_MANY_REQUESTS,
     // 500

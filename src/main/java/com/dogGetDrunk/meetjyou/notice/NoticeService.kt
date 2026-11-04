@@ -3,6 +3,9 @@ package com.dogGetDrunk.meetjyou.notice
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NoticeNotFoundException
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeRequest
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeResponse
+import com.dogGetDrunk.meetjyou.notice.dto.ResendNoticeBroadcastRequest
+import com.dogGetDrunk.meetjyou.notification.broadcast.NoticeBroadcaster
+import com.dogGetDrunk.meetjyou.notification.broadcast.dto.BroadcastResultResponse
 import com.dogGetDrunk.meetjyou.notification.event.NoticeBroadcastEvent
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -16,6 +19,7 @@ import java.util.UUID
 class NoticeService(
     private val noticeRepository: NoticeRepository,
     private val publisher: ApplicationEventPublisher,
+    private val noticeBroadcaster: NoticeBroadcaster,
 ) {
     private val log = LoggerFactory.getLogger(NoticeService::class.java)
 
@@ -60,6 +64,14 @@ class NoticeService(
 
         log.info("Notice updated: {}", updated)
         return NoticeResponse.from(updated)
+    }
+
+    // No outer transaction on purpose: the broadcaster runs REQUIRES_NEW, and an outer one
+    // would hold a second connection for the whole broadcast.
+    fun resendBroadcast(uuid: UUID, request: ResendNoticeBroadcastRequest): BroadcastResultResponse {
+        val count = noticeBroadcaster.broadcast(uuid, request.critical)
+        log.info("Notice broadcast resent: uuid={}, critical={}, recipients={}", uuid, request.critical, count)
+        return BroadcastResultResponse.of(count)
     }
 
     @Transactional

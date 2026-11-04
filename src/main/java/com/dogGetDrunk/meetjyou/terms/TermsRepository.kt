@@ -1,6 +1,8 @@
 package com.dogGetDrunk.meetjyou.terms
 
+import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import java.time.Instant
@@ -40,7 +42,13 @@ interface TermsRepository : JpaRepository<Terms, Long> {
 
     fun findByUuid(uuid: UUID): Terms?
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Terms t WHERE t.uuid = :uuid")
+    fun findByUuidForUpdate(uuid: UUID): Terms?
+
     fun findByTypeAndStatus(type: TermsType, status: TermsStatus): Terms?
 
     fun existsByTypeAndVersion(type: TermsType, version: String): Boolean
+
+    fun existsByTypeAndStatus(type: TermsType, status: TermsStatus): Boolean
 }

@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.notice
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NoticeNotFoundException
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeRequest
+import com.dogGetDrunk.meetjyou.notification.broadcast.NoticeBroadcaster
 import com.dogGetDrunk.meetjyou.notification.event.NoticeBroadcastEvent
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.IsolationMode
@@ -21,7 +22,7 @@ import java.util.UUID
 class NoticeServiceTest : BehaviorSpec() {
     private val noticeRepository = mockk<NoticeRepository>()
     private val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
-    private val sut = NoticeService(noticeRepository, publisher)
+    private val sut = NoticeService(noticeRepository, publisher, mockk<NoticeBroadcaster>())
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 

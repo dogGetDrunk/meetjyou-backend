@@ -1,62 +1,48 @@
 package com.dogGetDrunk.meetjyou.notification.event
 
-import com.dogGetDrunk.meetjyou.notification.NotificationPayload
-import com.dogGetDrunk.meetjyou.notification.NotificationType
-import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox
-import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutboxRepository
-import com.dogGetDrunk.meetjyou.notification.preference.NotificationPreferenceService
-import com.dogGetDrunk.meetjyou.notification.template.NotificationTemplateFactory
-import com.dogGetDrunk.meetjyou.user.UserRepository
-import com.dogGetDrunk.meetjyou.user.UserStatus
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.dogGetDrunk.meetjyou.common.discord.DiscordAlertService
+import com.dogGetDrunk.meetjyou.common.exception.business.notFound.NoticeNotFoundException
+import com.dogGetDrunk.meetjyou.common.exception.business.notification.BroadcastAlreadySentException
+import com.dogGetDrunk.meetjyou.notification.broadcast.NoticeBroadcaster
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
-import java.util.Locale
 
+// No @Transactional here on purpose: the broadcaster runs and commits in its own transaction, so
+// a commit-time failure (e.g. UnexpectedRollbackException) surfaces from the proxy call and is
+// caught below instead of escaping into the already committed notice request.
 @Service
 class NoticeBroadcastEventHandler(
-    private val userRepository: UserRepository,
-    private val preferenceService: NotificationPreferenceService,
-    private val templateFactory: NotificationTemplateFactory,
-    private val outboxRepository: NotificationOutboxRepository,
-    private val objectMapper: ObjectMapper,
+    private val noticeBroadcaster: NoticeBroadcaster,
+    private val discordAlertService: DiscordAlertService,
 ) {
     private val log = LoggerFactory.getLogger(NoticeBroadcastEventHandler::class.java)
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // Skip cases are expected outcomes, logged at INFO without the exception on purpose.
+    @Suppress("TooGenericExceptionCaught", "SwallowedException")
     fun on(event: NoticeBroadcastEvent) {
-        val payload = NotificationPayload(
-            type = NotificationType.NOTICE,
-            bodyArgs = mapOf("title" to event.noticeTitle, "content" to event.noticeBody),
-            data = mapOf(
-                "type" to "NOTICE",
-                "noticeUuid" to event.noticeUuid.toString(),
-            ),
-        )
-        val template = templateFactory.templateOf(NotificationType.NOTICE)
-        val title = template.makeTitle(Locale.KOREAN, payload)
-        val body = template.makeBody(Locale.KOREAN, payload)
-        val dataJson = objectMapper.writeValueAsString(payload.data)
+        val uuid = event.noticeUuid
+        try {
+            val count = noticeBroadcaster.broadcast(uuid, event.critical)
+            log.info("Notice broadcast queued: noticeUuid={}, recipientCount={}", uuid, count)
+        } catch (e: BroadcastAlreadySentException) {
+            log.info("Notice broadcast skipped, already sent: noticeUuid={}", uuid)
+        } catch (e: NoticeNotFoundException) {
+            log.info("Notice broadcast skipped, notice not found: noticeUuid={}", uuid)
+        } catch (e: Exception) {
+            log.error("Notice broadcast failed, nothing queued: noticeUuid={}", uuid, e)
+            discordAlertService.sendOperationalAlert(
+                source = "$ALERT_SOURCE:$uuid",
+                exceptionClass = e.javaClass.simpleName,
+                summary = "Notice broadcast failed, 0 sent. Resend with POST /api/v1/notices/$uuid/broadcast",
+                detail = e.message,
+            )
+        }
+    }
 
-        val outboxRows = userRepository.findAllByStatus(UserStatus.NORMAL)
-            .filter { user -> event.critical || preferenceService.isEnabled(user, NotificationType.NOTICE) }
-            .map { user ->
-                NotificationOutbox(
-                    user = user,
-                    type = NotificationType.NOTICE,
-                    title = title,
-                    body = body,
-                    dataJson = dataJson,
-                    dedupKey = "notice:${event.noticeUuid}:${user.uuid}",
-                )
-            }
-
-        outboxRepository.saveAll(outboxRows)
-        log.info("Notice broadcast queued: noticeUuid={}, recipientCount={}", event.noticeUuid, outboxRows.size)
+    private companion object {
+        const val ALERT_SOURCE = "NoticeBroadcast"
     }
 }

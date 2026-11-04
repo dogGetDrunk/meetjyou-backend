@@ -3,6 +3,8 @@ package com.dogGetDrunk.meetjyou.notice
 import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeRequest
 import com.dogGetDrunk.meetjyou.notice.dto.NoticeResponse
+import com.dogGetDrunk.meetjyou.notice.dto.ResendNoticeBroadcastRequest
+import com.dogGetDrunk.meetjyou.notification.broadcast.dto.BroadcastResultResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
@@ -148,6 +150,48 @@ class NoticeController(
     ): ResponseEntity<NoticeResponse> {
         val updated = noticeService.updateNotice(uuid, request)
         return ResponseEntity.ok(updated)
+    }
+
+    @Operation(
+        summary = "[admin] 공지사항 알림 재발송",
+        description = "알림 발송이 누락된 공지사항을 현재 수신 설정 기준으로 발송합니다. " +
+            "이미 발송된 공지사항이면 409(BROADCAST_ALREADY_SENT)를 반환합니다.",
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "발송 성공",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = BroadcastResultResponse::class)
+                )]
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "공지사항을 찾을 수 없음",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            ),
+            ApiResponse(
+                responseCode = "409",
+                description = "이미 발송된 공지사항",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PostMapping("/{uuid}/broadcast")
+    fun resendBroadcast(
+        @PathVariable uuid: UUID,
+        @RequestBody request: ResendNoticeBroadcastRequest,
+    ): ResponseEntity<BroadcastResultResponse> {
+        return ResponseEntity.ok(noticeService.resendBroadcast(uuid, request))
     }
 
     @Operation(summary = "[admin] 공지사항 삭제", description = "공지사항을 삭제합니다.")

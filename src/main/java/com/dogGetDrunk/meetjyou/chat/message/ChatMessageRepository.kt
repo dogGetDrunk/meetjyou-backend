@@ -101,35 +101,26 @@ interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
         senderUuid: UUID,
     ): Long
 
+    // One aggregate for the whole room list: each room's cursor comes from the requester's
+    // JOINED membership in that room's party (unique per user+party, so no row duplication).
     @Query(
         """
-        select cm.room.uuid as roomUuid, count(cm) as unreadCount
+        select cr.uuid as roomUuid, count(cm) as unreadCount
         from ChatMessage cm
-        where cm.room.uuid in :roomUuids
+        join cm.room cr
+        join UserParty up on up.party = cr.party
+        where cr.uuid in :roomUuids
+          and up.user.uuid = :requesterUuid
+          and up.memberStatus = com.dogGetDrunk.meetjyou.userparty.MemberStatus.JOINED
           and cm.sender.uuid <> :requesterUuid
-        group by cm.room.uuid
+          and (up.lastReadMessageId is null or cm.id > up.lastReadMessageId)
+        group by cr.uuid
         """
     )
-    fun countUnreadByRoomUuidsWithoutLastReadMessageId(
+    fun countUnreadByRoomUuids(
         @Param("roomUuids") roomUuids: Collection<UUID>,
         @Param("requesterUuid") requesterUuid: UUID,
     ): List<RoomUnreadCountProjection>
-
-    @Query(
-        """
-        select cm.room.uuid as roomUuid, count(cm) as unreadCount
-        from ChatMessage cm
-        where cm.room.uuid = :roomUuid
-          and cm.sender.uuid <> :requesterUuid
-          and cm.id > :lastReadMessageId
-        group by cm.room.uuid
-        """
-    )
-    fun countUnreadByRoomUuidAfterLastReadMessageId(
-        @Param("roomUuid") roomUuid: UUID,
-        @Param("requesterUuid") requesterUuid: UUID,
-        @Param("lastReadMessageId") lastReadMessageId: Long,
-    ): RoomUnreadCountProjection?
 
     @Query(
         """
