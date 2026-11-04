@@ -20,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 // Admin resend entry point lives here by the agreed API contract; it only delegates to the broadcaster.
@@ -196,7 +197,9 @@ class TermsService(
                 required = request.required,
                 contentObjectKey = objectKey,
                 contentHash = request.contentHash,
-                effectiveAt = request.effectiveAt ?: Instant.now(),
+                // terms.effective_at has no fractional seconds and MySQL rounds them up, so truncate
+                // to keep an immediate publish from being stored up to 0.5s in the future
+                effectiveAt = request.effectiveAt ?: Instant.now().truncatedTo(ChronoUnit.SECONDS),
             ),
         )
 
