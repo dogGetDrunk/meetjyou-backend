@@ -168,11 +168,9 @@ class ChatReadService(
         val partyByUuid = memberships.associate { membership ->
             membership.party.uuid to membership.party
         }
-        val membershipByPartyUuid = memberships.associateBy { it.party.uuid }
 
         val rooms = chatRoomRepository.findAllWithPartyByPartyUuidIn(partyByUuid.keys)
-        val roomUuidToPartyUuid = rooms.associate { it.uuid to it.party.uuid }
-        val roomUuids = roomUuidToPartyUuid.keys.toList()
+        val roomUuids = rooms.map { it.uuid }
 
         val latestMessageByRoomUuid = if (roomUuids.isEmpty()) {
             emptyMap()
@@ -182,8 +180,7 @@ class ChatReadService(
         }
 
         val unreadCountByRoomUuid = buildUnreadCountMap(
-            roomUuidToPartyUuid = roomUuidToPartyUuid,
-            membershipByPartyUuid = membershipByPartyUuid,
+            roomUuids = roomUuids,
             requesterUuid = requesterUuid,
         )
 
@@ -214,43 +211,17 @@ class ChatReadService(
     }
 
     private fun buildUnreadCountMap(
-        roomUuidToPartyUuid: Map<UUID, UUID>,
-        membershipByPartyUuid: Map<UUID, UserParty>,
+        roomUuids: Collection<UUID>,
         requesterUuid: UUID,
     ): Map<UUID, Long> {
-        if (roomUuidToPartyUuid.isEmpty()) {
+        if (roomUuids.isEmpty()) {
             return emptyMap()
         }
 
-        val roomUuidsWithoutLastReadMessageId = roomUuidToPartyUuid
-            .filterValues { partyUuid -> membershipByPartyUuid[partyUuid]?.lastReadMessageId == null }
-            .keys
-
-        val unreadMap = mutableMapOf<UUID, Long>()
-
-        if (roomUuidsWithoutLastReadMessageId.isNotEmpty()) {
-            chatMessageRepository.countUnreadByRoomUuidsWithoutLastReadMessageId(
-                roomUuids = roomUuidsWithoutLastReadMessageId,
-                requesterUuid = requesterUuid,
-            ).forEach { projection ->
-                unreadMap[projection.getRoomUuid()] = projection.getUnreadCount()
-            }
-        }
-
-        roomUuidToPartyUuid.forEach { (roomUuid, partyUuid) ->
-            val lastReadMessageId = membershipByPartyUuid[partyUuid]?.lastReadMessageId
-                ?: return@forEach
-
-            val projection = chatMessageRepository.countUnreadByRoomUuidAfterLastReadMessageId(
-                roomUuid = roomUuid,
-                requesterUuid = requesterUuid,
-                lastReadMessageId = lastReadMessageId,
-            )
-
-            unreadMap[roomUuid] = projection?.getUnreadCount() ?: 0L
-        }
-
-        return unreadMap
+        return chatMessageRepository.countUnreadByRoomUuids(
+            roomUuids = roomUuids,
+            requesterUuid = requesterUuid,
+        ).associate { it.getRoomUuid() to it.getUnreadCount() }
     }
 
     private fun validateReadPermission(
