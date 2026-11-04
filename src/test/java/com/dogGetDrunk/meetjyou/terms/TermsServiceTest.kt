@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.cloud.oracle.dto.ParResponse
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.TermsNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.DuplicateTermsVersionException
 import com.dogGetDrunk.meetjyou.common.exception.business.terms.TermsContentVerificationException
+import com.dogGetDrunk.meetjyou.notification.broadcast.TermsReconsentBroadcaster
 import com.dogGetDrunk.meetjyou.notification.event.TermsReconsentEvent
 import com.dogGetDrunk.meetjyou.terms.dto.PublishTermsRequest
 import com.dogGetDrunk.meetjyou.terms.dto.TermsUploadPar
@@ -32,6 +33,7 @@ class TermsServiceTest : BehaviorSpec() {
         userTermsRepository,
         termsContentUrlGenerator,
         publisher,
+        mockk<TermsReconsentBroadcaster>(),
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf

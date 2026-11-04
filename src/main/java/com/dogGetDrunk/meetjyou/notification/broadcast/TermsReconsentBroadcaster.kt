@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.notification.broadcast
 
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.TermsNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.notification.BroadcastAlreadySentException
+import com.dogGetDrunk.meetjyou.common.exception.business.terms.TermsReconsentNotApplicableException
 import com.dogGetDrunk.meetjyou.notification.NotificationPayload
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.outbox.NotificationOutbox
@@ -11,6 +12,7 @@ import com.dogGetDrunk.meetjyou.notification.template.NotificationTemplateFactor
 import com.dogGetDrunk.meetjyou.terms.Terms
 import com.dogGetDrunk.meetjyou.terms.TermsAgreementAction
 import com.dogGetDrunk.meetjyou.terms.TermsRepository
+import com.dogGetDrunk.meetjyou.terms.TermsStatus
 import com.dogGetDrunk.meetjyou.terms.UserTermsRepository
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserStatus
@@ -37,7 +39,7 @@ class TermsReconsentBroadcaster(
     private val templateFactory: NotificationTemplateFactory,
     private val objectMapper: ObjectMapper,
     // Used by the resend eligibility check (effectiveAt <= now); injectable for fixed-time tests.
-    @Suppress("UnusedPrivateProperty") private val clock: Clock = Clock.systemUTC(),
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     /**
      * Broadcast sent when new terms are published. No eligibility check, so terms with a
@@ -45,8 +47,34 @@ class TermsReconsentBroadcaster(
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun broadcastOnPublish(termsUuid: UUID): Int {
-        val terms = termsRepository.findByUuidForUpdate(termsUuid) ?: throw TermsNotFoundException(termsUuid.toString())
-        val prefix = dedupPrefix(termsUuid)
+        val terms = lockTerms(termsUuid)
+        return writeOnce(terms)
+    }
+
+    /**
+     * Admin resend. Eligibility is judged on the locked row, so a concurrent publish that
+     * supersedes these terms is seen before anything is written. Returns the rows written and committed.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun resend(termsUuid: UUID): Int {
+        val terms = lockTerms(termsUuid)
+        validateResendable(terms)
+        return writeOnce(terms)
+    }
+
+    private fun lockTerms(termsUuid: UUID): Terms =
+        termsRepository.findByUuidForUpdate(termsUuid) ?: throw TermsNotFoundException(termsUuid.toString())
+
+    // Resend is only for the terms currently in force that replaced an earlier version.
+    private fun validateResendable(terms: Terms) {
+        val inForce = terms.status == TermsStatus.ACTIVE && !terms.effectiveAt.isAfter(clock.instant())
+        if (!inForce || !termsRepository.existsByTypeAndStatus(terms.type, TermsStatus.INACTIVE)) {
+            throw TermsReconsentNotApplicableException(terms.uuid)
+        }
+    }
+
+    private fun writeOnce(terms: Terms): Int {
+        val prefix = dedupPrefix(terms.uuid)
         if (outboxRepository.existsByDedupKeyStartingWith(prefix)) {
             throw BroadcastAlreadySentException(prefix)
         }

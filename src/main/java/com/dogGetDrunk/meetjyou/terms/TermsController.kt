@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.terms
 
+import com.dogGetDrunk.meetjyou.notification.broadcast.dto.BroadcastResultResponse
 import com.dogGetDrunk.meetjyou.terms.dto.GetTermsContentUrlResponse
 import com.dogGetDrunk.meetjyou.terms.dto.GetTermsResponse
 import com.dogGetDrunk.meetjyou.terms.dto.PublishTermsRequest
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import com.dogGetDrunk.meetjyou.config.RestControllerV1
 import org.springframework.web.bind.annotation.RequestMapping
+import java.util.UUID
 
 @RestControllerV1
 @RequestMapping("/terms")
@@ -68,5 +70,19 @@ class TermsController(
         @RequestBody @Valid request: PublishTermsRequest,
     ): GetTermsResponse {
         return termsService.publishTerms(request)
+    }
+
+    @Operation(
+        summary = "[admin] 약관 재동의 알림 재발송",
+        description = "현재 시행 중인 약관(ACTIVE, 시행 시각 도래, 같은 타입의 이전 버전 존재)의 재동의 알림을 " +
+            "현재 수신 설정 기준으로 발송합니다. 대상이 아니면 409(TERMS_RECONSENT_NOT_APPLICABLE), " +
+            "이미 발송됐으면 409(BROADCAST_ALREADY_SENT)를 반환합니다.",
+    )
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PostMapping("/{termsUuid}/reconsent-broadcast")
+    fun resendReconsentBroadcast(
+        @PathVariable termsUuid: UUID,
+    ): BroadcastResultResponse {
+        return termsService.resendReconsentBroadcast(termsUuid)
     }
 }
