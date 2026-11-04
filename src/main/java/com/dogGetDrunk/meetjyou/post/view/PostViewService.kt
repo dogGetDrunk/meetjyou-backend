@@ -3,7 +3,6 @@ package com.dogGetDrunk.meetjyou.post.view
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -15,7 +14,9 @@ class PostViewService(
 ) {
     private val log = LoggerFactory.getLogger(PostViewService::class.java)
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // Default propagation: the only caller (PostService.getPostByUuid) has no outer transaction,
+    // so this commits or rolls back on its own without holding a second connection.
+    @Transactional
     fun incrementIfEligible(postId: Long, userId: Long) {
         val tenMinutesAgo = Instant.now().minus(10, ChronoUnit.MINUTES)
         val existingLog = postViewLogRepository.findById(PostViewLogId(userId, postId))
