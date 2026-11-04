@@ -17,7 +17,7 @@ touches:
   - 'src/dockerTest/java/com/dogGetDrunk/meetjyou/notification/BroadcastConcurrencyDockerTest.kt'
 consumes:
   - 'T-20261103-chat-notice-post-perf-03의 NoticeBroadcaster.broadcast(noticeUuid: UUID, critical: Boolean): Int'
-  - 'T-20261103-chat-notice-post-perf-03의 TermsReconsentBroadcaster.broadcast(termsUuid: UUID): Int'
+  - 'T-20261103-chat-notice-post-perf-03의 TermsReconsentBroadcaster.broadcastOnPublish(termsUuid: UUID): Int와 공통 발송 경로'
   - 'T-03 원천 잠금·prefix 검사·BROADCAST_ALREADY_SENT(409)'
   - '기존 NOTICE_NOT_FOUND·TERMS_NOT_FOUND·CONCURRENT_REQUEST_CONFLICT'
   - 'SqlPausePoint·performance_schema.data_lock_waits'
@@ -26,7 +26,7 @@ produces:
   - 'POST /api/v1/terms/{termsUuid}/reconsent-broadcast → BroadcastResultResponse'
   - 'ResendNoticeBroadcastRequest(val critical: Boolean = false)'
   - 'BroadcastResultResponse(val recipientCount: Int), companion of(count: Int)'
-  - 'TermsReconsentBroadcaster.broadcast(termsUuid: UUID, validateApplicability: Boolean = false): Int'
+  - 'TermsReconsentBroadcaster.resend(termsUuid: UUID): Int (REQUIRES_NEW, 잠금 후 적격성 검사)'
   - 'TERMS_RECONSENT_NOT_APPLICABLE(409)'
 status: ready
 ---
@@ -45,8 +45,8 @@ status: ready
 - 포함: NoticeController 기존 /notices 아래 POST /{uuid}/broadcast, body의 critical 기본 false; TermsController 기존 /terms 아래 POST /{termsUuid}/reconsent-broadcast
 - 두 endpoint @PreAuthorize("hasAuthority('ADMIN')"), 기존 API prefix /api/v1 유지; 서비스가 BroadcastResultResponse.of(count) 반환, controller .of() 호출 금지
 - API 조정 서비스 바깥 트랜잭션 없음 → T-03 발송 빈 프록시 호출, 여기서 HTTP 200 recipientCount 반환
-- NoticeBroadcaster는 T-03 시그니처 그대로 재사용; TermsReconsentBroadcaster는 validateApplicability=false 기본 인자만 확장, 원 핸들러 호출은 false 유지, 재발송은 true
-- true일 때 원천 terms row 잠금 후 ACTIVE·effectiveAt<=now·동일 type의 INACTIVE 존재를 같은 tx 안에서 검사; 부적격 TERMS_RECONSENT_NOT_APPLICABLE(409), 기존 미래 ACTIVE 원 발송 동작 불변
+- NoticeBroadcaster는 T-03 시그니처 그대로 재사용; TermsReconsentBroadcaster에 public `resend(UUID)` 추가, 원 핸들러는 `broadcastOnPublish(UUID)` 그대로, 재발송 서비스만 `resend` 호출 (flag 인자·호환 메서드 추가 금지)
+- `resend`는 원천 terms row 잠금 후 ACTIVE·effectiveAt<=now·동일 type의 INACTIVE 존재를 같은 tx 안에서 검사; 부적격 TERMS_RECONSENT_NOT_APPLICABLE(409), 기존 미래 ACTIVE 원 발송 동작 불변
 - 기발송 409 BROADCAST_ALREADY_SENT, 원천 미존재 기존 404, 비관리자 403; ErrorCodeStatusTest에 새 코드 표 반영
 - T-03의 잠금→dedup 검사→수신자 계산→outbox 저장 공통 경로 재사용; API 앞단의 비잠금 검사만으로 판정하거나 별도 outbox 저장 루프 작성 금지
 - 재발송 수신자 = 호출 시점의 NORMAL/notified/해당 타입 preference 규칙, 가입·설정 변경 반영
@@ -172,7 +172,7 @@ TermsService.resendReconsentBroadcast(termsUuid: UUID): BroadcastResultResponse
 
 - [ ] T-03 완료·증거 확인 후 AT-005 보호 파일 복사, endpoint/부적격·경쟁 RED 확인
 - [ ] 관리자 요청·응답 DTO와 비트랜잭션 service/controller 조정, 기존 발송 빈 재사용
-- [ ] terms 발송 메서드 기본 false 적격성 flag 확장·재발송 true·잠금 안 판정·오류 표 매핑
+- [ ] terms `resend(UUID)` 추가·잠금 안 적격성 판정·`broadcastOnPublish`와 공통 경로 공유·오류 표 매핑
 - [ ] 두 API 성공·중복·404·403·critical·유효시점·재계산 회귀 확인
 - [ ] MySQL 4개 경쟁에서 실제 lock wait와 outbox 유일성 확인, executor/latch·pause finally 해제
 - [ ] 전체 test/build → dockerTest, 동일 HEAD CI 증거와 함께 보고

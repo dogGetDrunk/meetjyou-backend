@@ -30,7 +30,7 @@ produces:
   - 'UserNotificationPreferenceRepository.findDisabledUserIdsByType(type: NotificationType): Set<Long>'
   - 'NotificationOutboxRepository.existsByDedupKeyStartingWith(prefix: String): Boolean'
   - 'NoticeBroadcaster.broadcast(noticeUuid: UUID, critical: Boolean): Int'
-  - 'TermsReconsentBroadcaster.broadcast(termsUuid: UUID): Int'
+  - 'TermsReconsentBroadcaster.broadcastOnPublish(termsUuid: UUID): Int'
   - '기발송 예외 → BROADCAST_ALREADY_SENT(409), 원천 없음 → 기존 404'
   - 'V43 비유니크 idx_notification_outbox_dedup_key'
 status: in_progress

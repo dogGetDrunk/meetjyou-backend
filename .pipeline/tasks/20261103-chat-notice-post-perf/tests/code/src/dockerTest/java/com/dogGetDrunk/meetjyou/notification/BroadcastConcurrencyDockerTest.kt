@@ -99,50 +99,76 @@ class BroadcastConcurrencyDockerTest : BehaviorSpec() {
         }
     }
 
+    private data class Scenario(val isTerms: Boolean, val original: Boolean, val fixture: Fixture, val marker: String) {
+        val table get() = if (isTerms) "terms" else "notice"
+        val prefix get() = if (isTerms) "terms_reconsent" else "notice"
+    }
+
+    // The first request pauses right before its outbox insert while holding the source row lock,
+    // so the second request must be seen waiting on that lock before the first is released.
     private fun race(isTerms: Boolean, original: Boolean) {
-        val fixture = seed(isTerms, original)
-        val table = if (isTerms) "terms" else "notice"
-        val prefix = if (isTerms) "terms_reconsent" else "notice"
-        val sourceMarker = UUID.randomUUID().toString()
-        val originalPath = if (isTerms) "/api/v1/terms" else "/api/v1/notices"
-        val originalBody = if (isTerms) {
-            """{"type":"TERMS_OF_SERVICE","version":"new","displayText":"$sourceMarker","required":true,"contentHash":"hash"}"""
-        } else {
-            """{"title":"$sourceMarker","body":"body","notify":true,"critical":false}"""
-        }
+        val scenario = Scenario(isTerms, original, seed(isTerms, original), UUID.randomUUID().toString())
         val point = SqlPausePoint.Point("insert into notification_outbox")
         val executor = Executors.newFixedThreadPool(2)
         try {
-            val first = executor.submit<Response> {
-                SqlPausePoint.arm(point)
-                try {
-                    if (original) request(originalPath, originalBody) else request(resendPath(isTerms, fixture.uuid))
-                } finally {
-                    SqlPausePoint.disarm()
-                }
-            }
+            val first = executor.submit<Response> { pausedFirstRequest(scenario, point) }
             point.reached.await(TIMEOUT, TimeUnit.SECONDS) shouldBe true
-            val source = if (original) committedSource(isTerms, sourceMarker) else fixture.sourceId to fixture.uuid
-            outboxKeys(prefix, source.second).size shouldBe 0
+            val source = resolveSource(scenario)
+            outboxKeys(scenario.prefix, source.second).size shouldBe 0
             val second = executor.submit<Response> { request(resendPath(isTerms, source.second)) }
-            awaitSourceWait(table, source.first) shouldBe true
+            awaitSourceWait(scenario.table, source.first) shouldBe true
             point.release.countDown()
-            val firstResponse = first.get(TIMEOUT, TimeUnit.SECONDS)
-            val secondResponse = second.get(TIMEOUT, TimeUnit.SECONDS)
-            firstResponse.status shouldBe 200
-            if (!original) mapper.readTree(firstResponse.body)["recipientCount"].asInt() shouldBe fixture.recipients.size
-            secondResponse.status shouldBe 409
-            val errorCode = mapper.readTree(secondResponse.body)["errorCode"].asText()
-            (errorCode in setOf("BROADCAST_ALREADY_SENT", "CONCURRENT_REQUEST_CONFLICT")) shouldBe true
-            val keys = outboxKeys(prefix, source.second)
-            keys.size shouldBe fixture.recipients.size
-            keys.toSet() shouldBe fixture.recipients.map { "$prefix:${source.second}:$it" }.toSet()
-            jdbc.queryForObject("SELECT COUNT(*) FROM $table WHERE id = ?", Int::class.java, source.first) shouldBe 1
+            assertResponses(scenario, first.get(TIMEOUT, TimeUnit.SECONDS), second.get(TIMEOUT, TimeUnit.SECONDS))
+            assertOneCompleteSet(scenario, source)
         } finally {
             point.release.countDown()
             executor.shutdownNow()
             executor.awaitTermination(TIMEOUT, TimeUnit.SECONDS) shouldBe true
         }
+    }
+
+    private fun pausedFirstRequest(scenario: Scenario, point: SqlPausePoint.Point): Response {
+        SqlPausePoint.arm(point)
+        return try {
+            if (scenario.original) {
+                request(originalPath(scenario.isTerms), originalBody(scenario))
+            } else {
+                request(resendPath(scenario.isTerms, scenario.fixture.uuid))
+            }
+        } finally {
+            SqlPausePoint.disarm()
+        }
+    }
+
+    private fun originalPath(isTerms: Boolean) = if (isTerms) "/api/v1/terms" else "/api/v1/notices"
+
+    private fun originalBody(scenario: Scenario) = if (scenario.isTerms) {
+        """{"type":"TERMS_OF_SERVICE","version":"new","displayText":"${scenario.marker}","required":true,"contentHash":"hash"}"""
+    } else {
+        """{"title":"${scenario.marker}","body":"body","notify":true,"critical":false}"""
+    }
+
+    private fun resolveSource(scenario: Scenario): Pair<Long, UUID> = if (scenario.original) {
+        committedSource(scenario.isTerms, scenario.marker)
+    } else {
+        scenario.fixture.sourceId to scenario.fixture.uuid
+    }
+
+    private fun assertResponses(scenario: Scenario, firstResponse: Response, secondResponse: Response) {
+        firstResponse.status shouldBe 200
+        if (!scenario.original) {
+            mapper.readTree(firstResponse.body)["recipientCount"].asInt() shouldBe scenario.fixture.recipients.size
+        }
+        secondResponse.status shouldBe 409
+        val errorCode = mapper.readTree(secondResponse.body)["errorCode"].asText()
+        (errorCode in setOf("BROADCAST_ALREADY_SENT", "CONCURRENT_REQUEST_CONFLICT")) shouldBe true
+    }
+
+    private fun assertOneCompleteSet(scenario: Scenario, source: Pair<Long, UUID>) {
+        val keys = outboxKeys(scenario.prefix, source.second)
+        keys.size shouldBe scenario.fixture.recipients.size
+        keys.toSet() shouldBe scenario.fixture.recipients.map { "${scenario.prefix}:${source.second}:$it" }.toSet()
+        jdbc.queryForObject("SELECT COUNT(*) FROM ${scenario.table} WHERE id = ?", Int::class.java, source.first) shouldBe 1
     }
 
     private fun resendPath(isTerms: Boolean, uuid: UUID) = if (isTerms) {

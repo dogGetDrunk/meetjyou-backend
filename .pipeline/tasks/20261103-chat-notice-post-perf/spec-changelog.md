@@ -16,3 +16,5 @@
 | 2026-11-04 | 전체 | 보호 테스트 10개 파일 detekt 위반 62건 정리(줄바꿈·헬퍼 추출·`check()`/`error()`·파라미터 묶음), 단언 불변 | 구현 GREEN인데 보호 테스트 lint로 CI 실패 → T-01·T-02 재시도 max까지 반복 | Claude |
 | 2026-11-04 | REQ-004 | AT-004-2 `@DirtiesContext` 제거(잘못된 import + 공유 H2 스키마 삭제로 무관 party 테스트 8건 실패) | T-03 워커 escalation, 별도 property로 이미 독립 context | Claude |
 | 2026-11-04 | REQ-002 | AT-002-3 실패 주입을 `callRealMethod()` → spy 기본 answer 위임으로 교체, 단언 불변 | Spring Data 인터페이스 spy라 `callRealMethod` 불가(MockitoException) → 주입 미발동, `runCatching` 제거 시 RED 확인 | Claude |
+| 2026-11-04 | REQ-003~005 | T-03·T-04 티켓의 약관 발송 시그니처를 `broadcastOnPublish`·`resend` 두 메서드로 통일 | brief 점검 B-r1-01, spec 확정 인터페이스와 티켓 표기 불일치 | Claude |
+| 2026-11-04 | REQ-005 | AT-005-3·4 `race` 헬퍼 분리(30줄 상한), 단언 불변 | brief 점검 B-r1-02 | Claude |
