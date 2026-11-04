@@ -11,6 +11,15 @@ interface UserNotificationPreferenceRepository : JpaRepository<UserNotificationP
     fun findAllByUser(user: User): List<UserNotificationPreference>
     fun findByUserAndNotificationType(user: User, notificationType: NotificationType): UserNotificationPreference?
 
+    // One query for the whole broadcast population; users without a row count as enabled.
+    @Query(
+        """
+        SELECT p.user.id FROM UserNotificationPreference p
+         WHERE p.notificationType = :type AND p.enabled = false
+        """
+    )
+    fun findDisabledUserIdsByType(@Param("type") type: NotificationType): Set<Long>
+
     @Modifying
     @Query("DELETE FROM UserNotificationPreference p WHERE p.user.id IN :userIds")
     fun deleteAllByUserIdIn(@Param("userIds") userIds: Collection<Long>): Int

@@ -70,6 +70,7 @@ private val EXPECTED_STATUS: Map<ErrorCode, HttpStatus> = mapOf(
     ErrorCode.PAYLOAD_TOO_LARGE to HttpStatus.PAYLOAD_TOO_LARGE,
     ErrorCode.UNSUPPORTED_MEDIA_TYPE to HttpStatus.UNSUPPORTED_MEDIA_TYPE,
     // 409
+    ErrorCode.BROADCAST_ALREADY_SENT to HttpStatus.CONFLICT,
     ErrorCode.CONCURRENT_REQUEST_CONFLICT to HttpStatus.CONFLICT,
     ErrorCode.DUPLICATE to HttpStatus.CONFLICT,
     ErrorCode.DUPLICATE_NICKNAME to HttpStatus.CONFLICT,

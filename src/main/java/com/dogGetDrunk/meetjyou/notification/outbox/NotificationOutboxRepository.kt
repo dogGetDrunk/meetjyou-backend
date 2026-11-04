@@ -60,4 +60,6 @@ interface NotificationOutboxRepository : JpaRepository<NotificationOutbox, Long>
     fun countByStatus(status: DeliveryStatus): Long
 
     fun existsByDedupKey(dedupKey: String): Boolean
+
+    fun existsByDedupKeyStartingWith(prefix: String): Boolean
 }
