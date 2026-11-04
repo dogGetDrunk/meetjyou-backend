@@ -28,7 +28,7 @@ produces:
   - 'BroadcastResultResponse(val recipientCount: Int), companion of(count: Int)'
   - 'TermsReconsentBroadcaster.broadcast(termsUuid: UUID, validateApplicability: Boolean = false): Int'
   - 'TERMS_RECONSENT_NOT_APPLICABLE(409)'
-status: pending
+status: ready
 ---
 
 ## 목표
