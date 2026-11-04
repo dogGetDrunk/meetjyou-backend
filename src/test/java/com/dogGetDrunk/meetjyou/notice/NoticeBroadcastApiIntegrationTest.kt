@@ -51,8 +51,6 @@ class NoticeBroadcastApiIntegrationTest : BehaviorSpec() {
     @Autowired private lateinit var entityManager: EntityManager
     @Autowired private lateinit var tx: TransactionTemplate
 
-    override fun extensions() = listOf(SpringExtension())
-
     private data class Fixture(
         val notice: UUID,
         val admin: UUID,
@@ -182,6 +180,8 @@ class NoticeBroadcastApiIntegrationTest : BehaviorSpec() {
     }
 
     init {
+        extensions(SpringExtension())
+
         given("AT-005-1 notice broadcast API with committed changes after notice creation") {
             `when`("an administrator broadcasts with default, false, and true requests") {
                 then("recipients and payload follow the current settings and duplicate calls are rejected") {

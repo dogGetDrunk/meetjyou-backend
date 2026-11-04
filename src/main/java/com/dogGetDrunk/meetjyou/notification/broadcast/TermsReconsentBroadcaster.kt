@@ -48,7 +48,7 @@ class TermsReconsentBroadcaster(
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun broadcastOnPublish(termsUuid: UUID): Int {
         val terms = lockTerms(termsUuid)
-        return writeOnce(terms)
+        return writeOnce(termsUuid, terms)
     }
 
     /**
@@ -58,23 +58,24 @@ class TermsReconsentBroadcaster(
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun resend(termsUuid: UUID): Int {
         val terms = lockTerms(termsUuid)
-        validateResendable(terms)
-        return writeOnce(terms)
+        validateResendable(termsUuid, terms)
+        return writeOnce(termsUuid, terms)
     }
 
     private fun lockTerms(termsUuid: UUID): Terms =
         termsRepository.findByUuidForUpdate(termsUuid) ?: throw TermsNotFoundException(termsUuid.toString())
 
     // Resend is only for the terms currently in force that replaced an earlier version.
-    private fun validateResendable(terms: Terms) {
+    private fun validateResendable(termsUuid: UUID, terms: Terms) {
         val inForce = terms.status == TermsStatus.ACTIVE && !terms.effectiveAt.isAfter(clock.instant())
         if (!inForce || !termsRepository.existsByTypeAndStatus(terms.type, TermsStatus.INACTIVE)) {
-            throw TermsReconsentNotApplicableException(terms.uuid)
+            throw TermsReconsentNotApplicableException(termsUuid)
         }
     }
 
-    private fun writeOnce(terms: Terms): Int {
-        val prefix = dedupPrefix(terms.uuid)
+    // The prefix comes from the requested uuid, the same key the publish path has always used.
+    private fun writeOnce(termsUuid: UUID, terms: Terms): Int {
+        val prefix = dedupPrefix(termsUuid)
         if (outboxRepository.existsByDedupKeyStartingWith(prefix)) {
             throw BroadcastAlreadySentException(prefix)
         }
