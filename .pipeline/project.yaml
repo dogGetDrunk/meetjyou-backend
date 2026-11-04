@@ -3,3 +3,5 @@ base_ref: origin/main
 merge_method: merge
 gate:
   - [./gradlew, test, build]
+test_lint:
+  - [./gradlew, detekt]
