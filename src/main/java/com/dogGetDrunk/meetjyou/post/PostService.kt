@@ -41,6 +41,7 @@ import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.userparty.UserParty
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -63,6 +64,12 @@ class PostService(
     private val idempotencyKeyService: IdempotencyKeyService,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
+
+    // Setter injection keeps the constructor stable for unit tests that build this class by hand;
+    // there the default runs the block without a transaction. The setter is required, so the
+    // application fails to start rather than silently reading without a transaction.
+    @set:Autowired
+    internal var postReadTransaction: PostReadTransaction = PostReadTransaction()
 
     @Transactional
     fun createPost(request: CreatePostRequest, idempotencyKey: String? = null): CreatePostResponse {
@@ -117,20 +124,27 @@ class PostService(
         return CreatePostResponse.of(post, companionSpec, ChatRoomResponse.of(chatRoom))
     }
 
-    @Transactional(readOnly = true)
+    // No transaction here on purpose: the read-only transaction ends (and returns its connection)
+    // before the view-count write opens its own, so one pooled connection is enough for both.
+    // The response keeps the view count from before this view.
     fun getPostByUuid(postUuid: UUID): GetPostResponse {
+        val detail = postReadTransaction.run { readPostDetail(postUuid) }
+        if (detail.viewerId != null) {
+            runCatching { postViewService.incrementIfEligible(detail.postId, detail.viewerId) }
+                .onFailure { log.warn("Failed to increment view count. postId={}", detail.postId, it) }
+        }
+        return detail.response
+    }
+
+    private fun readPostDetail(postUuid: UUID): PostDetail {
         val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
         val views = postViewService.getViewCount(post.id)
         val response = buildGetPostResponse(post, views)
-
-        val currentUser = userRepository.findByUuid(currentUserProvider.uuid)
-        if (currentUser != null) {
-            runCatching { postViewService.incrementIfEligible(post.id, currentUser.id) }
-                .onFailure { log.warn("Failed to increment view count. postId={}", post.id, it) }
-        }
-
-        return response
+        val viewer = userRepository.findByUuid(currentUserProvider.uuid)
+        return PostDetail(response, post.id, viewer?.id)
     }
+
+    private data class PostDetail(val response: GetPostResponse, val postId: Long, val viewerId: Long?)
 
     @Transactional(readOnly = true)
     fun getPostByAuthorUuid(authorUuid: UUID, pageable: Pageable): Page<GetPostResponse> {
