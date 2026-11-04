@@ -18,6 +18,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # A PR checks out its merge commit; depth 2 keeps the first parent (base tip) for HEAD^1.
+          fetch-depth: 2
+
+      # Docs-only PRs skip JDK, Gradle and the test report. The Gradle steps run unless this step
+      # succeeded on a PR and printed exactly "true": a missing script, a failure or any other
+      # output falls back to the full build. main pushes never skip.
+      - name: Detect docs-only change
+        id: docs-only
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          result=$(bash scripts/ci-docs-only.sh HEAD^1 HEAD)
+          echo "Docs-only classification: ${result}"
+          if [ "${result}" = "true" ]; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,8 +46,10 @@ jobs:
           python3 -m pip install -r tools/agent-pipeline/defaults/requirements.txt
           python3 -m unittest discover -s tools/agent-pipeline/tests -p 'test_*.py'
           bash -n scripts/gate.sh scripts/dispatch.sh
+          bash scripts/ci-docs-only.test.sh
 
       - name: Set up Amazon Corretto JDK 21
+        if: ${{ !(github.event_name == 'pull_request' && steps.docs-only.outcome == 'success' && steps.docs-only.outputs.docs_only == 'true') }}
         uses: actions/setup-java@v4
         with:
           distribution: 'corretto'
@@ -41,10 +60,11 @@ jobs:
       # One Gradle invocation for both, instead of paying JVM startup + configuration twice.
       # dockerTest needs a Docker daemon (Testcontainers MySQL); GitHub-hosted runners provide one.
       - name: Build & Test + preference seed consistency test
+        if: ${{ !(github.event_name == 'pull_request' && steps.docs-only.outcome == 'success' && steps.docs-only.outputs.docs_only == 'true') }}
         run: ./gradlew build dockerTest --no-daemon
 
       - name: Upload test report
-        if: always()
+        if: ${{ always() && !(github.event_name == 'pull_request' && steps.docs-only.outcome == 'success' && steps.docs-only.outputs.docs_only == 'true') }}
         uses: actions/upload-artifact@v4
         with:
           name: test-report
