@@ -1,0 +1,24 @@
+| time | ticket | role | model | effort | dispatch | input | cache_read | cache_write | output |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-05T13:24:38.984562+00:00 | sub_designer:critique-r1 | sub_designer | gpt-6.1-sol | high | ctx_fdf418a54887 | 20294 | 411136 | 0 | 3795 |
+| 2026-11-05T13:24:38.984562+00:00 | sub_designer:plan | sub_designer | gpt-6.1-sol | high | ctx_dad7962981bc | 60563 | 1011456 | 0 | 20313 |
+| 2026-11-05T13:24:51.047275+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/auth/social/apple/AppleInvalidClaimsDecoderTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_0d29d8b924cf | 24 | 1414449 | 122803 | 8775 |
+| 2026-11-05T13:25:24.472727+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/auth/social/apple/AppleInvalidClaimsLoginIntegrationTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_081b40abd2bf | 28 | 1874519 | 116915 | 9361 |
+| 2026-11-05T13:25:24.472727+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/common/idempotency/ConflictRecoveryServiceTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_392acaf20a1d | 26 | 1699994 | 109224 | 10840 |
+| 2026-11-05T13:25:24.472727+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/common/idempotency/IdempotencyKeyLengthServiceTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_458654103088 | 28 | 1787192 | 102433 | 8857 |
+| 2026-11-05T13:25:24.472727+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/common/idempotency/NonConflictIntegrityControllerTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_7f6c09e4aca4 | 26 | 1669361 | 98412 | 6702 |
+| 2026-11-05T13:25:24.472727+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/common/idempotency/NonConflictIntegrityIntegrationTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_2f9aee72fcaa | 26 | 1709264 | 108613 | 9627 |
+| 2026-11-05T13:25:24.472727+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/plan/MarkerRequestValidationTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_32164a9fed89 | 26 | 1651450 | 96289 | 7195 |
+| 2026-11-05T13:25:55.685725+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/plan/MarkerInputValidationIntegrationTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_bfc2de307e2f | 30 | 1943474 | 109520 | 13167 |
+| 2026-11-05T13:26:28.587109+00:00 | test_writer:src/test/java/com/dogGetDrunk/meetjyou/common/idempotency/IdempotencyKeyLengthIntegrationTest.kt | test_writer | claude-sonnet-5-5 | medium | ctx_a241a17ea7fe | 38 | 2550474 | 122960 | 16997 |
+| 2026-11-05T13:38:06.642404+00:00 | sub_designer:brief-r1 | sub_designer | gpt-6.1-sol | high | ctx_b4e810e48d6f | 144373 | 3025408 | 0 | 10807 |
+| 2026-11-05T13:41:15.481078+00:00 | sub_designer:brief-r2 | sub_designer | gpt-6.1-sol | high | ctx_a6a7278858c2 | 102562 | 1040000 | 0 | 5527 |
+| 2026-11-05T13:49:07.660617+00:00 | T-20261105-invalid-input-errors-01 | implementer | claude-opus-5-5 | medium | ctx_54a9819aed6e | 26 | 1121608 | 73699 | 6909 |
+| 2026-11-05T13:51:05.776118+00:00 | T-20261105-invalid-input-errors-01 | reviewer | gpt-6.1-sol | high | ctx_a7d73052ccb7 | 46546 | 306432 | 0 | 2513 |
+| 2026-11-05T13:51:29.279941+00:00 | T-20261105-invalid-input-errors-03 | implementer | claude-opus-5-5 | medium | ctx_594026918600 | 30 | 1469870 | 90442 | 9534 |
+| 2026-11-05T13:52:53.220117+00:00 | T-20261105-invalid-input-errors-02 | implementer | claude-opus-5-5 | medium | ctx_3cdb1f68cd31 | 34 | 1985836 | 116483 | 12509 |
+| 2026-11-05T13:53:07.641650+00:00 | T-20261105-invalid-input-errors-01 | judge | gpt-6.1-sol | high | ctx_32f6be74a07f | 36961 | 332672 | 0 | 2296 |
+| 2026-11-05T13:53:20.629250+00:00 | T-20261105-invalid-input-errors-03 | reviewer | gpt-6.1-sol | high | ctx_6ac6978bb821 | 56043 | 329088 | 0 | 3037 |
+| 2026-11-05T13:54:22.563893+00:00 | T-20261105-invalid-input-errors-02 | reviewer | gpt-6.1-sol | high | ctx_b688932c3964 | 59658 | 502912 | 0 | 2298 |
+| 2026-11-05T13:54:45.612713+00:00 | T-20261105-invalid-input-errors-03 | judge | gpt-6.1-sol | high | ctx_0844038cb92f | 40707 | 349056 | 0 | 2173 |
+| 2026-11-05T13:56:03.980775+00:00 | T-20261105-invalid-input-errors-02 | judge | gpt-6.1-sol | high | ctx_edbd53a70ef6 | 50005 | 480768 | 0 | 2888 |
