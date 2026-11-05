@@ -1,0 +1,229 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: chat-rooms.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 20 max VUs, 1m30s max duration (incl. graceful stop):
+              * rooms: 20 looping VUs for 1m0s (gracefulStop: 30s)
+
+
+running (0m01.0s), 20/20 VUs, 0 complete and 0 interrupted iterations
+rooms   [   2% ] 20 VUs  0m01.0s/1m0s
+
+running (0m02.0s), 20/20 VUs, 0 complete and 0 interrupted iterations
+rooms   [   3% ] 20 VUs  0m02.0s/1m0s
+
+running (0m03.0s), 20/20 VUs, 0 complete and 0 interrupted iterations
+rooms   [   5% ] 20 VUs  0m03.0s/1m0s
+
+running (0m04.0s), 20/20 VUs, 2 complete and 0 interrupted iterations
+rooms   [   7% ] 20 VUs  0m04.0s/1m0s
+
+running (0m05.0s), 20/20 VUs, 19 complete and 0 interrupted iterations
+rooms   [   8% ] 20 VUs  0m05.0s/1m0s
+
+running (0m06.0s), 20/20 VUs, 20 complete and 0 interrupted iterations
+rooms   [  10% ] 20 VUs  0m06.0s/1m0s
+
+running (0m07.0s), 20/20 VUs, 22 complete and 0 interrupted iterations
+rooms   [  12% ] 20 VUs  0m07.0s/1m0s
+
+running (0m08.0s), 20/20 VUs, 25 complete and 0 interrupted iterations
+rooms   [  13% ] 20 VUs  0m08.0s/1m0s
+
+running (0m09.0s), 20/20 VUs, 40 complete and 0 interrupted iterations
+rooms   [  15% ] 20 VUs  0m09.0s/1m0s
+
+running (0m10.0s), 20/20 VUs, 43 complete and 0 interrupted iterations
+rooms   [  17% ] 20 VUs  0m10.0s/1m0s
+
+running (0m11.0s), 20/20 VUs, 45 complete and 0 interrupted iterations
+rooms   [  18% ] 20 VUs  0m11.0s/1m0s
+
+running (0m12.0s), 20/20 VUs, 45 complete and 0 interrupted iterations
+rooms   [  20% ] 20 VUs  0m12.0s/1m0s
+
+running (0m13.0s), 20/20 VUs, 54 complete and 0 interrupted iterations
+rooms   [  22% ] 20 VUs  0m13.0s/1m0s
+
+running (0m14.0s), 20/20 VUs, 64 complete and 0 interrupted iterations
+rooms   [  23% ] 20 VUs  0m14.0s/1m0s
+
+running (0m15.0s), 20/20 VUs, 65 complete and 0 interrupted iterations
+rooms   [  25% ] 20 VUs  0m15.0s/1m0s
+
+running (0m16.0s), 20/20 VUs, 69 complete and 0 interrupted iterations
+rooms   [  27% ] 20 VUs  0m16.0s/1m0s
+
+running (0m17.0s), 20/20 VUs, 75 complete and 0 interrupted iterations
+rooms   [  28% ] 20 VUs  0m17.0s/1m0s
+
+running (0m18.0s), 20/20 VUs, 85 complete and 0 interrupted iterations
+rooms   [  30% ] 20 VUs  0m18.0s/1m0s
+
+running (0m19.0s), 20/20 VUs, 88 complete and 0 interrupted iterations
+rooms   [  32% ] 20 VUs  0m19.0s/1m0s
+
+running (0m20.0s), 20/20 VUs, 93 complete and 0 interrupted iterations
+rooms   [  33% ] 20 VUs  0m20.0s/1m0s
+
+running (0m21.0s), 20/20 VUs, 103 complete and 0 interrupted iterations
+rooms   [  35% ] 20 VUs  0m21.0s/1m0s
+
+running (0m22.0s), 20/20 VUs, 107 complete and 0 interrupted iterations
+rooms   [  37% ] 20 VUs  0m22.0s/1m0s
+
+running (0m23.0s), 20/20 VUs, 109 complete and 0 interrupted iterations
+rooms   [  38% ] 20 VUs  0m23.0s/1m0s
+
+running (0m24.0s), 20/20 VUs, 114 complete and 0 interrupted iterations
+rooms   [  40% ] 20 VUs  0m24.0s/1m0s
+
+running (0m25.0s), 20/20 VUs, 119 complete and 0 interrupted iterations
+rooms   [  42% ] 20 VUs  0m25.0s/1m0s
+
+running (0m26.0s), 20/20 VUs, 129 complete and 0 interrupted iterations
+rooms   [  43% ] 20 VUs  0m26.0s/1m0s
+
+running (0m27.0s), 20/20 VUs, 131 complete and 0 interrupted iterations
+rooms   [  45% ] 20 VUs  0m27.0s/1m0s
+
+running (0m28.0s), 20/20 VUs, 135 complete and 0 interrupted iterations
+rooms   [  47% ] 20 VUs  0m28.0s/1m0s
+
+running (0m29.0s), 20/20 VUs, 141 complete and 0 interrupted iterations
+rooms   [  48% ] 20 VUs  0m29.0s/1m0s
+
+running (0m30.0s), 20/20 VUs, 149 complete and 0 interrupted iterations
+rooms   [  50% ] 20 VUs  0m30.0s/1m0s
+
+running (0m31.0s), 20/20 VUs, 151 complete and 0 interrupted iterations
+rooms   [  52% ] 20 VUs  0m31.0s/1m0s
+
+running (0m32.0s), 20/20 VUs, 156 complete and 0 interrupted iterations
+rooms   [  53% ] 20 VUs  0m32.0s/1m0s
+
+running (0m33.0s), 20/20 VUs, 161 complete and 0 interrupted iterations
+rooms   [  55% ] 20 VUs  0m33.0s/1m0s
+
+running (0m34.0s), 20/20 VUs, 167 complete and 0 interrupted iterations
+rooms   [  57% ] 20 VUs  0m34.0s/1m0s
+
+running (0m35.0s), 20/20 VUs, 172 complete and 0 interrupted iterations
+rooms   [  58% ] 20 VUs  0m35.0s/1m0s
+
+running (0m36.0s), 20/20 VUs, 178 complete and 0 interrupted iterations
+rooms   [  60% ] 20 VUs  0m36.0s/1m0s
+
+running (0m37.0s), 20/20 VUs, 182 complete and 0 interrupted iterations
+rooms   [  62% ] 20 VUs  0m37.0s/1m0s
+
+running (0m38.0s), 20/20 VUs, 186 complete and 0 interrupted iterations
+rooms   [  63% ] 20 VUs  0m38.0s/1m0s
+
+running (0m39.0s), 20/20 VUs, 190 complete and 0 interrupted iterations
+rooms   [  65% ] 20 VUs  0m39.0s/1m0s
+
+running (0m40.0s), 20/20 VUs, 196 complete and 0 interrupted iterations
+rooms   [  67% ] 20 VUs  0m40.0s/1m0s
+
+running (0m41.0s), 20/20 VUs, 202 complete and 0 interrupted iterations
+rooms   [  68% ] 20 VUs  0m41.0s/1m0s
+
+running (0m42.0s), 20/20 VUs, 207 complete and 0 interrupted iterations
+rooms   [  70% ] 20 VUs  0m42.0s/1m0s
+
+running (0m43.0s), 20/20 VUs, 209 complete and 0 interrupted iterations
+rooms   [  72% ] 20 VUs  0m43.0s/1m0s
+
+running (0m44.0s), 20/20 VUs, 215 complete and 0 interrupted iterations
+rooms   [  73% ] 20 VUs  0m44.0s/1m0s
+
+running (0m45.0s), 20/20 VUs, 222 complete and 0 interrupted iterations
+rooms   [  75% ] 20 VUs  0m45.0s/1m0s
+
+running (0m46.0s), 20/20 VUs, 228 complete and 0 interrupted iterations
+rooms   [  77% ] 20 VUs  0m46.0s/1m0s
+
+running (0m47.0s), 20/20 VUs, 233 complete and 0 interrupted iterations
+rooms   [  78% ] 20 VUs  0m47.0s/1m0s
+
+running (0m48.0s), 20/20 VUs, 237 complete and 0 interrupted iterations
+rooms   [  80% ] 20 VUs  0m48.0s/1m0s
+
+running (0m49.0s), 20/20 VUs, 243 complete and 0 interrupted iterations
+rooms   [  82% ] 20 VUs  0m49.0s/1m0s
+
+running (0m50.0s), 20/20 VUs, 247 complete and 0 interrupted iterations
+rooms   [  83% ] 20 VUs  0m50.0s/1m0s
+
+running (0m51.0s), 20/20 VUs, 252 complete and 0 interrupted iterations
+rooms   [  85% ] 20 VUs  0m51.0s/1m0s
+
+running (0m52.0s), 20/20 VUs, 256 complete and 0 interrupted iterations
+rooms   [  87% ] 20 VUs  0m52.0s/1m0s
+
+running (0m53.0s), 20/20 VUs, 267 complete and 0 interrupted iterations
+rooms   [  88% ] 20 VUs  0m53.0s/1m0s
+
+running (0m54.0s), 20/20 VUs, 270 complete and 0 interrupted iterations
+rooms   [  90% ] 20 VUs  0m54.0s/1m0s
+
+running (0m55.0s), 20/20 VUs, 272 complete and 0 interrupted iterations
+rooms   [  92% ] 20 VUs  0m55.0s/1m0s
+
+running (0m56.0s), 20/20 VUs, 276 complete and 0 interrupted iterations
+rooms   [  93% ] 20 VUs  0m56.0s/1m0s
+
+running (0m57.0s), 20/20 VUs, 282 complete and 0 interrupted iterations
+rooms   [  95% ] 20 VUs  0m57.0s/1m0s
+
+running (0m58.0s), 20/20 VUs, 291 complete and 0 interrupted iterations
+rooms   [  97% ] 20 VUs  0m58.0s/1m0s
+
+running (0m59.0s), 20/20 VUs, 293 complete and 0 interrupted iterations
+rooms   [  98% ] 20 VUs  0m59.0s/1m0s
+
+running (1m00.0s), 20/20 VUs, 295 complete and 0 interrupted iterations
+rooms   [ 100% ] 20 VUs  1m00.0s/1m0s
+
+running (1m01.0s), 14/20 VUs, 301 complete and 0 interrupted iterations
+rooms ↓ [ 100% ] 20 VUs  1m0s
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 315     5.136277/s
+    checks_succeeded...: 100.00% 315 out of 315
+    checks_failed......: 0.00%   0 out of 315
+
+    ✓ 200
+
+    HTTP
+    http_req_duration..............: avg=3.87s med=3.88s p(95)=4.8s p(99)=5.08s max=5.6s
+      { expected_response:true }...: avg=3.87s med=3.88s p(95)=4.8s p(99)=5.08s max=5.6s
+    http_req_failed................: 0.00%  0 out of 315
+    http_reqs......................: 315    5.136277/s
+
+    EXECUTION
+    iteration_duration.............: avg=3.87s med=3.88s p(95)=4.8s p(99)=5.08s max=5.6s
+    iterations.....................: 315    5.136277/s
+    vus............................: 14     min=14       max=20
+    vus_max........................: 20     min=20       max=20
+
+    NETWORK
+    data_received..................: 2.1 MB 34 kB/s
+    data_sent......................: 139 kB 2.3 kB/s
+
+
+
+
+running (1m01.3s), 00/20 VUs, 315 complete and 0 interrupted iterations
+rooms ✓ [ 100% ] 20 VUs  1m0s
