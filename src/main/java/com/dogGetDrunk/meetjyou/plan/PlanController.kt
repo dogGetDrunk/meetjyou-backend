@@ -62,7 +62,7 @@ class PlanController(
             planService.createPlan(request, idempotencyKey)
         } catch (e: DataIntegrityViolationException) {
             val key = idempotencyKey ?: throw e
-            planService.resolveAfterConflict(request, key)
+            planService.resolveAfterConflict(request, key) ?: throw e
         }
 
     @Operation(summary = "단건 조회", description = "UUID로 여행 계획을 조회합니다.")

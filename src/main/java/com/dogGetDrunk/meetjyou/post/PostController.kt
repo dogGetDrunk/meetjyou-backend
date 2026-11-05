@@ -69,7 +69,7 @@ class PostController(
             postService.createPost(createPostRequest, idempotencyKey)
         } catch (e: DataIntegrityViolationException) {
             val key = idempotencyKey ?: throw e
-            postService.resolveAfterConflict(createPostRequest, key)
+            postService.resolveAfterConflict(createPostRequest, key) ?: throw e
         }
 
     @Operation(summary = "모든 모집글 조회하기", description = "등록된 모든 모집글을 페이지네이션하여 조회합니다.")

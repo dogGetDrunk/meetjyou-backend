@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.common.idempotency
 
+import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
 import com.dogGetDrunk.meetjyou.common.exception.business.idempotency.IdempotencyKeyConflictException
 import com.dogGetDrunk.meetjyou.user.User
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -13,6 +14,17 @@ class IdempotencyKeyService(
     private val idempotencyKeyRepository: IdempotencyKeyRepository,
     private val objectMapper: ObjectMapper,
 ) {
+    // Runs before any lookup or write: a key longer than the column would otherwise fail at insert
+    // time as an integrity violation and be mistaken for an idempotency race.
+    fun validateKeyLength(key: String?) {
+        if (key != null && key.length > MAX_KEY_LENGTH) {
+            throw InvalidInputException(
+                value = "Idempotency-Key length=${key.length}",
+                message = "Idempotency-Key must be at most $MAX_KEY_LENGTH characters",
+            )
+        }
+    }
+
     fun hashRequest(request: Any): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(objectMapper.writeValueAsBytes(request))
         return digest.joinToString("") { "%02x".format(it) }
@@ -42,5 +54,9 @@ class IdempotencyKeyService(
                 requestHash = requestHash,
             )
         )
+    }
+
+    companion object {
+        const val MAX_KEY_LENGTH = 255
     }
 }
