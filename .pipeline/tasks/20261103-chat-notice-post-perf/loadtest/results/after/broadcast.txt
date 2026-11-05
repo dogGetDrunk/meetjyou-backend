@@ -1,0 +1,3 @@
+run=1 http_time=200 3.109197 outbox_rows=4502 stmts=4528
+run=2 http_time=200 3.475226 outbox_rows=4502 stmts=6131
+run=3 http_time=200 3.083204 outbox_rows=4502 stmts=5325
