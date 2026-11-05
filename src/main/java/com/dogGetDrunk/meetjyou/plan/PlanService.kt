@@ -39,6 +39,7 @@ class PlanService(
 
     @Transactional
     fun createPlan(request: CreatePlanRequest, idempotencyKey: String? = null): CreatePlanResponse {
+        idempotencyKeyService.validateKeyLength(idempotencyKey)
         val user = currentUserProvider.user
 
         if (idempotencyKey != null) {
@@ -88,14 +89,16 @@ class PlanService(
     /**
      * See PostService.resolveAfterConflict for why the controller's recovery path must re-run
      * resolveExisting (re-validating the request hash) rather than a bare re-fetch by key.
+     * Returns null when no key row exists: the violation was not an idempotency race, so the
+     * controller rethrows the original exception.
      */
     @Transactional(readOnly = true)
-    fun resolveAfterConflict(request: CreatePlanRequest, idempotencyKey: String): CreatePlanResponse {
+    fun resolveAfterConflict(request: CreatePlanRequest, idempotencyKey: String): CreatePlanResponse? {
         val user = currentUserProvider.user
         val requestHash = idempotencyKeyService.hashRequest(request)
         val resourceUuid = idempotencyKeyService
             .resolveExisting(IdempotencyScope.CREATE_PLAN, user, idempotencyKey, requestHash)
-            ?: throw PlanNotFoundException(user.uuid)
+            ?: return null
         return buildCreatePlanResponse(resourceUuid)
     }
 

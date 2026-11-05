@@ -11,8 +11,8 @@ paths:
 ## Idempotent create (`Idempotency-Key` header)
 Opting a new create endpoint in:
 1. Add a value to `IdempotencyScope`; accept an optional `Idempotency-Key` header
-2. Service: `resolveExisting` before creating, `record` after (same transaction)
-3. Controller: catch `DataIntegrityViolationException` → `resolveAfterConflict` (see `PostController`)
+2. Service: `validateKeyLength` first (over 255 chars → 400 `INVALID_INPUT_VALUE`), then `resolveExisting` before creating, `record` after (same transaction)
+3. Controller: catch `DataIntegrityViolationException` → `resolveAfterConflict(...) ?: throw e` (see `PostController`) — no key row means the violation was not the idempotency race, so the original exception propagates (mapped unique → 409, unmapped → 500), never a NotFound
 
 - `resolveAfterConflict` re-checks the request hash — never replace it with a plain lookup by key (would return the winner's resource to a different body)
 - `IdempotencyKeyService.record` stays non-`@Transactional` and never catches the unique violation (session becomes rollback-only)

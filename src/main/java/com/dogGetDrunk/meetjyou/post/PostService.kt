@@ -73,6 +73,7 @@ class PostService(
 
     @Transactional
     fun createPost(request: CreatePostRequest, idempotencyKey: String? = null): CreatePostResponse {
+        idempotencyKeyService.validateKeyLength(idempotencyKey)
         val author = requireCurrentUser()
 
         if (idempotencyKey != null) {
@@ -106,14 +107,16 @@ class PostService(
      * requests carried different bodies, silently defeating the hash check. Re-running
      * resolveExisting here re-validates the hash, so a genuine same-body double-tap resolves to
      * the winner's resource while a same-key-different-body collision still 409s.
+     * Returns null when no key row exists: the violation came from something other than the
+     * idempotency race, so the controller rethrows the original exception (409/500 as mapped).
      */
     @Transactional(readOnly = true)
-    fun resolveAfterConflict(request: CreatePostRequest, idempotencyKey: String): CreatePostResponse {
+    fun resolveAfterConflict(request: CreatePostRequest, idempotencyKey: String): CreatePostResponse? {
         val author = requireCurrentUser()
         val requestHash = idempotencyKeyService.hashRequest(request)
         val resourceUuid = idempotencyKeyService
             .resolveExisting(IdempotencyScope.CREATE_POST, author, idempotencyKey, requestHash)
-            ?: throw PostNotFoundException(author.uuid)
+            ?: return null
         return buildCreatePostResponse(resourceUuid)
     }
 
