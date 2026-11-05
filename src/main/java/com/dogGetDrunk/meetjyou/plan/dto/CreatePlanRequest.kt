@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.plan.dto
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import jakarta.validation.Valid
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
@@ -19,6 +20,8 @@ data class CreatePlanRequest(
     val centerLng: Double,
     @field:Size(max = 500)
     val memo: String?,
+    @field:Valid
+    @field:Size(max = CreateMarkerRequest.MAX_MARKERS)
     val markers: List<CreateMarkerRequest> = emptyList(),
 ) {
     // See CreatePostRequest.isItinStartAfterNow for why @JsonIgnore is required on
