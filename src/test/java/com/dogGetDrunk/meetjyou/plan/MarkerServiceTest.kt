@@ -106,7 +106,7 @@ class MarkerServiceTest : BehaviorSpec() {
 
             `when`("plan이 존재하고 본인 소유이면") {
                 then("기존 마커를 삭제하고 새 마커를 저장한 뒤, 재조회 없이 저장한 목록을 그대로 반환한다") {
-                    every { planRepository.findByUuid(plan.uuid) } returns plan
+                    every { planRepository.findForUpdateByUuid(plan.uuid) } returns plan
                     every { currentUserProvider.uuid } returns owner.uuid
 
                     val result = sut.replaceMarkers(plan.uuid, markerRequests)
@@ -121,7 +121,7 @@ class MarkerServiceTest : BehaviorSpec() {
             `when`("plan이 존재하지 않으면") {
                 then("PlanNotFoundException을 던진다") {
                     val unknownUuid = UUID.randomUUID()
-                    every { planRepository.findByUuid(unknownUuid) } returns null
+                    every { planRepository.findForUpdateByUuid(unknownUuid) } returns null
 
                     shouldThrow<PlanNotFoundException> {
                         sut.replaceMarkers(unknownUuid, markerRequests)
@@ -133,7 +133,7 @@ class MarkerServiceTest : BehaviorSpec() {
                 then("PlanUpdateAccessDeniedException을 던진다") {
                     val otherUserUuid = UUID.randomUUID()
 
-                    every { planRepository.findByUuid(plan.uuid) } returns plan
+                    every { planRepository.findForUpdateByUuid(plan.uuid) } returns plan
                     every { currentUserProvider.uuid } returns otherUserUuid
 
                     shouldThrow<PlanUpdateAccessDeniedException> {
