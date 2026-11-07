@@ -15,7 +15,7 @@ class PartyControllerTest : BehaviorSpec({
                 val pageableParam = method.parameters.first { it.isAnnotationPresent(ParameterObject::class.java) }
                 val sort = pageableParam.getAnnotation(PageableDefault::class.java).sort
 
-                // PartyRepository.findAllByPlan_Uuid queries Party directly, not UserParty,
+                // PartyRepository.findAllByPlanUuidWithPlan queries Party directly, not UserParty,
                 // so the sort property must NOT be prefixed with "party." (copy-paste regression guard).
                 sort shouldBe arrayOf("createdAt")
             }
