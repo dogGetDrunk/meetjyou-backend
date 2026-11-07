@@ -35,11 +35,6 @@ interface UserPartyRepository : JpaRepository<UserParty, Long>, UserPartyRowLock
         userUuids: Collection<UUID>,
     ): List<UserParty>
 
-    fun findAllByUser_Uuid(
-        userUuid: UUID,
-        pageable: Pageable
-    ): Page<UserParty>
-
     @Query(
         value = """
             select up
@@ -58,19 +53,6 @@ interface UserPartyRepository : JpaRepository<UserParty, Long>, UserPartyRowLock
         @Param("userUuid") userUuid: UUID,
         pageable: Pageable,
     ): Page<UserParty>
-
-    fun findAllByParty_Uuid(partyUuid: UUID): List<UserParty>
-
-    fun existsByParty_UuidAndUser_Uuid(
-        partyUuid: UUID,
-        userUuid: UUID
-    ): Boolean
-
-    fun existsByParty_UuidAndUser_UuidAndMemberStatus(
-        partyUuid: UUID,
-        userUuid: UUID,
-        memberStatus: MemberStatus
-    ): Boolean
 
     @Query(
         """

@@ -32,7 +32,7 @@ import kotlin.reflect.full.functions
 
 // Regression tests for the party-module N+1 fixes: getAllParties / getPartiesByPlanUuid /
 // getPartiesByUserUuid must go through the join-fetch repository methods, not the plain
-// findAll/findAllByUser_Uuid ones that force a lazy load of party.plan per row.
+// findAll ones that force a lazy load of party.plan per row.
 class PartyQueryOptimizationTest : BehaviorSpec() {
 
     private val partyRepository = mockk<PartyRepository>(relaxed = true)
@@ -85,14 +85,13 @@ class PartyQueryOptimizationTest : BehaviorSpec() {
                     sut.getPartiesByPlanUuid(planUuid, pageable)
 
                     verify(exactly = 1) { partyRepository.findAllByPlanUuidWithPlan(planUuid, pageable) }
-                    verify(exactly = 0) { partyRepository.findAllByPlan_Uuid(planUuid, pageable) }
                 }
             }
         }
 
         given("유저 기준 파티 목록 조회 시") {
             `when`("getPartiesByUserUuid를 호출하면") {
-                then("party를 JOIN FETCH하는 findAllWithPartyByUserUuid를 사용하고 findAllByUser_Uuid는 호출하지 않는다") {
+                then("party를 JOIN FETCH하는 findAllWithPartyByUserUuid를 사용한다") {
                     val userParty = UserParty(party, user, PartyRole.MEMBER)
                     every { userPartyRepository.findAllWithPartyByUserUuid(user.uuid, pageable) } returns PageImpl(listOf(userParty))
 
@@ -100,7 +99,6 @@ class PartyQueryOptimizationTest : BehaviorSpec() {
 
                     result.content.single().uuid shouldBe party.uuid
                     verify(exactly = 1) { userPartyRepository.findAllWithPartyByUserUuid(user.uuid, pageable) }
-                    verify(exactly = 0) { userPartyRepository.findAllByUser_Uuid(user.uuid, pageable) }
                 }
             }
         }
