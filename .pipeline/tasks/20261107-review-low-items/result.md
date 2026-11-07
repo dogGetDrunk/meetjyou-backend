@@ -40,7 +40,7 @@
 - 각 워커 PR: 엔진 gate `./gradlew test build` + CI 필수 체크 `build-and-test`(`./gradlew build dockerTest`) 통과 후 머지
 - AT-005-1(마커 잠금 dockerTest)은 CI dockerTest에서 실행
 - 엔진 `check-tests` 통과, 단 project.yaml에 `test_red` 미설정이라 base RED 자동 실행은 없었음
-- main 최종 머지(#276) CI: 결과 PR 본문에 기록
+- main 최종 머지(#276, `0d63869`) CI `build-and-test` success(run 42369782831, build + dockerTest 포함), 운영 자동 배포 success
 
 ## 남은 후속 작업
 
