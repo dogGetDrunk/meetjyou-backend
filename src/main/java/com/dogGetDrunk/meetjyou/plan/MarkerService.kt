@@ -32,7 +32,8 @@ class MarkerService(
 
     @Transactional
     fun replaceMarkers(planUuid: UUID, markers: List<CreateMarkerRequest>): List<MarkerResponse> {
-        val plan = planRepository.findByUuid(planUuid)
+        // Plan row lock first: overlapping replacements serialize, so only one request's set remains
+        val plan = planRepository.findForUpdateByUuid(planUuid)
             ?: throw PlanNotFoundException(planUuid)
 
         val currentUserUuid = currentUserProvider.uuid
