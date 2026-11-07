@@ -21,7 +21,10 @@ class AppVersionService(
     private val summaryCache = ConcurrentHashMap<Platform, VersionSummary>()
 
     fun checkVersion(platform: Platform, clientVersion: String): VersionCheckResponse {
-        val summary = summaryCache.getOrPut(platform) { buildSummary(platform) }
+        // computeIfAbsent holds the bin lock while computing, so a write's remove() waits and then
+        // clears the result: a summary built from pre-write data can't stay cached.
+        // The mapping function must never modify summaryCache itself.
+        val summary = summaryCache.computeIfAbsent(platform) { buildSummary(it) }
         val downloadUrl = platformStoreUrlRepository.findById(platform).orElse(null)?.downloadUrl
 
         if (!SemVer.isValid(clientVersion)) {

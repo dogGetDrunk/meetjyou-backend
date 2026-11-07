@@ -10,6 +10,7 @@ import io.jsonwebtoken.io.Decoders
 import io.jsonwebtoken.security.Keys
 import io.jsonwebtoken.security.MacAlgorithm
 import jakarta.servlet.http.HttpServletRequest
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime
@@ -46,7 +47,7 @@ class JwtProvider(
         val token = Jwts.builder()
             .issuer(issuer)
             .subject(userUuid.toString())
-            .claim("userUuid", userUuid.toString())
+            .claim(USER_UUID_CLAIM, userUuid.toString())
             .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
             .id(jti.toString())
             .issuedAt(now)
@@ -67,7 +68,7 @@ class JwtProvider(
         return Jwts.builder()
             .issuer(issuer)
             .subject(userUuid.toString())
-            .claim("userUuid", userUuid.toString())
+            .claim(USER_UUID_CLAIM, userUuid.toString())
             .claim("role", role.name)
             .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
             .issuedAt(now)
@@ -98,9 +99,18 @@ class JwtProvider(
         false
     }
 
-    fun getUserUuid(token: String): UUID = UUID.fromString(getClaims(token)["userUuid"].toString())
+    fun getUserUuid(token: String): UUID {
+        val claim = getClaims(token)[USER_UUID_CLAIM] as? String
+            ?: throw invalidUserUuidClaim("Missing userUuid claim")
+        return runCatching { UUID.fromString(claim) }.getOrNull()
+            ?: throw invalidUserUuidClaim("Malformed userUuid claim")
+    }
 
-    fun getExpiration(token: String): Date = getClaims(token).expiration
+    // Logs the reason only: the claim value is attacker-controlled input.
+    private fun invalidUserUuidClaim(reason: String): InvalidJwtException {
+        log.warn("Rejected JWT: {}", reason)
+        return InvalidJwtException(message = reason)
+    }
 
     fun getJti(token: String): String =
         getClaims(token).id ?: throw InvalidJwtException(message = "Missing jti claim")
@@ -138,6 +148,8 @@ class JwtProvider(
             .payload
 
     companion object {
+        private val log = LoggerFactory.getLogger(JwtProvider::class.java)
+        private const val USER_UUID_CLAIM = "userUuid"
         private const val TOKEN_TYPE_CLAIM = "token_type"
         private const val ACCESS_TOKEN_TYPE = "access"
         private const val REFRESH_TOKEN_TYPE = "refresh"

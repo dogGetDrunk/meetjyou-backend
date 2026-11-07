@@ -9,6 +9,7 @@ import com.dogGetDrunk.meetjyou.notification.target.NotificationTargetResolver
 import com.dogGetDrunk.meetjyou.notification.target.PushTarget
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -42,7 +43,9 @@ class NotificationDispatcher(
         val (exhausted, items) = claimed.partition { it.attempts >= backoffSeconds.size }
         exhausted.forEach {
             log.warn("Outbox item reclaimed past the attempt limit, mark DEAD without sending. outboxId={}", it.id)
-            mark(it, DeliveryStatus.DEAD, it.attempts + 1, it.availableAt, it.deliveredTokenIds)
+            log.recordSafely(it.id) {
+                mark(it, DeliveryStatus.DEAD, it.attempts + 1, it.availableAt, it.deliveredTokenIds)
+            }
         }
         if (items.isEmpty()) return
 
@@ -54,7 +57,7 @@ class NotificationDispatcher(
                 invalidTokenIds += processItem(item, targetsByUserId[item.user.id] ?: emptyList())
             } catch (e: Exception) {
                 log.error("Failed to process outbox item id={}, scheduling retry", item.id, e)
-                recordRetry(item, item.attempts + 1, item.deliveredTokenIds)
+                log.recordSafely(item.id) { recordRetry(item, item.attempts + 1, item.deliveredTokenIds) }
             }
         }
         deactivateTokens(invalidTokenIds)
@@ -167,5 +170,17 @@ class NotificationDispatcher(
 
     private companion object {
         const val CLAIM_LEASE_SECONDS = 600L
+    }
+}
+
+// A failed result write leaves the row SENDING; the claim lease reclaims it later, so the rest
+// of the batch and the token deactivation must not be cut by one write failure.
+// Top-level to stay under detekt's per-class function threshold.
+@Suppress("TooGenericExceptionCaught")
+private inline fun Logger.recordSafely(outboxId: Long, record: () -> Unit) {
+    try {
+        record()
+    } catch (e: Exception) {
+        error("Failed to record outbox result, left for lease reclaim. outboxId={}", outboxId, e)
     }
 }
