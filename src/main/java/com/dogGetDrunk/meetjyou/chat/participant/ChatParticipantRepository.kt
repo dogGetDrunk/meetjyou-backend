@@ -17,11 +17,6 @@ interface ChatParticipantRepository : JpaRepository<ChatParticipant, Long> {
         roomUuid: UUID,
     ): ChatParticipant?
 
-    fun findAllByRoom_UuidAndUser_UuidIn(
-        roomUuid: UUID,
-        userUuids: Collection<UUID>,
-    ): List<ChatParticipant>
-
     fun deleteByUser_UuidAndRoom_Uuid(
         userUuid: UUID,
         roomUuid: UUID,
