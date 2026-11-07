@@ -14,14 +14,11 @@ import java.util.UUID
 interface PartyRepository : JpaRepository<Party, Long>, PartyRowLock {
     fun findByUuid(uuid: UUID): Party?
     fun findAllByUuidIn(uuids: List<UUID>): List<Party>
-    fun findAllByPlan_Uuid(planUuid: UUID, pageable: Pageable): Page<Party>
 
     // Bulk on purpose, same as PostRepository.detachPlan: skips a party re-linked after the caller's snapshot (#201).
     @Modifying
     @Query("UPDATE Party p SET p.plan = null WHERE p.plan = :plan")
     fun detachPlan(@Param("plan") plan: Plan): Int
-
-    fun existsByPlan_Uuid(planUuid: UUID): Boolean
 
     // Scalar on purpose: resolves which party row to lock without loading the post or party into
     // the persistence context ahead of that lock.
