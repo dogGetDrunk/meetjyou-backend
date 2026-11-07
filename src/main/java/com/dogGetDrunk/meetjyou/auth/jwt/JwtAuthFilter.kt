@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.common.exception.ErrorResponse
 import com.dogGetDrunk.meetjyou.common.exception.business.BusinessException
 import com.dogGetDrunk.meetjyou.common.exception.business.user.UserWithdrawnException
 import com.dogGetDrunk.meetjyou.config.ApiVersionConfig.Companion.V1
+import com.dogGetDrunk.meetjyou.config.PublicReadEndpoints
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -55,22 +56,41 @@ class JwtAuthFilter(
         log.info("JwtAuthFilter invoked for ${request.requestURI}")
 
         val token = jwtProvider.extractToken(request)
+        val proceed = token == null || tryAuthenticate(token, request, response)
+        if (proceed) {
+            filterChain.doFilter(request, response)
+        }
+    }
 
-        if (token != null) {
-            try {
-                authenticateFromToken(token, request)
-            } catch (e: BusinessException) {
-                // Filter-level failures never reach GlobalExceptionHandler, so this mirrors it: any
-                // domain exception, status from its ErrorCode. Catching only the JWT family would let
-                // a non-JWT exception thrown here escape the filter as a 500.
-                response.status = e.errorCode.status.value()
-                response.contentType = MediaType.APPLICATION_JSON_VALUE
-                objectMapper.writeValue(response.writer, ErrorResponse(e.errorCode, e.value))
-                return
+    // Returns whether the request continues down the chain; false means an error response was written.
+    private fun tryAuthenticate(
+        token: String,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ): Boolean =
+        try {
+            authenticateFromToken(token, request)
+            true
+        } catch (e: BusinessException) {
+            // A public read answers a failed token like a token-less request: the app may still
+            // attach an expired or stale token there, and the endpoint needs no user anyway.
+            if (PublicReadEndpoints.matches(request)) {
+                SecurityContextHolder.clearContext()
+                log.info("Ignoring failed token on public read {}: {}", request.requestURI, e.errorCode)
+                true
+            } else {
+                writeErrorResponse(response, e)
+                false
             }
         }
 
-        filterChain.doFilter(request, response)
+    // Filter-level failures never reach GlobalExceptionHandler, so this mirrors it: any domain
+    // exception, status from its ErrorCode. Catching only the JWT family would let a non-JWT
+    // exception thrown here escape the filter as a 500.
+    private fun writeErrorResponse(response: HttpServletResponse, e: BusinessException) {
+        response.status = e.errorCode.status.value()
+        response.contentType = MediaType.APPLICATION_JSON_VALUE
+        objectMapper.writeValue(response.writer, ErrorResponse(e.errorCode, e.value))
     }
 
     private fun authenticateFromToken(token: String, request: HttpServletRequest) {

@@ -81,11 +81,7 @@ class SecurityConfig(
                     // Load-test synthetic token issuance — gated by a static secret header, not JWT
                     .requestMatchers(HttpMethod.POST, "$V1/internal/load-test-token").permitAll()
                     // Public read-only
-                    .requestMatchers(HttpMethod.GET, "$V1/notices/**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "$V1/terms/**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "$V1/*/versions/check").permitAll()
-                    .requestMatchers(HttpMethod.GET, "$V1/*/versions/latest").permitAll()
-                    .requestMatchers(HttpMethod.GET, "$V1/users/is-duplicate-nickname").permitAll()
+                    .requestMatchers(PublicReadEndpoints.requestMatcher).permitAll()
                     // All remaining endpoints require a valid JWT
                     .anyRequest().authenticated()
             }
