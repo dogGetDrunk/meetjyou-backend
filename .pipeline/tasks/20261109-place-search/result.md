@@ -41,9 +41,29 @@
   - 요청 DTO의 새 필드는 맨 뒤에 기본값과 함께 추가(위치 인자 호출 호환)
 - detekt baseline: `PostService`·`PartyService`·`PlanService` 생성자 LongParameterList 항목 3개를 새 시그니처로 **교체**(항목 수 불변, 이미 동결된 지적의 시그니처 변경 — #222 커밋과 같은 방식). 새 지적은 `@Suppress`+이유(`Place` 생성자, `GetPostResponse.of`, 백그라운드 잡 catch) 또는 코드 수정
 
+## 운영 실측 (2026-11-09, 배포 후)
+
+- 적재: `SUCCEEDED`, 파일 `소상공인시장진흥공단_상가(상권)정보_20260930` — 읽음 2,753,778 / 적재 1,023,599 / 제외 1,730,179 / 신규 1,023,599 / 갱신·재매칭·비활성화 0
+- 소요 2시간 57분: 다운로드+스테이징 2시간 34분, 반영(5,000행 청크) 23분
+  - 스테이징 병목: DB URL에 `rewriteBatchedStatements`가 없어 `batchUpdate`가 행마다 EC2→OCI 왕복(스레드 덤프 `executeBatchSerially`), 초당 약 100행
+- 메모리: 앱 컨테이너 566→595MiB(한도 1.5GiB), EC2 가용 메모리 최저 710MB, CPU 2~7% — 서비스 영향 없음
+- 검색 지연(EC2에서 공개 URL 호출, 왕복 포함)
+
+| 검색어 | 횟수 | p50 | 최대 |
+|---|---|---|---|
+| 카페(전국, 일치 25,650건) | 40 | 8,909ms | 9,097ms (p95 9,060ms) |
+| 카페(서울 `region=11`) | 5 | 8,636ms | 8,884ms |
+| 막창 / 스타벅스 / 수원 | 5 | 177 / 117 / 145ms | 2,456 / 445 / 915ms(첫 호출) |
+| 해운대 / 밀본그레이츠 | 5 | 83 / 70ms | 261 / 99ms |
+
+- 원인: `EXPLAIN ANALYZE`에서 FULLTEXT 인덱스 탐색 자체가 13.5초(정렬은 수 ms). DB VM 메모리 956MB, InnoDB 버퍼 풀 128MB < place 데이터 198MB + 인덱스 250MB, 스왑 756MB 사용 → 일치 건수가 많은 검색어는 디스크 읽기에 묶임
+- 실행 방법: 로그인 불가 운영 관리자 계정 `opsadmin`(user id 15, ADMIN) 추가 + EC2 안에서 JWT 키로 토큰 발급(부하 테스트 토큰 기능은 운영에서 꺼져 있음)
+
 ## 남은 후속 작업
 
-- **배포 후 사람이 실행**: ADMIN 토큰으로 `POST /api/v1/admin/places/imports` → `GET .../latest`로 SUCCEEDED·건수 확인, 소요 시간·메모리 기록 / `GET /api/v1/places/search?q=카페` 등 p95 실측 → 기준 초과 시 메모리 인덱스 또는 지역 선택 강제 태스크
+- **흔한 두 글자 검색 개선(필수)**: '카페' 9초 — 원인은 아래 운영 실측. 후보: DB 버퍼 풀 확대(DB VM 956MB라 한계), 메모리 인덱스, 지역 선택 강제는 효과 없음(지역 필터도 8.6초, FULLTEXT 탐색이 먼저 전체 일치를 만듦)
+- **적재 속도**: JDBC URL(또는 적재 전용 연결)에 `rewriteBatchedStatements=true` → 스테이징 배치가 행 단위 왕복(초당 ~100행)에서 다중 행 INSERT로
+- `place_import_staging`이 다음 실행까지 데이터 183MB·인덱스 192MB를 차지 → 반영 성공 후 TRUNCATE 검토(작은 버퍼 풀을 place와 나눠 씀)
 - 운영 DB 계정 최소 권한 분리 시 `place_import_staging` TRUNCATE에 DROP 권한 필요
 - 프론트 합의: 검색 응답·`region`/`place` 필드, 앱 반영 후 문자열 필드 제거 태스크
 - 다음 태스크 후보: 마커 장소 참조, 직접 입력 장소·관리자 승인, 분기 자동 갱신(`@Scheduled`), 관광공사 적재(승인 후), 추천 집계
