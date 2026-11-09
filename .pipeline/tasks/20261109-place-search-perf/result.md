@@ -40,6 +40,7 @@
   - 토큰 AND 대신 구문 → AT-001 보조 지표(페이지 읽기) 실패 — 구문 위치 확인 읽기는 `ROWS_EXAMINED`에 안 잡혀 보조 지표가 잡음
   - 적재 후 `invalidate()` 삭제 → AT-005 단위 실패 / 세대 확인 없이 게시 → 경합 테스트 실패
 - 테스트가 잡은 구현 결함: `%`·`!`가 든 검색어에서 인덱싱 안 된 토큰을 요구해 FTS 경로만 0건(AT-003·004) → 토큰 규칙 수정
+- 1차 CI 실패(PR #282 첫 실행): `PlaceImportApiIntegrationTest`가 `SUCCEEDED`를 본 직후 성공 알림을 동기로 확인 — 알림은 상태 공개 뒤에 나가는 기존 경합. 같은 자리에 넣은 `invalidate()`도 AT-005 dockerTest를 가끔 깨뜨릴 수 있어 **무효화를 상태 공개 전으로 이동**, 테스트의 성공·실패 알림 확인은 `eventually`로
 - 비평 결정: `decisions.md`(C-r1-01~06 전부 수용), spec 변경: `spec-changelog.md`(비평 6 + 구현 중 5)
 - 측정 원자료: `spec.md` "로컬 재현 실측"·"구현 후 로컬 재현 결과", 스크립트 `scripts/`
 

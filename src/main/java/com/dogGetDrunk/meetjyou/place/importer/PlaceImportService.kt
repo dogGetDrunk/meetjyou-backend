@@ -55,9 +55,11 @@ class PlaceImportService(
     @Suppress("TooGenericExceptionCaught")
     private fun runGuarded(startedAt: Instant?) {
         try {
-            status = runImport(startedAt)
-            // Search picks its path from per-region counts; the import just changed them.
+            val result = runImport(startedAt)
+            // Search picks its path from per-region counts; the import just changed them. Dropped before the
+            // status says SUCCEEDED, so any search after a caller sees that uses the new counts.
             placeRegionStats.invalidate()
+            status = result
             log.info("Place import succeeded: {}", status)
             discordAlertService.sendOperationalAlert(
                 ALERT_SOURCE, SUCCESS_CLASS, "Place import succeeded", status.toString(),
