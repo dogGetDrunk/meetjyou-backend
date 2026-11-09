@@ -1,5 +1,8 @@
 package com.dogGetDrunk.meetjyou.party
 
+import com.dogGetDrunk.meetjyou.place.Place
+import com.dogGetDrunk.meetjyou.place.Region
+import com.dogGetDrunk.meetjyou.place.TravelDestination
 import com.dogGetDrunk.meetjyou.plan.Plan
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -53,6 +56,12 @@ class Party(
     var imageState: PartyImageState = PartyImageState.INHERITED
     @Column(columnDefinition = "TEXT")
     var planSnapshot: String? = null
+    // Representative travel destination (region + optional place). '00' (미지정) until one is chosen.
+    @Column(name = "region_code", nullable = false, length = Region.CODE_MAX_LENGTH)
+    var regionCode: String = Region.UNSPECIFIED_CODE
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "place_id")
+    var place: Place? = null
 
     companion object {
         const val NAME_MAX_LENGTH = 20
@@ -64,11 +73,25 @@ class Party(
     }
 
     // Plain assignment: the caller holds the party row lock and validates capacity against joined.
-    fun syncFromPost(capacity: Int, itinStart: Instant, itinFinish: Instant, destination: String) {
+    fun syncFromPost(
+        capacity: Int,
+        itinStart: Instant,
+        itinFinish: Instant,
+        destination: String,
+        travelDestination: TravelDestination,
+    ) {
         this.capacity = capacity
         this.itinStart = itinStart
         this.itinFinish = itinFinish
         this.destination = destination
+        applyTravelDestination(travelDestination)
+    }
+
+    fun travelDestination(): TravelDestination = TravelDestination(regionCode, place)
+
+    fun applyTravelDestination(destination: TravelDestination) {
+        regionCode = destination.regionCode
+        place = destination.place
     }
 
     fun closeRecruitment() {

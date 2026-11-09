@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.common.idempotency
 
+import com.dogGetDrunk.meetjyou.place.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoom
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
@@ -62,10 +63,12 @@ class ConflictRecoveryServiceTest : BehaviorSpec() {
         postRepository, userRepository, compPreferenceRepository, preferenceRepository,
         partyService, planRepository, markerRepository, userPartyRepository, postViewService,
         currentUserProvider, chatRoomRepository, idempotencyKeyService,
+            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
     )
     private val planSut = PlanService(
         planRepository, markerRepository, userRepository, postRepository, partyRepository,
         PlanAccessGuard(postRepository, userPartyRepository), currentUserProvider, idempotencyKeyService,
+            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
@@ -266,6 +269,7 @@ class ConflictRecoveryServiceTest : BehaviorSpec() {
                         postRepository, userRepository, compPreferenceRepository, preferenceRepository,
                         partyService, planRepository, markerRepository, userPartyRepository, postViewService,
                         currentUserProvider, chatRoomRepository, realKeys,
+                            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
                     )
 
                     val ex = shouldThrow<IdempotencyKeyConflictException> {
@@ -286,6 +290,7 @@ class ConflictRecoveryServiceTest : BehaviorSpec() {
                     val sut = PlanService(
                         planRepository, markerRepository, userRepository, postRepository, partyRepository,
                         PlanAccessGuard(postRepository, userPartyRepository), currentUserProvider, realKeys,
+                            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
                     )
 
                     val ex = shouldThrow<IdempotencyKeyConflictException> {

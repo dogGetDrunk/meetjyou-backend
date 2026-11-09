@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.common.idempotency
 
+import com.dogGetDrunk.meetjyou.place.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.ErrorCode
 import com.dogGetDrunk.meetjyou.common.exception.business.InvalidInputException
@@ -60,10 +61,12 @@ class IdempotencyKeyLengthServiceTest : BehaviorSpec() {
         postRepository, userRepository, compPreferenceRepository, preferenceRepository,
         partyService, planRepository, markerRepository, userPartyRepository, postViewService,
         currentUserProvider, chatRoomRepository, keyService,
+            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
     )
     private val planService = PlanService(
         planRepository, markerRepository, userRepository, postRepository, partyRepository,
         PlanAccessGuard(postRepository, userPartyRepository), currentUserProvider, keyService,
+            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf

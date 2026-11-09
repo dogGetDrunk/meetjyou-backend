@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.party
 
+import com.dogGetDrunk.meetjyou.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.chat.message.ChatMessageRepository
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipant
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantRepository
@@ -106,7 +107,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
             partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
             chatParticipantService, mockk(relaxed = true), userPartyRepository, userRepository,
             mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper().findAndRegisterModules(),
-            currentUserProvider,
+            currentUserProvider, PlaceTestDoubles.regionCatalog(),
         )
     }
 
@@ -114,7 +115,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         PostService(
             postRepository, userRepository, compPreferenceRepository, preferenceRepository, partyService,
             planRepository, markerRepository, userPartyRepository, mockk(relaxed = true), currentUserProvider,
-            chatRoomRepository, mockk(relaxed = true),
+            chatRoomRepository, mockk(relaxed = true), PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
         )
     }
 
@@ -122,6 +123,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         PlanService(
             planRepository, markerRepository, userRepository, postRepository, partyRepository,
             mockk(relaxed = true), currentUserProvider, mockk(relaxed = true),
+                PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
         )
     }
 

@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post
 
+import com.dogGetDrunk.meetjyou.place.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.party.Party
@@ -66,11 +67,12 @@ class UpdatePostCompPreferenceIntegrationTest : BehaviorSpec() {
     private val partyService by lazy {
         PartyService(parties, posts, plans, markers, rooms, mockk(relaxed = true), mockk(relaxed = true),
             memberships, users, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper(),
-            provider)
+            provider, PlaceTestDoubles.regionCatalog())
     }
     private val service by lazy {
         PostService(posts, users, compPreferences, preferences, partyService, plans, markers, memberships,
-            mockk(relaxed = true), provider, rooms, mockk(relaxed = true))
+            mockk(relaxed = true), provider, rooms, mockk(relaxed = true),
+                PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog())
     }
 
     private class Seed(val host: UUID, val post: UUID, val kept: Preference, val added: Preference)

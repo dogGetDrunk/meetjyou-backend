@@ -44,6 +44,7 @@ import com.dogGetDrunk.meetjyou.party.dto.PartyMemberResponse
 import com.dogGetDrunk.meetjyou.party.dto.PendingJoinRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyNameRequest
 import com.dogGetDrunk.meetjyou.party.dto.UpdatePartyResponse
+import com.dogGetDrunk.meetjyou.place.RegionCatalog
 import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
@@ -82,6 +83,7 @@ class PartyService(
     private val postImgService: PostImgService,
     private val objectMapper: ObjectMapper,
     private val currentUserProvider: CurrentUserProvider,
+    private val regionCatalog: RegionCatalog,
 ) {
     private val log = LoggerFactory.getLogger(PartyService::class.java)
 
@@ -106,6 +108,7 @@ class PartyService(
             name = request.name,
         ).apply {
             this.plan = plan
+            applyTravelDestination(request.travelDestination)
         }
 
         partyRepository.save(party)
@@ -123,23 +126,26 @@ class PartyService(
     fun getPartyByUuid(uuid: UUID): GetPartyResponse {
         val party = partyRepository.findByUuid(uuid) ?: throw PartyNotFoundException(uuid)
 
-        return GetPartyResponse.of(party, deserializePlanSnapshot(party))
+        return GetPartyResponse.of(party, regionCatalog.response(party.regionCode), deserializePlanSnapshot(party))
     }
 
     @Transactional(readOnly = true)
     fun getAllParties(pageable: Pageable): Page<GetPartyResponse> {
-        return partyRepository.findAllWithPlan(pageable).map { GetPartyResponse.of(it) }
+        return partyRepository.findAllWithPlan(pageable).map { toResponse(it) }
     }
 
     @Transactional(readOnly = true)
     fun getPartiesByPlanUuid(planUuid: UUID, pageable: Pageable): Page<GetPartyResponse> {
-        return partyRepository.findAllByPlanUuidWithPlan(planUuid, pageable).map { GetPartyResponse.of(it) }
+        return partyRepository.findAllByPlanUuidWithPlan(planUuid, pageable).map { toResponse(it) }
     }
 
     @Transactional(readOnly = true)
     fun getPartiesByUserUuid(userUuid: UUID, pageable: Pageable): Page<GetPartyResponse> {
-        return userPartyRepository.findAllWithPartyByUserUuid(userUuid, pageable).map { GetPartyResponse.of(it.party) }
+        return userPartyRepository.findAllWithPartyByUserUuid(userUuid, pageable).map { toResponse(it.party) }
     }
+
+    private fun toResponse(party: Party): GetPartyResponse =
+        GetPartyResponse.of(party, regionCatalog.response(party.regionCode))
 
     @Transactional(readOnly = true)
     fun getMyParties(pageable: Pageable): Page<GetMyPartyResponse> {
@@ -151,7 +157,7 @@ class PartyService(
         return membershipPage.map { userParty ->
             val chatRoom = roomByPartyUuid[userParty.party.uuid]
                 ?: throw ChatRoomNotFoundException(userParty.party.uuid.toString())
-            GetMyPartyResponse.of(userParty, chatRoom)
+            GetMyPartyResponse.of(userParty, regionCatalog.response(userParty.party.regionCode), chatRoom)
         }
     }
 
@@ -465,7 +471,7 @@ class PartyService(
 
         party.name = request.name
         log.info("Party name is updated: uuid=$partyUuid")
-        return UpdatePartyResponse.of(party)
+        return UpdatePartyResponse.of(party, regionCatalog.response(party.regionCode))
     }
 
     @Transactional
@@ -688,7 +694,8 @@ class PartyService(
     private fun snapshotPlan(party: Party) {
         val plan = party.plan ?: return
         val markers: List<Marker> = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(plan.uuid)
-        party.planSnapshot = objectMapper.writeValueAsString(GetPlanResponse.of(plan, markers))
+        val snapshot = GetPlanResponse.of(plan, markers, regionCatalog.response(plan.regionCode))
+        party.planSnapshot = objectMapper.writeValueAsString(snapshot)
     }
 
     private fun deserializePlanSnapshot(party: Party): GetPlanResponse? {

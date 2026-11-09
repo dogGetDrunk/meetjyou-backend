@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post
 
+import com.dogGetDrunk.meetjyou.place.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.auth.CustomUserPrincipal
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
@@ -42,6 +43,7 @@ class GetPostApplicationStatusTest : BehaviorSpec() {
         postRepository, userRepository, compPreferenceRepository, preferenceRepository,
         partyService, planRepository, markerRepository, userPartyRepository, postViewService,
         currentUserProvider, chatRoomRepository, idempotencyKeyService,
+            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf

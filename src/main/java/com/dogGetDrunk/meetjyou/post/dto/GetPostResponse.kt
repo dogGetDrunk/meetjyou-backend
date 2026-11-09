@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
+import com.dogGetDrunk.meetjyou.place.dto.PlaceSummaryResponse
+import com.dogGetDrunk.meetjyou.place.dto.RegionResponse
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostStatus
@@ -21,6 +23,8 @@ data class GetPostResponse(
     val itinStart: Instant,
     val itinFinish: Instant,
     val location: String,
+    val region: RegionResponse,
+    val place: PlaceSummaryResponse?,
     val capacity: Int,
     val joined: Int,
     val companionSpec: CompanionSpec?,
@@ -31,8 +35,10 @@ data class GetPostResponse(
     val myApplicationStatus: MemberStatus?,
 ) {
     companion object {
+        // One argument per independently loaded part (list paths batch-load each separately).
+        @Suppress("LongParameterList")
         fun of(
-            post: Post,
+            post: Post, region: RegionResponse,
             companionSpec: CompanionSpec?,
             views: Long = 0L,
             plan: GetPlanResponse? = null,
@@ -52,6 +58,8 @@ data class GetPostResponse(
                 itinStart = post.itinStart,
                 itinFinish = post.itinFinish,
                 location = post.location,
+                region = region,
+                place = post.place?.let { PlaceSummaryResponse.of(it) },
                 capacity = post.capacity,
                 joined = post.party.joined,
                 companionSpec = companionSpec,

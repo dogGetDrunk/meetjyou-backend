@@ -16,6 +16,9 @@ import com.dogGetDrunk.meetjyou.chat.room.dto.ChatRoomResponse
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.party.dto.CreatePartyRequest
+import com.dogGetDrunk.meetjyou.place.RegionCatalog
+import com.dogGetDrunk.meetjyou.place.TravelDestination
+import com.dogGetDrunk.meetjyou.place.TravelDestinationResolver
 import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.Plan
@@ -62,6 +65,8 @@ class PostService(
     private val currentUserProvider: CurrentUserProvider,
     private val chatRoomRepository: ChatRoomRepository,
     private val idempotencyKeyService: IdempotencyKeyService,
+    private val travelDestinationResolver: TravelDestinationResolver,
+    private val regionCatalog: RegionCatalog,
 ) {
     private val log = LoggerFactory.getLogger(PostService::class.java)
 
@@ -82,9 +87,11 @@ class PostService(
                 ?.let { return buildCreatePostResponse(it) }
         }
 
+        val destination = travelDestinationResolver.resolve(request.regionCode, request.placeId)
         val planRef = resolvePlanReference(request.planUuid, request.isPlanPublic)
-        val partyResult = partyService.createParty(buildCreatePartyRequest(request, author.uuid))
+        val partyResult = partyService.createParty(buildCreatePartyRequest(request, author.uuid, destination))
         val post = buildPost(author, partyResult.party, request, planRef)
+        post.applyTravelDestination(destination)
         postRepository.save(post)
         if (request.companionSpec != null) saveCompPreference(post, request.companionSpec)
 
@@ -94,7 +101,8 @@ class PostService(
         }
 
         log.info("New post created: $post")
-        return CreatePostResponse.of(post, request.companionSpec, ChatRoomResponse.of(partyResult.chatRoom))
+        val region = regionCatalog.response(post.regionCode)
+        return CreatePostResponse.of(post, region, request.companionSpec, ChatRoomResponse.of(partyResult.chatRoom))
     }
 
     /**
@@ -124,7 +132,8 @@ class PostService(
         val post = postRepository.findByUuid(postUuid) ?: throw PostNotFoundException(postUuid)
         val companionSpec = compPreferenceRepository.findAllByPost(post).toCompanionSpec()
         val chatRoom = chatRoomRepository.findByParty_Uuid(post.party.uuid) ?: throw PostNotFoundException(postUuid)
-        return CreatePostResponse.of(post, companionSpec, ChatRoomResponse.of(chatRoom))
+        val region = regionCatalog.response(post.regionCode)
+        return CreatePostResponse.of(post, region, companionSpec, ChatRoomResponse.of(chatRoom))
     }
 
     // No transaction here on purpose: the read-only transaction ends (and returns its connection)
@@ -193,9 +202,15 @@ class PostService(
         validatePostWritable(postUuid, post)
         validateCapacityNotBelowJoined(post.party, request.capacity)
 
+        val destination =
+            travelDestinationResolver.resolve(request.regionCode, request.placeId, post.travelDestination())
+
         applyPlanChange(post, request.planUuid, request.isPlanPublic)
         applyPostFields(post, request)
-        post.party.syncFromPost(request.capacity, request.itinStart, request.itinFinish, request.location)
+        post.applyTravelDestination(destination)
+        post.party.syncFromPost(
+            request.capacity, request.itinStart, request.itinFinish, request.location, destination,
+        )
 
         if (request.companionSpec != null) {
             // delete-then-insert instead of update — consider optimizing to an upsert
@@ -204,7 +219,7 @@ class PostService(
         }
 
         log.info("Post updated: ${post.uuid}")
-        return UpdatePostResponse.of(post, request.companionSpec)
+        return UpdatePostResponse.of(post, regionCatalog.response(post.regionCode), request.companionSpec)
     }
 
     @Transactional
@@ -296,7 +311,8 @@ class PostService(
         val myApplicationStatus = userPartyRepository
             .findByParty_UuidAndUser_Uuid(post.party.uuid, currentUserProvider.uuid)
             ?.memberStatus
-        return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
+        val region = regionCatalog.response(post.regionCode)
+        return GetPostResponse.of(post, region, companionSpec, views, plan, myApplicationStatus)
     }
 
     private fun buildGetPostResponse(post: Post, ctx: PostContextMaps): GetPostResponse {
@@ -304,20 +320,21 @@ class PostService(
         val plan = resolvePlanResponse(post, ctx.markersMap)
         val myApplicationStatus = ctx.myStatusMap[post.party.uuid]?.memberStatus
         val views = ctx.viewCountMap[post.id] ?: 0L
-        return GetPostResponse.of(post, companionSpec, views, plan, myApplicationStatus)
+        val region = regionCatalog.response(post.regionCode)
+        return GetPostResponse.of(post, region, companionSpec, views, plan, myApplicationStatus)
     }
 
     private fun resolvePlanResponse(planUuid: UUID?): GetPlanResponse? {
         if (planUuid == null) return null
         val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
         val plan = planRepository.findByUuid(planUuid) ?: return null
-        return GetPlanResponse.of(plan, markers)
+        return GetPlanResponse.of(plan, markers, regionCatalog.response(plan.regionCode))
     }
 
     private fun resolvePlanResponse(post: Post, markersMap: Map<UUID, List<Marker>>): GetPlanResponse? {
         if (post.isPlanPublic != true) return null
         val plan = post.plan ?: return null
-        return GetPlanResponse.of(plan, markersMap[plan.uuid] ?: emptyList())
+        return GetPlanResponse.of(plan, markersMap[plan.uuid] ?: emptyList(), regionCatalog.response(plan.regionCode))
     }
 
     private fun resolvePlanReference(planUuid: UUID?, isPlanPublic: Boolean?): Pair<Plan, Boolean>? {
@@ -352,7 +369,11 @@ class PostService(
         }
     }
 
-    private fun buildCreatePartyRequest(request: CreatePostRequest, ownerUuid: UUID) = CreatePartyRequest(
+    private fun buildCreatePartyRequest(
+        request: CreatePostRequest,
+        ownerUuid: UUID,
+        destination: TravelDestination,
+    ) = CreatePartyRequest(
         itinStart = request.itinStart,
         itinFinish = request.itinFinish,
         destination = request.location,
@@ -361,6 +382,7 @@ class PostService(
         name = request.title,
         planUuid = request.planUuid,
         ownerUuid = ownerUuid,
+        travelDestination = destination,
     )
 
     private fun buildPost(author: User, party: Party, request: CreatePostRequest, planRef: Pair<Plan, Boolean>?): Post =

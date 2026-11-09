@@ -3,6 +3,8 @@ package com.dogGetDrunk.meetjyou.party.dto
 import com.dogGetDrunk.meetjyou.party.Party
 import com.dogGetDrunk.meetjyou.party.PartyProgressStatus
 import com.dogGetDrunk.meetjyou.party.PartyRecruitmentStatus
+import com.dogGetDrunk.meetjyou.place.dto.PlaceSummaryResponse
+import com.dogGetDrunk.meetjyou.place.dto.RegionResponse
 import java.time.Instant
 import java.util.UUID
 
@@ -11,6 +13,8 @@ data class UpdatePartyResponse(
     val itinStart: Instant,
     val itinFinish: Instant,
     val destination: String,
+    val region: RegionResponse,
+    val place: PlaceSummaryResponse?,
     val joined: Int,
     val capacity: Int,
     val name: String,
@@ -21,12 +25,14 @@ data class UpdatePartyResponse(
     val planUuid: UUID?
 ) {
     companion object {
-        fun of(party: Party): UpdatePartyResponse {
+        fun of(party: Party, region: RegionResponse): UpdatePartyResponse {
             return UpdatePartyResponse(
                 uuid = party.uuid,
                 itinStart = party.itinStart,
                 itinFinish = party.itinFinish,
                 destination = party.destination,
+                region = region,
+                place = party.place?.let { PlaceSummaryResponse.of(it) },
                 joined = party.joined,
                 capacity = party.capacity,
                 name = party.name,

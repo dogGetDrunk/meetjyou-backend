@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.party
 
+import com.dogGetDrunk.meetjyou.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyCapacityBelowJoinedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
@@ -71,11 +72,13 @@ class PostLockFreshReadDockerTest : BehaviorSpec() {
     private val tx by lazy { TransactionTemplate(manager) }
     private val partyService by lazy {
         PartyService(parties, posts, plans, markers, rooms, mockk(relaxed = true), mockk(relaxed = true),
-            memberships, users, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper().findAndRegisterModules(), provider)
+            memberships, users, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper().findAndRegisterModules(), provider,
+                PlaceTestDoubles.regionCatalog())
     }
     private val service by lazy {
         PostService(posts, users, compPreferences, preferences, partyService, plans, markers, memberships,
-            mockk(relaxed = true), provider, rooms, mockk(relaxed = true))
+            mockk(relaxed = true), provider, rooms, mockk(relaxed = true),
+                PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog())
     }
     private data class Seed(val host: UUID, val applicant: UUID, val party: UUID, val post: UUID)
     private fun user(): User {

@@ -1,5 +1,7 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
+import com.dogGetDrunk.meetjyou.place.dto.PlaceSummaryResponse
+import com.dogGetDrunk.meetjyou.place.dto.RegionResponse
 import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostStatus
 import java.time.Instant
@@ -17,6 +19,8 @@ data class UpdatePostResponse(
     val itinStart: Instant,
     val itinFinish: Instant,
     val location: String,
+    val region: RegionResponse,
+    val place: PlaceSummaryResponse?,
     val capacity: Int,
     val joined: Int,
     val companionSpec: CompanionSpec?,
@@ -24,7 +28,7 @@ data class UpdatePostResponse(
     val isPlanPublic: Boolean?,
 ) {
     companion object {
-        fun of(post: Post, companionSpec: CompanionSpec?): UpdatePostResponse {
+        fun of(post: Post, region: RegionResponse, companionSpec: CompanionSpec?): UpdatePostResponse {
             return UpdatePostResponse(
                 uuid = post.uuid,
                 title = post.title,
@@ -37,6 +41,8 @@ data class UpdatePostResponse(
                 itinStart = post.itinStart,
                 itinFinish = post.itinFinish,
                 location = post.location,
+                region = region,
+                place = post.place?.let { PlaceSummaryResponse.of(it) },
                 capacity = post.capacity,
                 joined = post.party.joined,
                 companionSpec = companionSpec,
