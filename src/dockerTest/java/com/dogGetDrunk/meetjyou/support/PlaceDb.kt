@@ -1,6 +1,9 @@
 package com.dogGetDrunk.meetjyou.support
 
 import com.dogGetDrunk.meetjyou.place.Region
+import com.dogGetDrunk.meetjyou.place.PlaceRegionStats
+import com.dogGetDrunk.meetjyou.place.PlaceSearchRepository
+import com.dogGetDrunk.meetjyou.place.PlaceSearchService
 import com.dogGetDrunk.meetjyou.place.RegionCatalog
 import com.dogGetDrunk.meetjyou.place.RegionLevel
 import com.dogGetDrunk.meetjyou.place.RegionRepository
@@ -16,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import org.flywaydb.core.Flyway
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.springframework.transaction.support.TransactionTemplate
@@ -30,6 +34,9 @@ class PlaceDb(target: String? = null) {
     val mysql: MySqlDatabase = SharedMySql.newDatabase()
     val dataSource = DriverManagerDataSource(mysql.jdbcUrl, mysql.username, mysql.password)
     val jdbc = JdbcTemplate(dataSource)
+
+    /** Shared by [import] and [searchService], like the app's single bean. */
+    val regionStats = PlaceRegionStats(jdbc, DataSourceTransactionManager(dataSource))
 
     init {
         migrate(target)
@@ -52,12 +59,20 @@ class PlaceDb(target: String? = null) {
         return RegionCatalog(repository)
     }
 
+    fun searchService(regionScanMaxPlaces: Long = PlaceSearchService.REGION_SCAN_MAX_PLACES) = PlaceSearchService(
+        regionCatalog(),
+        PlaceSearchRepository(NamedParameterJdbcTemplate(dataSource)),
+        regionStats,
+        regionScanMaxPlaces,
+    )
+
     /** Runs one import of [zip] to completion and returns its final status. */
     fun import(zip: ByteArray, chunkSize: Int = DEFAULT_CHUNK): PlaceImportStatusResponse {
         val writer = PlaceImportWriter(jdbc, TransactionTemplate(DataSourceTransactionManager(dataSource)), chunkSize)
         val service = PlaceImportService(
             FixtureSource(zip), SbizZipReader(regionCatalog()), writer,
             PlaceImportProperties(chunkSize = chunkSize, stagingBatchSize = chunkSize), mockk(relaxed = true),
+            regionStats,
         )
         try {
             service.start()

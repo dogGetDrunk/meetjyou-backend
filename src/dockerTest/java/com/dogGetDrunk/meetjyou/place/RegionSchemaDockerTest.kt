@@ -1,11 +1,16 @@
 package com.dogGetDrunk.meetjyou.place
 
 import com.dogGetDrunk.meetjyou.support.PlaceDb
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
+import org.springframework.dao.DataIntegrityViolationException
 import java.util.UUID
 
-/** AT-001 (region seed) and AT-012 (existing rows get 미지정 when V46 adds the destination columns). */
+/**
+ * AT-001 (region seed), AT-012 (existing rows get 미지정 when V46 adds the destination columns) and
+ * AT-006 of 20261109-place-search-perf (V47 swaps the region index).
+ */
 class RegionSchemaDockerTest : BehaviorSpec() {
     init {
         given("AT-001 Flyway로 지역 시드를 적용하면") {
@@ -37,6 +42,29 @@ class RegionSchemaDockerTest : BehaviorSpec() {
                 newDistricts.forEach { (code, parent) -> parentOf(db, code) shouldBe parent }
                 count("SELECT COUNT(*) FROM region WHERE code = '00' AND searchable = 0") shouldBe 1
                 count("SELECT COUNT(*) FROM region WHERE code IN ('29', '46', '29110')") shouldBe 0
+            }
+        }
+
+        given("AT-006 V47을 적용하면") {
+            val db = PlaceDb()
+            fun indexColumns(name: String): List<String> = db.jdbc.queryForList(
+                """SELECT column_name FROM information_schema.statistics
+                   WHERE table_schema = DATABASE() AND table_name = 'place' AND index_name = ? ORDER BY seq_in_index""",
+                String::class.java, name,
+            )
+
+            then("지역 검색 인덱스가 생기고 옛 지역 인덱스는 없다") {
+                indexColumns("idx_place_region_search") shouldBe listOf("region_code", "active", "search_name")
+                indexColumns("idx_place_region_active") shouldBe emptyList()
+            }
+            then("지역 FK는 그대로 동작한다") {
+                shouldThrow<DataIntegrityViolationException> {
+                    db.jdbc.update(
+                        """INSERT INTO place (source, source_key, name, search_name, category_code, category_name,
+                                              region_code, road_address, lat, lng, active)
+                           VALUES ('SBIZ', 'FK', '가게', '가게', 'I21201', '카페', '99999', '도로명', 37.5, 127.0, 1)""",
+                    )
+                }
             }
         }
 

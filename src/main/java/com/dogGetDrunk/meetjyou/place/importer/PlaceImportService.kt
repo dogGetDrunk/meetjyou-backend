@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.place.importer
 
 import com.dogGetDrunk.meetjyou.common.discord.DiscordAlertService
 import com.dogGetDrunk.meetjyou.common.exception.business.place.PlaceImportInProgressException
+import com.dogGetDrunk.meetjyou.place.PlaceRegionStats
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -21,6 +22,7 @@ class PlaceImportService(
     private val writer: PlaceImportWriter,
     private val props: PlaceImportProperties,
     private val discordAlertService: DiscordAlertService,
+    private val placeRegionStats: PlaceRegionStats,
 ) {
     private val log = LoggerFactory.getLogger(PlaceImportService::class.java)
     private val running = AtomicBoolean(false)
@@ -54,6 +56,8 @@ class PlaceImportService(
     private fun runGuarded(startedAt: Instant?) {
         try {
             status = runImport(startedAt)
+            // Search picks its path from per-region counts; the import just changed them.
+            placeRegionStats.invalidate()
             log.info("Place import succeeded: {}", status)
             discordAlertService.sendOperationalAlert(
                 ALERT_SOURCE, SUCCESS_CLASS, "Place import succeeded", status.toString(),

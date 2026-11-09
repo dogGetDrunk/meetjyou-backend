@@ -9,14 +9,11 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 
 /** AT-008: ngram full-text search, region filters and ordering on real MySQL. */
 class PlaceSearchDockerTest : BehaviorSpec() {
     private val db = PlaceDb()
-    private val sut by lazy {
-        PlaceSearchService(db.regionCatalog(), PlaceSearchRepository(NamedParameterJdbcTemplate(db.dataSource)))
-    }
+    private val sut by lazy { db.searchService() }
 
     init {
         beforeSpec {
