@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.plan
 
+import com.dogGetDrunk.meetjyou.place.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.common.exception.business.idempotency.IdempotencyKeyConflictException
 import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
 import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyScope
@@ -36,6 +37,7 @@ class CreatePlanIdempotencyTest : BehaviorSpec() {
     private val sut = PlanService(
         planRepository, markerRepository, userRepository, postRepository, partyRepository,
         planAccessGuard, currentUserProvider, idempotencyKeyService,
+            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf

@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.party
 
+import com.dogGetDrunk.meetjyou.place.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
@@ -46,6 +47,7 @@ class CancelJoinRequestTest : BehaviorSpec() {
         partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
         chatParticipantService, chatRoomEventBroadcaster, userPartyRepository,
         userRepository, publisher, partyImgService, postImgService, objectMapper, currentUserProvider,
+            PlaceTestDoubles.regionCatalog(),
     )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf

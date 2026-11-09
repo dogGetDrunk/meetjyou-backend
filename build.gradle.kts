@@ -111,6 +111,9 @@ dependencies {
     // Rate limiting
     implementation("com.bucket4j:bucket4j-core:8.10.1")
 
+    // CSV parsing - SBIZ store file (every field quoted)
+    implementation("org.apache.commons:commons-csv:1.12.0")
+
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 

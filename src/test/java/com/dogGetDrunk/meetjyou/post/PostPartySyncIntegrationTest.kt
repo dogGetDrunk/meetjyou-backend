@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post
 
+import com.dogGetDrunk.meetjyou.place.support.PlaceTestDoubles
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyCapacityBelowJoinedException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
@@ -76,11 +77,12 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
     private val partyService by lazy {
         PartyService(parties, posts, plans, markers, rooms, mockk(relaxed = true), mockk(relaxed = true),
             memberships, users, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper(),
-            provider)
+            provider, PlaceTestDoubles.regionCatalog())
     }
     private val service by lazy {
         PostService(posts, users, compPreferences, preferences, partyService, plans, markers, memberships,
-            mockk(relaxed = true), provider, rooms, mockk(relaxed = true))
+            mockk(relaxed = true), provider, rooms, mockk(relaxed = true),
+                PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog())
     }
     private data class Seed(val host: UUID, val applicant: UUID, val party: UUID, val post: UUID)
     private fun user(): User {
@@ -223,6 +225,7 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
                         posts, users, FailingCompPreferences(compPreferences), preferences, partyService, plans,
                         markers,
                         memberships, mockk(relaxed = true), provider, rooms, mockk(relaxed = true),
+                            PlaceTestDoubles.resolver(), PlaceTestDoubles.regionCatalog(),
                     )
                     val change = changedRequest(linked, INCREASED_CAPACITY)
                     val failure = runAs(linked.seed.host) { failingService.updatePost(linked.seed.post, change) }

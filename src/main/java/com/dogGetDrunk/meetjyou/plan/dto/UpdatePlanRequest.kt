@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.plan.dto
 
+import com.dogGetDrunk.meetjyou.place.Region
 import com.fasterxml.jackson.annotation.JsonIgnore
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.NotBlank
@@ -20,6 +21,10 @@ data class UpdatePlanRequest(
     @field:Size(max = 500)
     val memo: String?,
     val favorite: Boolean,
+    // Optional while the app still sends only `location`: none → 미지정 region (see TravelDestinationResolver).
+    @field:Size(max = Region.CODE_MAX_LENGTH)
+    val regionCode: String? = null,
+    val placeId: Long? = null,
 ) {
     // See CreatePostRequest.isItinStartAfterNow for why @JsonIgnore is required on is-prefixed
     // validator methods, not just relying on validation-only intent.

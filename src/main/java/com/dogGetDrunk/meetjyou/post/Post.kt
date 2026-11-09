@@ -1,6 +1,9 @@
 package com.dogGetDrunk.meetjyou.post
 
 import com.dogGetDrunk.meetjyou.party.Party
+import com.dogGetDrunk.meetjyou.place.Place
+import com.dogGetDrunk.meetjyou.place.Region
+import com.dogGetDrunk.meetjyou.place.TravelDestination
 import com.dogGetDrunk.meetjyou.plan.Plan
 import com.dogGetDrunk.meetjyou.user.User
 import jakarta.persistence.Column
@@ -11,6 +14,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.FetchType
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.DynamicUpdate
@@ -55,6 +59,19 @@ class Post(
     var isPlanPublic: Boolean? = null
     @Enumerated(EnumType.STRING)
     var status: PostStatus = PostStatus.RECRUITING
+    // Representative travel destination (region + optional place). '00' (미지정) until one is chosen.
+    @Column(name = "region_code", nullable = false, length = Region.CODE_MAX_LENGTH)
+    var regionCode: String = Region.UNSPECIFIED_CODE
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "place_id")
+    var place: Place? = null
+
+    fun travelDestination(): TravelDestination = TravelDestination(regionCode, place)
+
+    fun applyTravelDestination(destination: TravelDestination) {
+        regionCode = destination.regionCode
+        place = destination.place
+    }
 
     fun completeRecruitment() {
         status = PostStatus.RECRUITMENT_COMPLETED

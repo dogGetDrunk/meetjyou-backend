@@ -104,6 +104,9 @@ enum class ErrorCode(
     // Notification
     BROADCAST_ALREADY_SENT(HttpStatus.CONFLICT, "Broadcast was already sent"),
 
+    // Place
+    PLACE_IMPORT_IN_PROGRESS(HttpStatus.CONFLICT, "A place import is already running"),
+
     // Idempotency
     IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, "Idempotency key reused with a different request body"),
 

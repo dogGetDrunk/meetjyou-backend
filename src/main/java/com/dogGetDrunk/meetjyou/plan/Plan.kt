@@ -1,5 +1,8 @@
 package com.dogGetDrunk.meetjyou.plan
 
+import com.dogGetDrunk.meetjyou.place.Place
+import com.dogGetDrunk.meetjyou.place.Region
+import com.dogGetDrunk.meetjyou.place.TravelDestination
 import com.dogGetDrunk.meetjyou.user.User
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -47,4 +50,19 @@ class Plan(
 
     @UpdateTimestamp
     val updatedAt: Instant = Instant.now()
+
+    // Representative travel destination (region + optional place). '00' (미지정) until one is chosen.
+    @Column(name = "region_code", nullable = false, length = Region.CODE_MAX_LENGTH)
+    var regionCode: String = Region.UNSPECIFIED_CODE
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "place_id")
+    var place: Place? = null
+
+    fun travelDestination(): TravelDestination = TravelDestination(regionCode, place)
+
+    fun applyTravelDestination(destination: TravelDestination) {
+        regionCode = destination.regionCode
+        place = destination.place
+    }
 }

@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
+import com.dogGetDrunk.meetjyou.place.Region
 import com.fasterxml.jackson.annotation.JsonIgnore
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
@@ -30,6 +31,10 @@ data class CreatePostRequest(
     val companionSpec: CompanionSpec?,
     val planUuid: UUID?,
     val isPlanPublic: Boolean?,
+    // Optional while the app still sends only `location`: none → 미지정 region (see TravelDestinationResolver).
+    @field:Size(max = Region.CODE_MAX_LENGTH)
+    val regionCode: String? = null,
+    val placeId: Long? = null,
 ) {
 
     // @JsonIgnore is required, not cosmetic: Jackson's bean introspection treats any public

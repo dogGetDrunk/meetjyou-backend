@@ -57,6 +57,7 @@ private val EXPECTED_STATUS: Map<ErrorCode, HttpStatus> = mapOf(
     ErrorCode.NOT_FOUND to HttpStatus.NOT_FOUND,
     ErrorCode.PARTY_JOIN_REQUEST_NOT_FOUND to HttpStatus.NOT_FOUND,
     ErrorCode.PARTY_NOT_FOUND to HttpStatus.NOT_FOUND,
+    ErrorCode.PLACE_IMPORT_IN_PROGRESS to HttpStatus.CONFLICT,
     ErrorCode.PLAN_NOT_FOUND to HttpStatus.NOT_FOUND,
     ErrorCode.POST_NOT_FOUND to HttpStatus.NOT_FOUND,
     ErrorCode.PREFERENCE_NOT_FOUND to HttpStatus.NOT_FOUND,

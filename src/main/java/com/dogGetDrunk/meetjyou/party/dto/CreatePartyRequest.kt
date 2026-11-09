@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.party.dto
 
 import com.dogGetDrunk.meetjyou.party.Party
+import com.dogGetDrunk.meetjyou.place.TravelDestination
 import com.fasterxml.jackson.annotation.JsonIgnore
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.Max
@@ -25,6 +26,9 @@ data class CreatePartyRequest(
     val name: String,
     val planUuid: UUID?,
     val ownerUuid: UUID,
+    // Resolved and validated by PostService before the party is created.
+    @field:JsonIgnore
+    val travelDestination: TravelDestination = TravelDestination.UNSPECIFIED,
 ) {
 
     // See CreatePostRequest.isItinStartAfterNow for why @JsonIgnore is required on is-prefixed

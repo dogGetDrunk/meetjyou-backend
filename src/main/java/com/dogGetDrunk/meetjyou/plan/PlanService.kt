@@ -7,6 +7,8 @@ import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyService
 import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyScope
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.party.PartyRepository
+import com.dogGetDrunk.meetjyou.place.RegionCatalog
+import com.dogGetDrunk.meetjyou.place.TravelDestinationResolver
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanRequest
 import com.dogGetDrunk.meetjyou.plan.dto.CreatePlanResponse
@@ -34,6 +36,8 @@ class PlanService(
     private val planAccessGuard: PlanAccessGuard,
     private val currentUserProvider: CurrentUserProvider,
     private val idempotencyKeyService: IdempotencyKeyService,
+    private val travelDestinationResolver: TravelDestinationResolver,
+    private val regionCatalog: RegionCatalog,
 ) {
     private val log = LoggerFactory.getLogger(PlanService::class.java)
 
@@ -48,6 +52,7 @@ class PlanService(
                 ?.let { return buildCreatePlanResponse(it) }
         }
 
+        val destination = travelDestinationResolver.resolve(request.regionCode, request.placeId)
         val plan = Plan(
             title = request.title,
             itinStart = request.itinStart,
@@ -58,6 +63,7 @@ class PlanService(
             memo = request.memo,
             owner = user
         )
+        plan.applyTravelDestination(destination)
 
         planRepository.save(plan)
 
@@ -83,7 +89,7 @@ class PlanService(
 
         log.info("New plan created: uuid=${plan.uuid} markers=${markers.size}")
 
-        return CreatePlanResponse.of(plan, markers)
+        return CreatePlanResponse.of(plan, regionCatalog.response(plan.regionCode), markers)
     }
 
     /**
@@ -105,7 +111,7 @@ class PlanService(
     private fun buildCreatePlanResponse(planUuid: UUID): CreatePlanResponse {
         val plan = planRepository.findByUuid(planUuid) ?: throw PlanNotFoundException(planUuid)
         val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
-        return CreatePlanResponse.of(plan, markers)
+        return CreatePlanResponse.of(plan, regionCatalog.response(plan.regionCode), markers)
     }
 
     @Transactional(readOnly = true)
@@ -116,7 +122,7 @@ class PlanService(
         planAccessGuard.validateReadAccess(plan, currentUserProvider.uuid)
 
         val markers = markerRepository.findAllByPlan_UuidOrderByDayNumAscIdxAsc(planUuid)
-        return GetPlanResponse.of(plan, markers)
+        return GetPlanResponse.of(plan, markers, regionCatalog.response(plan.regionCode))
     }
 
     @Transactional(readOnly = true)
@@ -127,7 +133,9 @@ class PlanService(
 
         val plans = planRepository.findAllByOwner_Uuid(userUuid, pageable)
         val markersByPlanUuid = resolveMarkersByPlan(plans.content.map { it.uuid })
-        return plans.map { GetPlanResponse.of(it, markersByPlanUuid[it.uuid] ?: emptyList()) }
+        return plans.map {
+            GetPlanResponse.of(it, markersByPlanUuid[it.uuid] ?: emptyList(), regionCatalog.response(it.regionCode))
+        }
     }
 
     private fun resolveMarkersByPlan(planUuids: List<UUID>): Map<UUID, List<Marker>> {
@@ -166,6 +174,9 @@ class PlanService(
         if (plan.owner.uuid != currentUserUuid) {
             throw PlanUpdateAccessDeniedException(planUuid, currentUserUuid)
         }
+        // Not `destination`: that name is the plan's free-text field inside the apply block below.
+        val travelDestination =
+            travelDestinationResolver.resolve(request.regionCode, request.placeId, plan.travelDestination())
 
         plan.apply {
             title = request.title
@@ -177,9 +188,10 @@ class PlanService(
             memo = request.memo
             favorite = request.favorite
         }
+        plan.applyTravelDestination(travelDestination)
 
         log.info("Plan updated: uuid=$planUuid")
-        return UpdatePlanResponse.of(plan)
+        return UpdatePlanResponse.of(plan, regionCatalog.response(plan.regionCode))
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.post.dto
 
+import com.dogGetDrunk.meetjyou.place.Region
 import com.fasterxml.jackson.annotation.JsonIgnore
 import jakarta.validation.Valid
 import jakarta.validation.constraints.AssertTrue
@@ -29,6 +30,10 @@ data class UpdatePostRequest(
     val companionSpec: CompanionSpec?,
     val planUuid: UUID?,
     val isPlanPublic: Boolean?,
+    // Optional while the app still sends only `location`: none → 미지정 region (see TravelDestinationResolver).
+    @field:Size(max = Region.CODE_MAX_LENGTH)
+    val regionCode: String? = null,
+    val placeId: Long? = null,
 ) {
 
     // @JsonIgnore: Jackson bean introspection treats any public is-prefixed no-arg method as a
