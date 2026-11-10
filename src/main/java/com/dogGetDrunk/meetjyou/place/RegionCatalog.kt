@@ -42,6 +42,9 @@ class RegionCatalog(
         return result
     }
 
+    /** Every searchable region code: the "whole country" region filter. */
+    fun searchableCodes(): Set<String> = snapshot.searchableCodes
+
     /** Searchable regions whose name contains [query], whitespace ignored. Exact names first, 시·도 before districts. */
     fun search(query: String, limit: Int): List<RegionResponse> {
         val needle = compact(query)
@@ -66,6 +69,7 @@ class RegionCatalog(
         val childrenOf: Map<String, List<Region>> =
             regions.filter { it.parentCode != null }.groupBy { it.parentCode.orEmpty() }
         val searchable: List<Region> = regions.filter { it.searchable }
+        val searchableCodes: Set<String> = searchable.mapTo(LinkedHashSet()) { it.code }
     }
 
     companion object {

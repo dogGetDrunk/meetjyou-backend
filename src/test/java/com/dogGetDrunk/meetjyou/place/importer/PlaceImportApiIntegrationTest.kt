@@ -135,7 +135,8 @@ class PlaceImportApiIntegrationTest : BehaviorSpec() {
 
                 gate.countDown()
                 eventually(WAIT_SECONDS.seconds) { state(admin) shouldBe "SUCCEEDED" }
-                alertSummaries() shouldContain "Place import succeeded"
+                // The alert goes out after the status flips, so it may land a moment later.
+                eventually(WAIT_SECONDS.seconds) { alertSummaries() shouldContain "Place import succeeded" }
                 call(HttpMethod.POST, "", admin).statusCode shouldBe HttpStatus.ACCEPTED
                 eventually(WAIT_SECONDS.seconds) { state(admin) shouldBe "SUCCEEDED" }
             }
@@ -148,7 +149,7 @@ class PlaceImportApiIntegrationTest : BehaviorSpec() {
 
                 call(HttpMethod.POST, "", admin).statusCode shouldBe HttpStatus.ACCEPTED
                 eventually(WAIT_SECONDS.seconds) { state(admin) shouldBe "FAILED" }
-                alertSummaries() shouldContain "Place import failed"
+                eventually(WAIT_SECONDS.seconds) { alertSummaries() shouldContain "Place import failed" }
                 Mockito.verify(writer, Mockito.never()).apply()
 
                 source.failure = null

@@ -29,4 +29,11 @@ Travel destination = region (required, '00' 미지정 when none) + place (option
 - `place` rows are never deleted (posts point at them); `place_import_staging` is emptied with TRUNCATE at the start of a run (needs DROP privilege)
 - Portal endpoints are data.go.kr internals: a portal change fails the run (Discord alert, `place` untouched)
 
-**Testing:** writer SQL and search (ngram FULLTEXT) are MySQL-only → `PlaceImportDockerTest`, `PlaceSearchDockerTest`, `RegionSchemaDockerTest`. Services built by hand use `PlaceTestDoubles` (real catalog over a 미지정-only list, not mockk — `clearAllMocks()` would wipe stubs).
+## Search (`PlaceSearchService`, `PlaceSearchRepository`)
+- No `ORDER BY` in place queries: a sort reads every match first ('카페' = 2.5만 rows > the 128MB buffer pool → 9 s in prod). Order past exact names is not a contract
+- Paths: exact name (region index) → then full-text (no region / region with > `REGION_SCAN_MAX_PLACES` active places) or region-index `LIKE` scan (small region). Both paths must return the same places: `PlaceSearchQuery` only requires tokens the ngram parser surely indexed (no stopword tokens, no one-char words, punctuation splits words), so full-text candidates ⊇ `LIKE` matches
+- Region-index queries keep `NO_MRR` (several region codes → MRR collects every match, no early stop) and `FORCE INDEX` (> 200 IN values → statistics estimate → full scan seen)
+- `PlaceRegionStats` (per-region active counts) only picks the path; `PlaceImportService` invalidates it after a successful import
+- Cost guard: `PlaceSearchCostDockerTest` (rows read per search must not grow with matches); measurements in `.pipeline/tasks/20261109-place-search-perf/spec.md`
+
+**Testing:** writer SQL and search (ngram FULLTEXT) are MySQL-only → `PlaceImportDockerTest`, `PlaceSearchDockerTest`, `PlaceSearchPathDockerTest`, `PlaceSearchCostDockerTest`, `RegionSchemaDockerTest`. Services built by hand use `PlaceTestDoubles` (real catalog over a 미지정-only list, not mockk — `clearAllMocks()` would wipe stubs).
