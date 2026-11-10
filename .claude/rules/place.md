@@ -31,9 +31,9 @@ Travel destination = region (required, '00' 미지정 when none) + place (option
 
 ## Search (`PlaceSearchService`, `PlaceSearchRepository`)
 - No `ORDER BY` in place queries: a sort reads every match first ('카페' = 2.5만 rows > the 128MB buffer pool → 9 s in prod). Order past exact names is not a contract
-- Paths: exact name (region index) → then full-text (no region / region with > `REGION_SCAN_MAX_PLACES` active places) or region-index `LIKE` scan (small region). Both paths must return the same places: `PlaceSearchQuery` only requires tokens the ngram parser surely indexed (no stopword tokens, no one-char words, punctuation splits words), so full-text candidates ⊇ `LIKE` matches
+- Paths: exact name (region index) → then full-text (no region filter, or the words match ≤ `FULL_TEXT_MAX_MATCHES` places nationwide) or region-index `LIKE` scan (region filter + common words). Both paths must return the same places: `PlaceSearchQuery` only requires tokens the ngram parser surely indexed (no stopword tokens, no one-char words, punctuation splits words), so full-text candidates ⊇ `LIKE` matches
 - Region-index queries keep `NO_MRR` (several region codes → MRR collects every match, no early stop) and `FORCE INDEX` (> 200 IN values → statistics estimate → full scan seen)
-- `PlaceRegionStats` (per-region active counts) only picks the path; `PlaceImportService` invalidates it after a successful import
-- Cost guard: `PlaceSearchCostDockerTest` (rows read per search must not grow with matches); measurements in `.pipeline/tasks/20261109-place-search-perf/spec.md`
+- Path choice uses the nationwide match count, not region size: ids follow the import file's 시·도 order, so full-text with a region filter late in the file walks every earlier match (prod 서울 '카페' 0.56 s). The count query must keep MATCH as its only condition — then it is answered from the full-text index alone
+- Cost guard: `PlaceSearchCostDockerTest` (rows read per search must not grow with matches; rows inserted region by region like prod); measurements in `.pipeline/tasks/20261109-place-search-perf/spec.md`
 
 **Testing:** writer SQL and search (ngram FULLTEXT) are MySQL-only → `PlaceImportDockerTest`, `PlaceSearchDockerTest`, `PlaceSearchPathDockerTest`, `PlaceSearchCostDockerTest`, `RegionSchemaDockerTest`. Services built by hand use `PlaceTestDoubles` (real catalog over a 미지정-only list, not mockk — `clearAllMocks()` would wipe stubs).

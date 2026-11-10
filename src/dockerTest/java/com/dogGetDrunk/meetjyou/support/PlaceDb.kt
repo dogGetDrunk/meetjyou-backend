@@ -1,7 +1,6 @@
 package com.dogGetDrunk.meetjyou.support
 
 import com.dogGetDrunk.meetjyou.place.Region
-import com.dogGetDrunk.meetjyou.place.PlaceRegionStats
 import com.dogGetDrunk.meetjyou.place.PlaceSearchRepository
 import com.dogGetDrunk.meetjyou.place.PlaceSearchService
 import com.dogGetDrunk.meetjyou.place.RegionCatalog
@@ -35,9 +34,6 @@ class PlaceDb(target: String? = null) {
     val dataSource = DriverManagerDataSource(mysql.jdbcUrl, mysql.username, mysql.password)
     val jdbc = JdbcTemplate(dataSource)
 
-    /** Shared by [import] and [searchService], like the app's single bean. */
-    val regionStats = PlaceRegionStats(jdbc, DataSourceTransactionManager(dataSource))
-
     init {
         migrate(target)
     }
@@ -59,11 +55,10 @@ class PlaceDb(target: String? = null) {
         return RegionCatalog(repository)
     }
 
-    fun searchService(regionScanMaxPlaces: Long = PlaceSearchService.REGION_SCAN_MAX_PLACES) = PlaceSearchService(
+    fun searchService(fullTextMaxMatches: Long = PlaceSearchService.FULL_TEXT_MAX_MATCHES) = PlaceSearchService(
         regionCatalog(),
         PlaceSearchRepository(NamedParameterJdbcTemplate(dataSource)),
-        regionStats,
-        regionScanMaxPlaces,
+        fullTextMaxMatches,
     )
 
     /** Runs one import of [zip] to completion and returns its final status. */
@@ -72,7 +67,6 @@ class PlaceDb(target: String? = null) {
         val service = PlaceImportService(
             FixtureSource(zip), SbizZipReader(regionCatalog()), writer,
             PlaceImportProperties(chunkSize = chunkSize, stagingBatchSize = chunkSize), mockk(relaxed = true),
-            regionStats,
         )
         try {
             service.start()

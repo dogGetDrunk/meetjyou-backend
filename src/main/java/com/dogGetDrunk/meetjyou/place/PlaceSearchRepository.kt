@@ -39,8 +39,20 @@ class PlaceSearchRepository(
     }
 
     /**
+     * Nationwide count of places holding every term, inactive ones included. Only picks the path for a
+     * region filter. MySQL answers it from the full-text index without reading rows ("Select tables
+     * optimized away") only while MATCH is the sole condition: any other filter would read every match.
+     */
+    fun countFullTextMatches(query: PlaceSearchQuery): Long {
+        val terms = query.terms ?: return 0L
+        val sql = "SELECT COUNT(*) FROM place WHERE MATCH(search_name) AGAINST (:terms IN BOOLEAN MODE)"
+        return jdbc.queryForObject(sql, MapSqlParameterSource("terms", terms), Long::class.java) ?: 0L
+    }
+
+    /**
      * Full-text path: the required terms are answered from the index alone, and LIKE confirms the tokens
-     * are adjacent on the rows read. For no region filter or a large one, where matches are dense.
+     * are adjacent on the rows read. Rows come in id order, so with a region filter this reads every match
+     * stored before the region's: used for no region filter, or for words with few matches.
      */
     fun searchFullText(query: PlaceSearchQuery, regionCodes: Set<String>?, limit: Int): List<PlaceSearchRow> {
         val terms = query.terms ?: return emptyList()
@@ -61,7 +73,8 @@ class PlaceSearchRepository(
 
     /**
      * Region index path: scans only the region's entries of idx_place_region_search and reads a row only
-     * when its name matches. For a small region, where full-text matches would be mostly elsewhere.
+     * when its name matches. For a region filter and a common word: stops after one page of the region's
+     * matches, while a word rare in the region scans all of the region's entries.
      */
     fun searchRegionIndex(query: PlaceSearchQuery, regionCodes: Set<String>, limit: Int): List<PlaceSearchRow> {
         val params = likeParams(query, limit).addValue("regionCodes", regionCodes)
