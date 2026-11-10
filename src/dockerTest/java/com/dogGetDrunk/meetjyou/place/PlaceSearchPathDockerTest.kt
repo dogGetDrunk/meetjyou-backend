@@ -33,15 +33,15 @@ class PlaceSearchPathDockerTest : BehaviorSpec() {
                 sut.search("asia", null, MAX_SIZE).places.shouldBeEmpty()
             }
             then("1글자 단어만 남는 '!표'는 지역 인덱스 경로에서도 빈 결과") {
-                db.searchService(regionScanMaxPlaces = Long.MAX_VALUE).search("!표", "41", MAX_SIZE).places.shouldBeEmpty()
+                db.searchService(ALWAYS_REGION_INDEX).search("!표", "41", MAX_SIZE).places.shouldBeEmpty()
             }
         }
 
         given("AT-004 같은 검색어·지역") {
             val db = PlaceDb()
             db.import(SbizFixture.zip(NAMED_STORES))
-            val fullText = db.searchService(regionScanMaxPlaces = 0)
-            val regionIndex = db.searchService(regionScanMaxPlaces = Long.MAX_VALUE)
+            val fullText = db.searchService(ALWAYS_FULL_TEXT)
+            val regionIndex = db.searchService(ALWAYS_REGION_INDEX)
 
             REGION_FILTERS.forEach { region ->
                 QUERIES.forEach { query ->
@@ -59,8 +59,8 @@ class PlaceSearchPathDockerTest : BehaviorSpec() {
             val cafes = listOf("카페", "카페", "카페", "카페베네", "수원카페", "제주카페", "카페거리")
             db.import(SbizFixture.zip(cafes.mapIndexed { i, name -> StoreRow("C$i", name = name, sigungu = "11680") }))
 
-            listOf(0L, Long.MAX_VALUE).forEach { threshold ->
-                val sut = db.searchService(regionScanMaxPlaces = threshold)
+            listOf(ALWAYS_FULL_TEXT, ALWAYS_REGION_INDEX).forEach { threshold ->
+                val sut = db.searchService(threshold)
                 listOf(null, "11").forEach { region ->
                     then("정확 일치가 size보다 많으면 정확 일치만 size개 (경로 기준 $threshold, 지역 $region)") {
                         sut.search("카페", region, 2).places.map { it.name } shouldContainExactly listOf("카페", "카페")
@@ -80,15 +80,11 @@ class PlaceSearchPathDockerTest : BehaviorSpec() {
             val db = PlaceDb()
             db.import(SbizFixture.zip(FILE_A))
             val before = db.places().associate { it.sourceKey to it.id }
-            db.regionStats.activeCount(setOf(DISTRICT)) shouldBe FILE_A.size.toLong()
 
             db.import(SbizFixture.zip(FILE_B))
 
-            then("지역별 건수 캐시가 새 적재 결과로 바뀐다") {
-                db.regionStats.activeCount(setOf(DISTRICT)) shouldBe FILE_B.size.toLong()
-            }
-            listOf(0L, Long.MAX_VALUE).forEach { threshold ->
-                val sut = db.searchService(regionScanMaxPlaces = threshold)
+            listOf(ALWAYS_FULL_TEXT, ALWAYS_REGION_INDEX).forEach { threshold ->
+                val sut = db.searchService(threshold)
                 listOf(null, DISTRICT).forEach { region ->
                     then("이름 변경·신규·누락·재매칭이 검색에 반영된다 (경로 기준 $threshold, 지역 $region)") {
                         fun find(query: String) = sut.search(query, region, MAX_SIZE).places
@@ -119,6 +115,11 @@ class PlaceSearchPathDockerTest : BehaviorSpec() {
     private companion object {
         const val MAX_SIZE = 50
         const val DISTRICT = "11680"
+
+        // fullTextMaxMatches pinning a region filter to one path:
+        // no count exceeds MAX_VALUE, every count exceeds -1.
+        const val ALWAYS_FULL_TEXT = Long.MAX_VALUE
+        const val ALWAYS_REGION_INDEX = -1L
 
         val NAMED_STORES = listOf(
             StoreRow("PIZZA", name = "PizzaHut", sigungu = "11680"),

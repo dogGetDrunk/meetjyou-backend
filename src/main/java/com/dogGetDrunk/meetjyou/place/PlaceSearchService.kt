@@ -11,9 +11,8 @@ import org.springframework.transaction.annotation.Transactional
 class PlaceSearchService(
     private val regionCatalog: RegionCatalog,
     private val placeSearchRepository: PlaceSearchRepository,
-    private val placeRegionStats: PlaceRegionStats,
-    // Region filters with at most this many active places scan the region index; larger ones use full-text.
-    private val regionScanMaxPlaces: Long = REGION_SCAN_MAX_PLACES,
+    // A region filter uses full-text while the words match at most this many places nationwide.
+    private val fullTextMaxMatches: Long = FULL_TEXT_MAX_MATCHES,
 ) {
     @Transactional(readOnly = true)
     fun search(query: String, regionCode: String?, size: Int): PlaceSearchResponse {
@@ -37,7 +36,7 @@ class PlaceSearchService(
     }
 
     private fun searchRest(query: PlaceSearchQuery, regionCodes: Set<String>?, limit: Int): List<PlaceSearchRow> =
-        if (regionCodes != null && placeRegionStats.activeCount(regionCodes) <= regionScanMaxPlaces) {
+        if (regionCodes != null && placeSearchRepository.countFullTextMatches(query) > fullTextMaxMatches) {
             placeSearchRepository.searchRegionIndex(query, regionCodes, limit)
         } else {
             placeSearchRepository.searchFullText(query, regionCodes, limit)
@@ -77,9 +76,14 @@ class PlaceSearchService(
         const val MAX_SIZE = 50
         private const val REGION_RESULT_LIMIT = 10
 
-        // A rare word scans the whole region index (about 0.3 ms per 1,000 entries measured), so this keeps
-        // that under 10 ms; above it, full-text reads about size / region share rows for a common word.
-        // Measured in the task spec (.pipeline/tasks/20261109-place-search-perf).
-        const val REGION_SCAN_MAX_PLACES = 30_000L
+        // Path for a region filter. Full-text walks the matches in id order, and ids follow the import
+        // file's 시·도 order, so a region late in the file is reached only after most matches elsewhere:
+        // this caps those row reads (prod: 서울 '카페' read about 19k rows, 0.56 s). Past it the region index
+        // stops after one page of the region's own matches; a word that is common elsewhere but rare in a
+        // big region scans that region's entries instead (prod 0.35-0.57 s for 서울·경기). For a word spread
+        // like the data, the region index scans about size x 1M / matches entries while full-text reads up
+        // to matches rows at about 30 entries' cost each: they meet near 1,000.
+        // Measured in the task spec (.pipeline/tasks/20261109-place-search-perf, "운영 실측").
+        const val FULL_TEXT_MAX_MATCHES = 1_000L
     }
 }
