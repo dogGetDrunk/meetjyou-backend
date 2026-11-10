@@ -26,7 +26,8 @@ Travel destination = region (required, '00' 미지정 when none) + place (option
 - Apply order in `PlaceImportWriter.apply`: same-key update → 1:1 rematch → insert → deactivate. Deactivation runs only after the rest succeeded, so a failed run never hides open stores. Each step commits per `chunkSize` rows (short X locks; post writes FK-check `place`)
 - Rematch candidates are the leftovers on both sides after key matching (inactive places included), compared on full `(region_code, search_name, road_address)`; anything but exactly one-to-one is insert + deactivate
 - Completeness gate before applying: every 시·도 with active places must stage ≥ 50% of them; empty staging fails. Never drop it to "save" a partial file
-- `place` rows are never deleted (posts point at them); `place_import_staging` is emptied with TRUNCATE at the start of a run (needs DROP privilege)
+- `place` rows are never deleted (posts point at them); `place_import_staging` is emptied with TRUNCATE at the start and end of every run, success or failure (needs DROP privilege). A failed end cleanup only logs — the run's outcome stays
+- Staging speed depends on `rewriteBatchedStatements` (application.yml driver properties): without it each staged row is its own round trip (prod 2h34m for 1M rows). `PlaceDb` connects with the same properties
 - Portal endpoints are data.go.kr internals: a portal change fails the run (Discord alert, `place` untouched)
 
 ## Search (`PlaceSearchService`, `PlaceSearchRepository`)

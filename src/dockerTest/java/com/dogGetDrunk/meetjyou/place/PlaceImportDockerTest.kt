@@ -1,22 +1,42 @@
 package com.dogGetDrunk.meetjyou.place
 
 import com.dogGetDrunk.meetjyou.place.importer.PlaceImportState
+import com.dogGetDrunk.meetjyou.place.importer.PlaceImportWriter
 import com.dogGetDrunk.meetjyou.place.importer.SbizZipReader
+import com.dogGetDrunk.meetjyou.place.importer.StagingRow
+import com.dogGetDrunk.meetjyou.support.ApplicationDriverProperties
 import com.dogGetDrunk.meetjyou.support.PlaceDb
 import com.dogGetDrunk.meetjyou.support.SbizFixture
 import com.dogGetDrunk.meetjyou.support.StoreRow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.datasource.DataSourceTransactionManager
+import org.springframework.jdbc.datasource.SingleConnectionDataSource
+import org.springframework.transaction.support.TransactionTemplate
 import java.util.UUID
 
-/** AT-002 ~ AT-005: the import against real MySQL (staging SQL, multi-table UPDATE, chunked apply). */
+/**
+ * AT-002 ~ AT-005: the import against real MySQL (staging SQL, multi-table UPDATE, chunked apply).
+ * Also the staging batch rewrite and the staging cleanup after a run (task 20261110-place-import-speed).
+ */
 class PlaceImportDockerTest : BehaviorSpec() {
     // Stable rows that keep each 시·도 above the 50% completeness bar while a test moves others around.
     private fun filler(prefix: String, count: Int, sigungu: String = "11680") =
         (1..count).map { StoreRow(key = "$prefix$it", sigungu = sigungu) }
 
     init {
+        given("스테이징 배치를 앱 드라이버 옵션으로 보내면") {
+            then("1,000행이 INSERT 문 하나로 나간다 (행마다 왕복하지 않는다)") {
+                val db = PlaceDb()
+                val rows = (1..STAGING_BATCH_ROWS).map { stagingRow("K$it") }
+
+                comInsertsWhileStaging(db, rows) shouldBe 1L
+                db.stagingRows() shouldBe STAGING_BATCH_ROWS.toLong()
+            }
+        }
+
         given("AT-002 대상·제외 업종과 미등록 지역이 섞인 파일") {
             then("대상 업종·등록 지역만 저장하고 나머지는 건너뜀으로 센다") {
                 val db = PlaceDb()
@@ -39,6 +59,7 @@ class PlaceImportDockerTest : BehaviorSpec() {
                 status.inserted shouldBe 3
                 db.places().map { it.sourceKey } shouldContainExactlyInAnyOrder listOf("CAFE", "CONV", "HOTEL")
                 db.places().all { it.active } shouldBe true
+                db.stagingRows() shouldBe 0
             }
         }
 
@@ -147,6 +168,7 @@ class PlaceImportDockerTest : BehaviorSpec() {
                 val short = db.import(SbizFixture.zip(filler("SEOUL", 4, "11680") + filler("GG", 1, "41111")))
                 short.state shouldBe PlaceImportState.FAILED
                 db.places() shouldBe before
+                db.stagingRows() shouldBe 0
 
                 val half = db.import(SbizFixture.zip(filler("SEOUL", 4, "11680") + filler("GG", 2, "41111")))
                 half.state shouldBe PlaceImportState.SUCCEEDED
@@ -180,6 +202,7 @@ class PlaceImportDockerTest : BehaviorSpec() {
                 val failed = db.import(SbizFixture.zip(next), chunkSize = 2)
 
                 failed.state shouldBe PlaceImportState.FAILED
+                db.stagingRows() shouldBe 0
                 db.place("R6").active shouldBe true
                 db.place("R1").name shouldBe "갱신R1"
                 db.place("R4").name shouldBe "가게R4"
@@ -195,6 +218,29 @@ class PlaceImportDockerTest : BehaviorSpec() {
             }
         }
     }
+
+    // One connection, so the session's statement counter sees exactly what stage() sent.
+    private fun comInsertsWhileStaging(db: PlaceDb, rows: List<StagingRow>): Long {
+        val connection = SingleConnectionDataSource(db.mysql.jdbcUrl, db.mysql.username, db.mysql.password, true)
+        connection.connectionProperties = ApplicationDriverProperties.asProperties()
+        try {
+            val jdbc = JdbcTemplate(connection)
+            val writer = PlaceImportWriter(jdbc, TransactionTemplate(DataSourceTransactionManager(connection)), rows.size)
+            val before = comInsert(jdbc)
+            writer.stage(rows)
+            return comInsert(jdbc) - before
+        } finally {
+            connection.destroy()
+        }
+    }
+
+    private fun comInsert(jdbc: JdbcTemplate): Long =
+        jdbc.queryForObject("SHOW SESSION STATUS LIKE 'Com_insert'") { rs, _ -> rs.getLong(2) } ?: 0L
+
+    private fun stagingRow(key: String) = StagingRow(
+        sourceKey = key, name = "가게$key", branchName = null, searchName = "가게$key", categoryCode = "I21201",
+        categoryName = "카페", regionCode = "11680", sidoCode = "11", roadAddress = "도로명 $key", lat = 37.5, lng = 127.0,
+    )
 
     private fun insertPlanReferencing(db: PlaceDb, regionCode: String, placeId: Long): Long {
         db.jdbc.update(
@@ -234,5 +280,6 @@ class PlaceImportDockerTest : BehaviorSpec() {
 
     private companion object {
         const val BOOM = "BOOM"
+        const val STAGING_BATCH_ROWS = 1_000
     }
 }

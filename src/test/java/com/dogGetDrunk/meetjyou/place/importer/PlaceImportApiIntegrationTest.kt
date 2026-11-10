@@ -22,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.boot.test.web.client.TestRestTemplate
+import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
 import org.springframework.http.HttpEntity
@@ -106,7 +107,8 @@ class PlaceImportApiIntegrationTest : BehaviorSpec() {
         beforeEach {
             source.gate = null
             source.failure = null
-            Mockito.clearInvocations(discord)
+            Mockito.clearInvocations(discord, writer)
+            Mockito.doNothing().`when`(writer).clearStaging()
             Mockito.`when`(writer.stagedCount()).thenReturn(1L)
             val counts = ApplyCounts(updated = 0, rematched = 0, inserted = 1, deactivated = 0)
             Mockito.`when`(writer.apply()).thenReturn(counts)
@@ -142,6 +144,19 @@ class PlaceImportApiIntegrationTest : BehaviorSpec() {
             }
         }
 
+        given("적재가 끝난 뒤 스테이징 비우기가 실패하면") {
+            then("결과는 그대로 SUCCEEDED와 성공 알림 (시작·끝 두 번 비운다)") {
+                val admin = user(Role.ADMIN)
+                Mockito.doNothing().doThrow(DataAccessResourceFailureException("db gone"))
+                    .`when`(writer).clearStaging()
+
+                call(HttpMethod.POST, "", admin).statusCode shouldBe HttpStatus.ACCEPTED
+                eventually(WAIT_SECONDS.seconds) { state(admin) shouldBe "SUCCEEDED" }
+                eventually(WAIT_SECONDS.seconds) { alertSummaries() shouldContain "Place import succeeded" }
+                Mockito.verify(writer, Mockito.times(CLEARS_PER_RUN)).clearStaging()
+            }
+        }
+
         given("다운로드가 실패하면") {
             then("FAILED, 실패 알림, 가드가 풀려 다시 시작할 수 있다") {
                 val admin = user(Role.ADMIN)
@@ -161,6 +176,7 @@ class PlaceImportApiIntegrationTest : BehaviorSpec() {
 
     companion object {
         private const val WAIT_SECONDS = 10L
+        private const val CLEARS_PER_RUN = 2
 
         // One 카페 in 서울 강남구 (11680), the shape of the real file.
         fun oneStoreZip(): ByteArray {

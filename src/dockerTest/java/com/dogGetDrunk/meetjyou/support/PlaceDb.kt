@@ -28,10 +28,15 @@ import java.io.InputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-/** A fresh MySQL database migrated by Flyway, with the place import wired by hand around it. */
+/**
+ * A fresh MySQL database migrated by Flyway, with the place import wired by hand around it. Connections
+ * use the app's driver properties, so batches are rewritten the way they are in production.
+ */
 class PlaceDb(target: String? = null) {
     val mysql: MySqlDatabase = SharedMySql.newDatabase()
-    val dataSource = DriverManagerDataSource(mysql.jdbcUrl, mysql.username, mysql.password)
+    val dataSource = DriverManagerDataSource(mysql.jdbcUrl, mysql.username, mysql.password).apply {
+        connectionProperties = ApplicationDriverProperties.asProperties()
+    }
     val jdbc = JdbcTemplate(dataSource)
 
     init {
@@ -88,6 +93,8 @@ class PlaceDb(target: String? = null) {
     }
 
     fun place(sourceKey: String): PlaceRow = places().single { it.sourceKey == sourceKey }
+
+    fun stagingRows(): Long = jdbc.queryForObject("SELECT COUNT(*) FROM place_import_staging", Long::class.java) ?: 0L
 
     private class FixtureSource(private val zip: ByteArray) : SbizFileSource {
         override fun <T : Any> download(consumer: (SbizFileRef, InputStream) -> T): T =

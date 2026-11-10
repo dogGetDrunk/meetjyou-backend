@@ -37,9 +37,13 @@ spring:
       # Trade-off: MySQL no longer sees read-only transactions, so it won't reject a stray write
       # inside one; Hibernate still skips flushing in read-only transactions.
       # useLocalSessionState is safe because no code changes session state with raw SQL.
+      # rewriteBatchedStatements: JdbcTemplate.batchUpdate is otherwise one round trip per row
+      # (place import staging ran ~110 rows/s against the OCI DB). Only the place import batches;
+      # Hibernate JDBC batching is off, so JPA saveAll is unaffected.
       data-source-properties:
         readOnlyPropagatesToServer: false
         useLocalSessionState: true
+        rewriteBatchedStatements: true
   servlet:
     multipart:
       enabled: true
