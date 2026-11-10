@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.common.discord.DiscordAlertService
 import com.dogGetDrunk.meetjyou.common.exception.business.place.PlaceImportInProgressException
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.util.concurrent.ExecutorService
@@ -69,15 +70,29 @@ class PlaceImportService(
         }
     }
 
+    // Staging is cleared at the start too, in case a previous run died before its cleanup.
     private fun runImport(startedAt: Instant?): PlaceImportStatusResponse {
         writer.clearStaging()
-        val run = fileSource.download { file, body ->
-            val stats = zipReader.read(body, props.stagingBatchSize, writer::stage)
-            ImportRun(file, stats, writer.stagedCount())
+        try {
+            val run = fileSource.download { file, body ->
+                val stats = zipReader.read(body, props.stagingBatchSize, writer::stage)
+                ImportRun(file, stats, writer.stagedCount())
+            }
+            log.info("Place import staged {} of {} rows from {}", run.staged, run.stats.read, run.file.dataName)
+            writer.validateCompleteness()
+            return PlaceImportStatusResponse.succeeded(startedAt, run, writer.apply())
+        } finally {
+            clearStagingAfterRun()
         }
-        log.info("Place import staged {} of {} rows from {}", run.staged, run.stats.read, run.file.dataName)
-        writer.validateCompleteness()
-        return PlaceImportStatusResponse.succeeded(startedAt, run, writer.apply())
+    }
+
+    // A failed cleanup must not change the run's outcome: the next run clears staging anyway.
+    private fun clearStagingAfterRun() {
+        try {
+            writer.clearStaging()
+        } catch (e: DataAccessException) {
+            log.warn("Failed to clear place import staging after the run", e)
+        }
     }
 
     companion object {

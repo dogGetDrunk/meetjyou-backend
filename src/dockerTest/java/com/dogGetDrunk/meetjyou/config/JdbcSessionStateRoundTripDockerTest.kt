@@ -1,5 +1,6 @@
 package com.dogGetDrunk.meetjyou.config
 
+import com.dogGetDrunk.meetjyou.support.ApplicationDriverProperties
 import com.dogGetDrunk.meetjyou.support.MySqlDatabase
 import com.dogGetDrunk.meetjyou.support.SharedMySql
 import com.zaxxer.hikari.HikariConfig
@@ -14,8 +15,6 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
 import java.sql.Statement
-import org.springframework.beans.factory.config.YamlPropertiesFactoryBean
-import org.springframework.core.io.ClassPathResource
 
 /**
  * Issue #154: the DB VM is CPU-capped, so every extra round trip per request lowers the
@@ -95,8 +94,6 @@ class JdbcSessionStateRoundTripDockerTest : BehaviorSpec({
     }
 })
 
-private const val APPLICATION_YAML = "application.yml"
-private const val DRIVER_PROPERTY_PREFIX = "spring.datasource.hikari.data-source-properties."
 private const val PROBE_QUERY = "SELECT ?"
 private const val PROBE_SQL = "SELECT 42"
 private const val READ_ONLY_SWITCH = "SET SESSION TRANSACTION READ ONLY"
@@ -124,19 +121,9 @@ private fun buildHikariConfig(mysql: MySqlDatabase): HikariConfig {
     config.username = mysql.username
     config.password = mysql.password
     config.maximumPoolSize = 1
-    loadDriverProperties().forEach { (key, value) -> config.addDataSourceProperty(key, value) }
+    // Real application.yml values, so removing a property there fails this test.
+    ApplicationDriverProperties.load().forEach { (key, value) -> config.addDataSourceProperty(key, value) }
     return config
-}
-
-// Reads the real application.yml so removing the properties there fails this test.
-private fun loadDriverProperties(): Map<String, String> {
-    val yaml = YamlPropertiesFactoryBean()
-    yaml.setResources(ClassPathResource(APPLICATION_YAML))
-    val properties = yaml.getObject() ?: return emptyMap()
-    // Values keep their YAML types (Boolean), so stringPropertyNames() would skip them.
-    return properties.keys.map { it.toString() }
-        .filter { it.startsWith(DRIVER_PROPERTY_PREFIX) }
-        .associate { it.removePrefix(DRIVER_PROPERTY_PREFIX) to properties[it].toString() }
 }
 
 private fun runReadOnlyTransaction(connection: Connection) = insideReadOnlyTransaction(connection) {
