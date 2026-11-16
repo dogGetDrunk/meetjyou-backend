@@ -6,11 +6,11 @@ import com.dogGetDrunk.meetjyou.common.idempotency.IdempotencyKeyRepository
 import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostRequest
 import com.dogGetDrunk.meetjyou.post.dto.CreatePostResponse
-import com.dogGetDrunk.meetjyou.post.dto.PostAuthorSummary
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.Role
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.dto.UserDisplay
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -38,7 +38,7 @@ import java.util.UUID
 
 /**
  * Post responses embed the author summary (#194) through the real HTTP chain and H2, and a withdrawn
- * author stays hidden exactly as the basic-info 404 hides them.
+ * author is masked only once purged (#207).
  */
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("test")
@@ -135,6 +135,12 @@ class PostAuthorSummaryIntegrationTest : BehaviorSpec() {
         userRepository.save(user)
     }
 
+    private fun purge(user: User) {
+        user.withdraw(Instant.now())
+        user.anonymize()
+        userRepository.save(user)
+    }
+
     init {
         extensions(SpringExtension())
 
@@ -148,14 +154,18 @@ class PostAuthorSummaryIntegrationTest : BehaviorSpec() {
         }
 
         given("게시글 목록을 조회할 때") {
-            `when`("정상 작성자와 탈퇴 유예 중인 작성자의 글이 섞여 있으면") {
-                then("정상 작성자는 닉네임·프로필 유무를 담고, 탈퇴 작성자는 가려서 탈퇴로 표시한다") {
+            `when`("정상, 탈퇴 유예 중, 완전 탈퇴 작성자의 글이 섞여 있으면") {
+                then("완전 탈퇴 작성자만 가려서 탈퇴로 표시한다") {
                     val viewer = saveUser()
                     val active = saveUser(hasProfileImage = true)
-                    val withdrawn = saveUser(hasProfileImage = true)
+                    val graced = saveUser(hasProfileImage = true)
+                    val purged = saveUser(hasProfileImage = true)
                     val activePost = createPost(active)
-                    val withdrawnPost = createPost(withdrawn)
-                    withdraw(withdrawn)
+                    val gracedPost = createPost(graced)
+                    val purgedPost = createPost(purged)
+                    val gracedNickname = graced.nickname
+                    withdraw(graced)
+                    purge(purged)
 
                     val authors = authorsByPost(getJson("/posts", viewer))
 
@@ -165,9 +175,14 @@ class PostAuthorSummaryIntegrationTest : BehaviorSpec() {
                         it.get("hasProfileImage").asBoolean() shouldBe true
                         it.get("isWithdrawn").asBoolean() shouldBe false
                     }
-                    authors.getValue(withdrawnPost.toString()).let {
-                        it.get("uuid").asText() shouldBe withdrawn.uuid.toString()
-                        it.get("nickname").asText() shouldBe PostAuthorSummary.WITHDRAWN_NICKNAME
+                    authors.getValue(gracedPost.toString()).let {
+                        it.get("nickname").asText() shouldBe gracedNickname
+                        it.get("hasProfileImage").asBoolean() shouldBe true
+                        it.get("isWithdrawn").asBoolean() shouldBe false
+                    }
+                    authors.getValue(purgedPost.toString()).let {
+                        it.get("uuid").asText() shouldBe purged.uuid.toString()
+                        it.get("nickname").asText() shouldBe UserDisplay.WITHDRAWN_NICKNAME
                         it.get("hasProfileImage").asBoolean() shouldBe false
                         it.get("isWithdrawn").asBoolean() shouldBe true
                     }
@@ -176,21 +191,41 @@ class PostAuthorSummaryIntegrationTest : BehaviorSpec() {
         }
 
         given("작성자별 게시글 목록과 게시글 상세를 조회할 때") {
-            `when`("작성자가 탈퇴 유예 중이면") {
+            `when`("작성자가 완전 탈퇴했으면") {
                 then("두 응답 모두 작성자를 가려서 탈퇴로 표시한다") {
                     val viewer = saveUser()
-                    val withdrawn = saveUser(hasProfileImage = true)
-                    val postUuid = createPost(withdrawn)
-                    withdraw(withdrawn)
+                    val purged = saveUser(hasProfileImage = true)
+                    val postUuid = createPost(purged)
+                    purge(purged)
 
-                    val byAuthor = getJson("/posts/author/${withdrawn.uuid}", viewer)
+                    val byAuthor = getJson("/posts/author/${purged.uuid}", viewer)
                         .get("content").single().get("author")
                     val detail = getJson("/posts/$postUuid", viewer).get("author")
 
                     for (author in listOf(byAuthor, detail)) {
-                        author.get("nickname").asText() shouldBe PostAuthorSummary.WITHDRAWN_NICKNAME
+                        author.get("nickname").asText() shouldBe UserDisplay.WITHDRAWN_NICKNAME
                         author.get("hasProfileImage").asBoolean() shouldBe false
                         author.get("isWithdrawn").asBoolean() shouldBe true
+                    }
+                }
+            }
+
+            `when`("작성자가 탈퇴 유예 중이면") {
+                then("두 응답 모두 원래 닉네임과 프로필 유무를 담는다") {
+                    val viewer = saveUser()
+                    val graced = saveUser(hasProfileImage = true)
+                    val nickname = graced.nickname
+                    val postUuid = createPost(graced)
+                    withdraw(graced)
+
+                    val byAuthor = getJson("/posts/author/${graced.uuid}", viewer)
+                        .get("content").single().get("author")
+                    val detail = getJson("/posts/$postUuid", viewer).get("author")
+
+                    for (author in listOf(byAuthor, detail)) {
+                        author.get("nickname").asText() shouldBe nickname
+                        author.get("hasProfileImage").asBoolean() shouldBe true
+                        author.get("isWithdrawn").asBoolean() shouldBe false
                     }
                 }
             }

@@ -10,6 +10,7 @@ import com.dogGetDrunk.meetjyou.notificationcenter.dto.SentApplicationItem
 import com.dogGetDrunk.meetjyou.notificationcenter.dto.SentApplicationsSectionResponse
 import com.dogGetDrunk.meetjyou.notice.NoticeRepository
 import com.dogGetDrunk.meetjyou.post.PostRepository
+import com.dogGetDrunk.meetjyou.user.dto.UserDisplay
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
 import org.slf4j.LoggerFactory
@@ -57,10 +58,12 @@ class NotificationCenterService(
         val partyUuids = page.content.map { it.party.uuid }
         val postByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associateBy { it.party.uuid }
         val items = page.content.map { up ->
+            val applicant = UserDisplay.of(up.user)
             ReceivedApplicationItem(
                 userUuid = up.user.uuid,
-                nickname = up.user.nickname,
-                hasProfileImage = up.user.hasProfileImage,
+                nickname = applicant.nickname,
+                hasProfileImage = applicant.hasProfileImage,
+                isWithdrawn = applicant.isWithdrawn,
                 partyUuid = up.party.uuid,
                 partyName = up.party.name,
                 postUuid = postByPartyUuid[up.party.uuid]?.uuid,

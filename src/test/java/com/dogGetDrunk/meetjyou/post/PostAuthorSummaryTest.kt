@@ -1,11 +1,13 @@
 package com.dogGetDrunk.meetjyou.post
 
 import com.dogGetDrunk.meetjyou.post.dto.PostAuthorSummary
+import com.dogGetDrunk.meetjyou.user.dto.UserDisplay
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import java.time.Instant
 
+// AT-002 (unit): post author follows the shared display rule, masked only once purged.
 class PostAuthorSummaryTest : BehaviorSpec({
 
     given("게시글 작성자 요약을 만들 때") {
@@ -23,7 +25,7 @@ class PostAuthorSummaryTest : BehaviorSpec({
         }
 
         `when`("작성자가 탈퇴 유예 기간 중(DELETED)이면") {
-            then("아직 익명화 전인 실제 닉네임과 프로필 이미지를 숨긴다") {
+            then("복구할 수 있으므로 닉네임과 프로필 이미지를 그대로 담는다") {
                 val author = UserFixtures.user(nickname = NICKNAME).apply {
                     hasProfileImage = true
                     withdraw(Instant.now())
@@ -31,9 +33,9 @@ class PostAuthorSummaryTest : BehaviorSpec({
 
                 PostAuthorSummary.of(author) shouldBe PostAuthorSummary(
                     uuid = author.uuid,
-                    nickname = PostAuthorSummary.WITHDRAWN_NICKNAME,
-                    hasProfileImage = false,
-                    isWithdrawn = true,
+                    nickname = NICKNAME,
+                    hasProfileImage = true,
+                    isWithdrawn = false,
                 )
             }
         }
@@ -47,7 +49,7 @@ class PostAuthorSummaryTest : BehaviorSpec({
 
                 PostAuthorSummary.of(author) shouldBe PostAuthorSummary(
                     uuid = author.uuid,
-                    nickname = PostAuthorSummary.WITHDRAWN_NICKNAME,
+                    nickname = UserDisplay.WITHDRAWN_NICKNAME,
                     hasProfileImage = false,
                     isWithdrawn = true,
                 )

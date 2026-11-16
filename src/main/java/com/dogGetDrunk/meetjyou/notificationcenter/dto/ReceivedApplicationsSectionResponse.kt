@@ -7,6 +7,7 @@ data class ReceivedApplicationItem(
     val userUuid: UUID,
     val nickname: String,
     val hasProfileImage: Boolean,
+    val isWithdrawn: Boolean,
     val partyUuid: UUID,
     val partyName: String,
     val postUuid: UUID?,

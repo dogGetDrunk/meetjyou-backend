@@ -7,6 +7,7 @@ data class PendingJoinRequest(
     val userUuid: UUID,
     val nickname: String,
     val hasProfileImage: Boolean,
+    val isWithdrawn: Boolean,
     val applicationNote: String?,
     val requestedAt: Instant,
 )

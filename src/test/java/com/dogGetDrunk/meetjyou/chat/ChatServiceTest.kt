@@ -84,6 +84,25 @@ class ChatServiceTest : BehaviorSpec() {
                 }
             }
 
+            // AT-003b: the live broadcast goes through the same display rule as history reads.
+            // Only active users get past CONNECT and SEND, so the sender is never masked here.
+            `when`("JOINED 상태 멤버의 메시지가 브로드캐스트되면") {
+                then("페이로드에 발신자 닉네임과 isWithdrawn=false가 담긴다") {
+                    val membership = NotificationCenterFixtures.hostUserParty(party, sender)
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(partyUuid, senderUuid) } returns membership
+                    every { chatMessageRepository.save(any()) } answers { firstArg() }
+                    val events = mutableListOf<Any>()
+                    every { publisher.publishEvent(capture(events)) } returns Unit
+
+                    sut.handleChatMessage(request, senderUuid)
+
+                    val message = events.filterIsInstance<ChatMessageBroadcastEvent>().single().message
+                    message.senderUuid shouldBe senderUuid.toString()
+                    message.senderNickname shouldBe sender.nickname
+                    message.isWithdrawn shouldBe false
+                }
+            }
+
             `when`("동일한 clientMessageId로 이미 저장된 메시지가 있으면") {
                 then("재저장/재알림 없이 조용히 무시한다") {
                     val clientMessageId = java.util.UUID.randomUUID()
