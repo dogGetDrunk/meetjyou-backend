@@ -25,25 +25,27 @@
 ### REQ-003 채팅 메시지 발신자
 
 - 요구사항: `ChatMessageResponse.of` 가 `UserDisplay.of(sender)` 로 `senderNickname` 을 채우고 `isWithdrawn` 필드 추가
-- 수용 기준: 메시지 이력 조회 `GET /api/v1/chat/rooms/{roomUuid}/messages` 에서 PURGED 발신자 메시지는 `senderNickname="(탈퇴한 사용자)"`, `isWithdrawn=true`, DELETED 발신자는 원래 닉네임과 `isWithdrawn=false`
-- 수용 테스트 ID: AT-003 (`ChatMessageResponseTest` 단위, `WithdrawnUserDisplayIntegrationTest` HTTP)
+- 수용 기준
+  - 메시지 이력 조회 `GET /api/v1/chat/rooms/{roomUuid}/messages` 에서 PURGED 발신자 메시지는 `senderNickname="(탈퇴한 사용자)"`, `isWithdrawn=true`, DELETED와 NORMAL 발신자는 원래 닉네임과 `isWithdrawn=false`
+  - WebSocket 브로드캐스트(`ChatMessageBroadcastEvent.message`)도 같은 `ChatMessageResponse.of` 로 만들어지며, 발신자(항상 NORMAL, 비활성 회원은 STOMP 연결 거부)의 원래 닉네임과 `isWithdrawn=false` 를 담음
+- 수용 테스트 ID: AT-003 (`ChatMessageResponseTest` 단위, `WithdrawnUserDisplayIntegrationTest` HTTP), AT-003b (`ChatServiceTest` 브로드캐스트 이벤트 페이로드)
 
 ### REQ-004 파티 멤버 목록
 
 - 요구사항: `PartyMemberResponse.of` 가 `UserDisplay.of` 사용, `isWithdrawn` 추가
-- 수용 기준: `GET /api/v1/parties/{partyUuid}/members` 에서 PURGED 멤버는 `(탈퇴한 사용자)`, `hasProfileImage=false`, `isWithdrawn=true`, DELETED 멤버는 원래 값과 `isWithdrawn=false`
+- 수용 기준: `GET /api/v1/parties/{partyUuid}/members` 에서 PURGED 멤버는 `(탈퇴한 사용자)`, `hasProfileImage=false`, `isWithdrawn=true`, DELETED와 NORMAL 멤버(호스트 포함)는 원래 값과 `isWithdrawn=false`
 - 수용 테스트 ID: AT-004 (`GetPartyMembersTest` 단위 추가, `WithdrawnUserDisplayIntegrationTest` HTTP)
 
 ### REQ-005 가입 신청 목록
 
 - 요구사항: `PendingJoinRequest` 에 `isWithdrawn` 추가, `PartyService.getPendingJoinRequests` 가 `UserDisplay.of` 사용
-- 수용 기준: `GET /api/v1/parties/{partyUuid}/join-requests` 에서 PURGED 신청자는 가려지고 `isWithdrawn=true`, DELETED 신청자는 원래 값
+- 수용 기준: `GET /api/v1/parties/{partyUuid}/join-requests` 에서 PURGED 신청자는 가려지고 `isWithdrawn=true`, DELETED와 NORMAL 신청자는 원래 값과 `isWithdrawn=false`
 - 수용 테스트 ID: AT-005 (`GetPendingJoinRequestsTest` 단위 추가, `WithdrawnUserDisplayIntegrationTest` HTTP)
 
 ### REQ-006 알림센터 받은 신청
 
 - 요구사항: `ReceivedApplicationItem` 에 `isWithdrawn` 추가, `NotificationCenterService.getReceivedApplications` 가 `UserDisplay.of` 사용
-- 수용 기준: `GET /api/v1/notification-center/received-applications` 에서 PURGED 신청자는 가려지고 `isWithdrawn=true`, DELETED 신청자는 원래 값
+- 수용 기준: `GET /api/v1/notification-center/received-applications` 에서 PURGED 신청자는 가려지고 `isWithdrawn=true`, DELETED와 NORMAL 신청자는 원래 값과 `isWithdrawn=false`
 - 수용 테스트 ID: AT-006 (`NotificationCenterServiceTest` 단위 추가, `WithdrawnUserDisplayIntegrationTest` HTTP)
 
 ### REQ-007 추가 쿼리 없음, 닉네임 등록 차단 유지
@@ -94,9 +96,11 @@ data class UserDisplay(val nickname: String, val hasProfileImage: Boolean, val i
 
 - AT-001 단위: `UserFixtures.user()` 로 NORMAL, `withdraw()` 로 DELETED, `withdraw()+anonymize()` 로 PURGED, 각각 `hasProfileImage=true` 로 시작해 세 필드 검증
 - AT-002~006 HTTP 통합(`@SpringBootTest(RANDOM_PORT)`, H2, `PostAuthorSummaryIntegrationTest` 와 같은 MockBean 구성)
-  - 활동 중인 호스트 1명이 파티, 채팅방을 만들고, 멤버 2명(DELETED 예정, PURGED 예정)이 가입하고 메시지 1개씩 보냄, 신청자 2명(DELETED, PURGED)이 대기 신청
+  - 활동 중인 호스트 1명이 파티, 채팅방을 만들고 메시지 1개를 보냄, 멤버 2명(DELETED 예정, PURGED 예정)이 가입하고 메시지 1개씩 보냄, 신청자 3명(NORMAL, DELETED 예정, PURGED 예정)이 대기 신청
+  - 세 상태 모두 HTTP로 검증: 멤버 목록과 채팅은 호스트가 NORMAL 대상, 신청 목록과 알림센터는 NORMAL 신청자가 대상
   - 그 뒤 상태 전환(`withdraw`, `withdraw+anonymize`) 후 호스트 토큰으로 4개 엔드포인트 조회, 각 회원의 `nickname`(채팅은 `senderNickname`), `hasProfileImage`, `isWithdrawn` 검증
   - 데이터 준비는 리포지토리 직접 저장(`ChatTestDataHelper` 패턴) 허용, 조회는 반드시 HTTP
+- AT-003b 단위: `ChatServiceTest` 에서 `sendMessage` 가 발행한 `ChatMessageBroadcastEvent` 를 잡아 `message.senderNickname`, `message.isWithdrawn=false` 검증
 - 단위 테스트 추가 케이스: 각 서비스 테스트에 PURGED 회원 1건, DELETED 회원 1건
 
 ## 마일스톤
@@ -105,4 +109,4 @@ data class UserDisplay(val nickname: String, val hasProfileImage: Boolean, val i
 2. 게시글 기준 변경 + AT-002, AT-007 참조 변경
 3. 4개 응답 적용 + 단위 테스트
 4. HTTP 통합 테스트 + 규칙 문서
-5. `agent-pipeline gate`
+5. `agent-pipeline gate`(= `./gradlew test build`)
