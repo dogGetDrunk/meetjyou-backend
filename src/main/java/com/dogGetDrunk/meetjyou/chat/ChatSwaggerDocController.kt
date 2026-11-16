@@ -44,6 +44,7 @@ class ChatSwaggerDocController {
             messageId = 123,
             uuid = "example-uuid",
             senderNickname = "nickname",
+            isWithdrawn = false,
             senderUuid = request.roomUuid.toString(),
             roomUuid = request.roomUuid.toString(),
             body = request.message,

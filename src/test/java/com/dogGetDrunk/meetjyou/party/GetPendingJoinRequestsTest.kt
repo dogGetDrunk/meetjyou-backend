@@ -13,6 +13,7 @@ import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.dto.UserDisplay
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.PartyRole
@@ -78,6 +79,36 @@ class GetPendingJoinRequestsTest : BehaviorSpec() {
                     result.requests.size shouldBe 1
                     result.requests[0].applicationNote shouldBe "Hi!"
                     result.requests[0].hasProfileImage shouldBe applicant.hasProfileImage
+                }
+            }
+
+            // AT-005 (unit): purged applicants are masked, applicants in the grace period are not.
+            `when`("신청자 중 탈퇴 유예 중인 회원과 완전 탈퇴한 회원이 있는 경우") {
+                then("완전 탈퇴한 신청자만 탈퇴 문구로 가리고 사진을 숨긴다") {
+                    val graced = UserFixtures.gracedUser(4)
+                    val purged = UserFixtures.purgedUser(5)
+                    val hostMembership = NotificationCenterFixtures.hostUserParty(party, host)
+                    every { currentUserProvider.uuid } returns host.uuid
+                    every { userPartyRepository.findByParty_UuidAndUser_Uuid(party.uuid, host.uuid) } returns hostMembership
+                    every {
+                        userPartyRepository.findAllWithUserByPartyUuidAndMemberStatus(party.uuid, MemberStatus.PENDING)
+                    } returns listOf(
+                        NotificationCenterFixtures.pendingUserParty(party, applicant, "Hi!"),
+                        NotificationCenterFixtures.pendingUserParty(party, graced, "Hi!"),
+                        NotificationCenterFixtures.pendingUserParty(party, purged, "Hi!"),
+                    )
+                    every { postRepository.findByParty_Uuid(party.uuid) } returns post
+
+                    val byUuid = sut.getPendingJoinRequests(party.uuid).requests.associateBy { it.userUuid }
+
+                    byUuid.getValue(applicant.uuid).nickname shouldBe "applicant"
+                    byUuid.getValue(applicant.uuid).isWithdrawn shouldBe false
+                    byUuid.getValue(graced.uuid).nickname shouldBe graced.nickname
+                    byUuid.getValue(graced.uuid).hasProfileImage shouldBe true
+                    byUuid.getValue(graced.uuid).isWithdrawn shouldBe false
+                    byUuid.getValue(purged.uuid).nickname shouldBe UserDisplay.WITHDRAWN_NICKNAME
+                    byUuid.getValue(purged.uuid).hasProfileImage shouldBe false
+                    byUuid.getValue(purged.uuid).isWithdrawn shouldBe true
                 }
             }
         }

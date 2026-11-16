@@ -1,0 +1,9 @@
+key: 20261116-withdrawn-user-display
+title: 탈퇴 회원 닉네임 표시 통일 (채팅, 파티, 알림센터)
+size: M
+mode: single
+format: 1
+created: '2026-11-16'
+links:
+  notion: https://app.notion.com/p/3ff56d9a97d98120b313e13c0dfc6275
+  issue: dogGetDrunk/meetjyou-backend#207

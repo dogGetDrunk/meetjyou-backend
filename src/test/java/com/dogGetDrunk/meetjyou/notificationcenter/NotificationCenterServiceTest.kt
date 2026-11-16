@@ -5,6 +5,7 @@ import com.dogGetDrunk.meetjyou.notificationcenter.dto.ApplicationStatus
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
 import com.dogGetDrunk.meetjyou.notice.NoticeRepository
 import com.dogGetDrunk.meetjyou.post.PostRepository
+import com.dogGetDrunk.meetjyou.user.dto.UserDisplay
 import com.dogGetDrunk.meetjyou.user.support.UserFixtures
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.UserPartyRepository
@@ -114,6 +115,34 @@ class NotificationCenterServiceTest : BehaviorSpec() {
                     result.applications[0].applicationNote shouldBe "Hello!"
                     result.applications[0].postUuid shouldBe post.uuid
                     result.applications[0].read shouldBe false
+                }
+            }
+
+            // AT-006 (unit): purged applicants are masked, applicants in the grace period are not.
+            `when`("신청자 중 탈퇴 유예 중인 회원과 완전 탈퇴한 회원이 있는 경우") {
+                then("완전 탈퇴한 신청자만 탈퇴 문구로 가리고 사진을 숨긴다") {
+                    val pageable = Pageable.ofSize(20)
+                    val graced = UserFixtures.gracedUser(4)
+                    val purged = UserFixtures.purgedUser(5)
+                    val pendings = listOf(applicant, graced, purged).map {
+                        NotificationCenterFixtures.pendingUserParty(party, it, "Hello!")
+                    }
+                    every { userPartyRepository.countUnreadPendingRequestsForHost(hostUuid) } returns 3
+                    every {
+                        userPartyRepository.findAllPendingRequestsForHost(hostUuid, pageable)
+                    } returns PageImpl(pendings)
+                    every { postRepository.findAllByParty_UuidIn(any()) } returns listOf(post)
+
+                    val byUuid = sut.getReceivedApplications(pageable).applications.associateBy { it.userUuid }
+
+                    byUuid.getValue(applicant.uuid).nickname shouldBe "applicant"
+                    byUuid.getValue(applicant.uuid).isWithdrawn shouldBe false
+                    byUuid.getValue(graced.uuid).nickname shouldBe graced.nickname
+                    byUuid.getValue(graced.uuid).hasProfileImage shouldBe true
+                    byUuid.getValue(graced.uuid).isWithdrawn shouldBe false
+                    byUuid.getValue(purged.uuid).nickname shouldBe UserDisplay.WITHDRAWN_NICKNAME
+                    byUuid.getValue(purged.uuid).hasProfileImage shouldBe false
+                    byUuid.getValue(purged.uuid).isWithdrawn shouldBe true
                 }
             }
 

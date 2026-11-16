@@ -52,6 +52,7 @@ import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
 import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
+import com.dogGetDrunk.meetjyou.user.dto.UserDisplay
 import com.dogGetDrunk.meetjyou.userparty.MemberStatus
 import com.dogGetDrunk.meetjyou.userparty.PartyRole
 import com.dogGetDrunk.meetjyou.userparty.UserParty
@@ -390,10 +391,12 @@ class PartyService(
             partyUuid = partyUuid,
             postUuid = postUuid,
             requests = pending.map { up ->
+                val applicant = UserDisplay.of(up.user)
                 PendingJoinRequest(
                     userUuid = up.user.uuid,
-                    nickname = up.user.nickname,
-                    hasProfileImage = up.user.hasProfileImage,
+                    nickname = applicant.nickname,
+                    hasProfileImage = applicant.hasProfileImage,
+                    isWithdrawn = applicant.isWithdrawn,
                     applicationNote = up.applicationNote,
                     requestedAt = up.joinedAt,
                 )
