@@ -25,7 +25,7 @@ services:
         ipv4_address: 172.28.0.20
 
   nginx:
-    image: nginx:1.26.3
+    image: nginx:1.30.7
     container_name: nginx
     volumes:
       - ./data/nginx:/etc/nginx/conf.d

@@ -193,7 +193,7 @@ jobs:
               echo "배포 성공: ${{ github.sha }}"
               # Applies docker-compose.yml changes to nginx/certbot (or starts them on a fresh
               # host). No-op unless their config or pulled image digest changed — note that an
-              # upstream rebuild of a pinned tag (e.g. nginx:1.26.3) also recreates nginx.
+              # upstream rebuild of a pinned tag (e.g. nginx:1.30.7) also recreates nginx.
               docker compose up -d --no-deps nginx certbot
               reload_nginx || exit 1
               # Only prune on a confirmed-healthy deploy — old tags stick around after a
