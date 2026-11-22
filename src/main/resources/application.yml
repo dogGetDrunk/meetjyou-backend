@@ -2,6 +2,9 @@ spring:
   application:
     name: meetjyou
   jpa:
+    # Boot's own open-in-view interceptor is replaced by OpenInViewConfig, which keeps it on every path but
+    # the place search: there it would hold a pooled connection through the live 관광공사 call.
+    open-in-view: false
     hibernate:
       ddl-auto: none
     show-sql: false
@@ -159,3 +162,9 @@ app:
 
 discord:
   webhook-url: ${DISCORD_WEBHOOK_URL:}
+
+place:
+  tour:
+    # data.go.kr key for the 관광공사 KorService2 API (the portal's "Decoding" key). Blank = tour search off (ADR-0004).
+    # Spelled out because relaxed binding would only map PLACE_TOUR_SERVICEKEY to service-key.
+    service-key: ${PLACE_TOUR_SERVICE_KEY:}

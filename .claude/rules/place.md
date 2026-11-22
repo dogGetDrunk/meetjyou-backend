@@ -37,4 +37,13 @@ Travel destination = region (required, '00' 미지정 when none) + place (option
 - Path choice uses the nationwide match count, not region size: ids follow the import file's 시·도 order, so full-text with a region filter late in the file walks every earlier match (prod 서울 '카페' 0.56 s). The count query must keep MATCH as its only condition — then it is answered from the full-text index alone
 - Cost guard: `PlaceSearchCostDockerTest` (rows read per search must not grow with matches; rows inserted region by region like prod); measurements in `.pipeline/tasks/20261109-place-search-perf/spec.md`
 
+## 관광공사 live search (`place/tour`, ADR-0004)
+- 관광공사 places are never stored: no table, no cache. A search calls `searchKeyword2` live; only stores (SBIZ) live in `place`
+- `PlaceSearchFacade` is deliberately non-transactional: DB search first (validates input, own read-only tx), then the tour call. The search path is excluded from open-in-view (`OpenInViewConfig`) — under OSIV Spring holds the connection until the request ends, so any new outside call after DB work needs the same exclusion
+- A tour failure never fails the search: `tourStatus=FAILED`, empty `tourPlaces`, one warn log with reason and elapsed ms. No Discord alert (a quota hit would flood it)
+- Never log or wrap Spring client exception messages: they hold the request URI with the service key. `TourApiProperties.toString` masks the key
+- Key: `PLACE_TOUR_SERVICE_KEY` (mapped explicitly in application.yml; relaxed binding would want `PLACE_TOUR_SERVICEKEY`). Blank = `DISABLED`, no call. Dev account = 1,000 calls/day
+- Written from the portal Swagger without a live call: `searchKeyword2` has no `contentTypeId` filter (types 12/14/28 are kept after the call), and region = `lDongRegnCd + lDongSignguCd` (falls back to the 시·도) is unverified until a key is registered
+- Read timeout bounds each wait, not the whole call (accepted, C-r1-02 of task 20261122-tour-api-realtime)
+
 **Testing:** writer SQL and search (ngram FULLTEXT) are MySQL-only → `PlaceImportDockerTest`, `PlaceSearchDockerTest`, `PlaceSearchPathDockerTest`, `PlaceSearchCostDockerTest`, `RegionSchemaDockerTest`. Services built by hand use `PlaceTestDoubles` (real catalog over a 미지정-only list, not mockk — `clearAllMocks()` would wipe stubs).
