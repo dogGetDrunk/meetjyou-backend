@@ -76,6 +76,8 @@ class TourPlaceSearchTest : BehaviorSpec() {
                             place(id = "ok"),
                             place(id = "x", xy = "" to "37.57"),
                             place(id = "y", xy = "126.97" to "0"),
+                            place(id = "nan", xy = "NaN" to "37.57"),
+                            place(id = "inf", xy = "126.97" to "Infinity"),
                         )
                     },
                 )

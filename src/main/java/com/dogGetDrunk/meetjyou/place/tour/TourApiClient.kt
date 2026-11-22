@@ -26,7 +26,9 @@ class TourApiClient(
         val response = parse(body).path("response")
         val resultCode = response.path("header").path("resultCode").asText("")
         if (resultCode != SUCCESS_CODE) {
-            throw TourApiException(TourApiException.Reason.RESULT_CODE, "resultCode=$resultCode")
+            // Upstream text goes into logs: only a short code-shaped value is echoed (V-r1-01).
+            val shown = resultCode.takeIf { RESULT_CODE_SHAPE.matches(it) } ?: UNSHOWN_CODE
+            throw TourApiException(TourApiException.Reason.RESULT_CODE, "resultCode=$shown")
         }
         return items(response.path("body").path("items").path("item")).map(::toTourPlace)
     }
@@ -105,6 +107,8 @@ class TourApiClient(
         private const val MOBILE_OS = "ETC"
         private const val RESPONSE_TYPE = "json"
         private const val FIRST_PAGE = "1"
+        private const val UNSHOWN_CODE = "<not a code>"
+        private val RESULT_CODE_SHAPE = Regex("[A-Za-z0-9_]{1,10}")
         private val GATEWAY_REASON = Regex("<returnReasonCode>\\s*(\\d+)\\s*</returnReasonCode>")
     }
 }

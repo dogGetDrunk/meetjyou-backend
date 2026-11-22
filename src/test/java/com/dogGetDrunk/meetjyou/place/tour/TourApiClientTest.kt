@@ -94,6 +94,12 @@ class TourApiClientTest : BehaviorSpec() {
                 respond("""{"response":{"header":{"resultCode":"0003","resultMsg":"x"}}}""")
                 failure { sut.searchKeyword("a", null, 1) }.reason shouldBe TourApiException.Reason.RESULT_CODE
             }
+            then("코드 모양이 아닌 resultCode는 메시지에 옮기지 않는다") {
+                respond("""{"response":{"header":{"resultCode":"$BASE_URL?serviceKey=$KEY"}}}""")
+                val e = failure { sut.searchKeyword("a", null, 1) }
+                e.reason shouldBe TourApiException.Reason.RESULT_CODE
+                e.message.orEmpty() shouldNotContain "apis.example"
+            }
             then("게이트웨이 XML 오류(한도 초과 22)는 RESULT_CODE와 사유 코드") {
                 respond(GATEWAY_LIMIT_XML, MediaType.TEXT_XML)
                 val e = failure { sut.searchKeyword("a", null, 1) }

@@ -62,12 +62,15 @@ class TourPlaceSearch(
         return TourPlaceItem.of(place, type, position.first, position.second, regionCatalog.response(region))
     }
 
-    // (lat, lng). Korea never sits at 0: a 0 means the item has no position.
+    // (lat, lng). Korea never sits at 0: a 0 means the item has no position. "NaN"/"Infinity" parse as
+    // doubles, so finiteness is checked too (V-r1-02).
     private fun position(place: TourPlace): Pair<Double, Double>? {
-        val lat = place.mapy.toDoubleOrNull()?.takeIf { it != 0.0 }
-        val lng = place.mapx.toDoubleOrNull()?.takeIf { it != 0.0 }
+        val lat = coordinate(place.mapy)
+        val lng = coordinate(place.mapx)
         return if (lat != null && lng != null) lat to lng else null
     }
+
+    private fun coordinate(value: String): Double? = value.toDoubleOrNull()?.takeIf { it.isFinite() && it != 0.0 }
 
     // 시·도 2 digits + 시·군·구 3 digits = our 5-digit 법정동 code (assumed from the Swagger, unverified live);
     // a district we do not know falls back to its 시·도, an unknown 시·도 drops the item.
