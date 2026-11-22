@@ -55,16 +55,19 @@ class TourPlaceSearch(
     // Dropped: a type we do not keep, no position, an unknown 시·도, or outside the region filter.
     private fun toItem(place: TourPlace, regionFilter: String?): TourPlaceItem? {
         val type = TourContentType.fromId(place.contentTypeId)
-        val lat = coordinate(place.mapy)
-        val lng = coordinate(place.mapx)
+        val position = position(place)
         val region = resolveRegion(place)
             ?.takeIf { regionFilter == null || regionCatalog.isWithin(it, regionFilter) }
-        if (type == null || lat == null || lng == null || region == null) return null
-        return TourPlaceItem.of(place, type, lat, lng, regionCatalog.response(region))
+        if (type == null || position == null || region == null) return null
+        return TourPlaceItem.of(place, type, position.first, position.second, regionCatalog.response(region))
     }
 
-    // Korea never sits at 0: a 0 means the item has no position.
-    private fun coordinate(value: String): Double? = value.toDoubleOrNull()?.takeIf { it != 0.0 }
+    // (lat, lng). Korea never sits at 0: a 0 means the item has no position.
+    private fun position(place: TourPlace): Pair<Double, Double>? {
+        val lat = place.mapy.toDoubleOrNull()?.takeIf { it != 0.0 }
+        val lng = place.mapx.toDoubleOrNull()?.takeIf { it != 0.0 }
+        return if (lat != null && lng != null) lat to lng else null
+    }
 
     // 시·도 2 digits + 시·군·구 3 digits = our 5-digit 법정동 code (assumed from the Swagger, unverified live);
     // a district we do not know falls back to its 시·도, an unknown 시·도 drops the item.

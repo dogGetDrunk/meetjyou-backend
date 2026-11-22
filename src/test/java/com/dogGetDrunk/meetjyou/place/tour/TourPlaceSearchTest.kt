@@ -72,7 +72,11 @@ class TourPlaceSearchTest : BehaviorSpec() {
             then("좌표가 숫자가 아니거나 0이면 버린다") {
                 val result = search(
                     FakeSource {
-                        listOf(place(id = "ok"), place(id = "x", xy = "" to "37.57"), place(id = "y", xy = "126.97" to "0"))
+                        listOf(
+                            place(id = "ok"),
+                            place(id = "x", xy = "" to "37.57"),
+                            place(id = "y", xy = "126.97" to "0"),
+                        )
                     },
                 )
                 result.places.map { it.contentId } shouldBe listOf("ok")
