@@ -43,7 +43,8 @@ Travel destination = region (required, '00' 미지정 when none) + place (option
 - A tour failure never fails the search: `tourStatus=FAILED`, empty `tourPlaces`, one warn log with reason and elapsed ms. No Discord alert (a quota hit would flood it)
 - Never log or wrap Spring client exception messages: they hold the request URI with the service key. `TourApiProperties.toString` masks the key
 - Key: `PLACE_TOUR_SERVICE_KEY` (mapped explicitly in application.yml; relaxed binding would want `PLACE_TOUR_SERVICEKEY`). Blank = `DISABLED`, no call. Dev account = 1,000 calls/day
-- Written from the portal Swagger without a live call: `searchKeyword2` has no `contentTypeId` filter (types 12/14/28 are kept after the call), and region = `lDongRegnCd + lDongSignguCd` (falls back to the 시·도) is unverified until a key is registered
+- Checked live 2026-11-22 (prod key, "경주"): region = `lDongRegnCd + lDongSignguCd` matches our 법정동 code (`47`+`130` = `47130` 경주시); unknown districts still fall back to the 시·도
+- `searchKeyword2` does take `contentTypeId` (missing from the portal Swagger), but only one type per call. Types 12/14/28 stay one unfiltered call filtered afterwards — three filtered calls would triple quota use; the cost is a page partly dropped (2 of 15 for "경주")
 - Read timeout bounds each wait, not the whole call (accepted, C-r1-02 of task 20261122-tour-api-realtime)
 
 **Testing:** writer SQL and search (ngram FULLTEXT) are MySQL-only → `PlaceImportDockerTest`, `PlaceSearchDockerTest`, `PlaceSearchPathDockerTest`, `PlaceSearchCostDockerTest`, `RegionSchemaDockerTest`. Services built by hand use `PlaceTestDoubles` (real catalog over a 미지정-only list, not mockk — `clearAllMocks()` would wipe stubs).
