@@ -114,6 +114,7 @@ jobs:
             APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}
             APPLE_PRIVATE_KEY=${{ secrets.APPLE_PRIVATE_KEY }}
             DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}
+            PLACE_TOUR_SERVICE_KEY=${{ secrets.PLACE_TOUR_SERVICE_KEY }}
             LOAD_TEST_TOKEN_ENABLED=${{ secrets.LOAD_TEST_TOKEN_ENABLED }}
             LOAD_TEST_TOKEN_SECRET=${{ secrets.LOAD_TEST_TOKEN_SECRET }}
             COMPOSE_PROJECT_NAME=meetjyou
