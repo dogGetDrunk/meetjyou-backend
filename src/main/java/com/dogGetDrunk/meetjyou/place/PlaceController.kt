@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.RequestParam
 @RequestMapping("/places")
 @Tag(name = "여행지 검색 API")
 class PlaceController(
-    private val placeSearchService: PlaceSearchService,
+    private val placeSearchFacade: PlaceSearchFacade,
 ) {
     @Operation(
         summary = "여행지 검색",
-        description = "검색어 하나로 지역(시·도, 시·군·구)과 장소를 함께 찾습니다. region을 주면 그 지역과 하위 지역의 장소만 찾습니다.",
+        description = TOUR_SEARCH_DESCRIPTION,
     )
     @GetMapping("/search")
     fun search(
@@ -25,5 +25,12 @@ class PlaceController(
         @RequestParam(required = false) region: String?,
         @RequestParam(defaultValue = "${PlaceSearchService.DEFAULT_SIZE}") size: Int,
     ): ResponseEntity<PlaceSearchResponse> =
-        ResponseEntity.ok(placeSearchService.search(q, region, size))
+        ResponseEntity.ok(placeSearchFacade.search(q, region, size))
+
+    private companion object {
+        const val TOUR_SEARCH_DESCRIPTION = """검색어 하나로 지역(시·도, 시·군·구), 가게(places), 관광지(tourPlaces, 한국관광공사 실시간)를 함께 찾습니다.
+region을 주면 그 지역과 하위 지역의 결과만 찾습니다.
+관광공사 조회가 실패하면 tourPlaces는 비고 tourStatus=FAILED, 서버에 키가 없으면 DISABLED입니다.
+관광지는 "출처 : ⓒ한국관광콘텐츠랩"을 표기해야 합니다."""
+    }
 }

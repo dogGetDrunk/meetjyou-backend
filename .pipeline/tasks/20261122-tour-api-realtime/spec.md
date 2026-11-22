@@ -47,6 +47,9 @@
   - 새 `PlaceSearchFacade`(트랜잭션 없음)가 ① 기존 `PlaceSearchService.search`(`@Transactional(readOnly = true)`, 검증과 DB 검색) ② `TourPlaceSearch.search` 순서로 호출하고 결과를 합침
   - 검증 실패(검색어 길이, `size`, 알 수 없는 지역)는 ①에서 400으로 끝나 관광공사를 호출하지 않음
   - 컨트롤러는 `PlaceSearchFacade` 를 호출
+  - **OSIV 예외 경로 (구현 중 발견, 2026-11-22)**: Spring Boot 기본 `open-in-view=true` 에서는 `HibernateJpaVendorAdapter` 가 연결 방식을 `DELAYED_ACQUISITION_AND_HOLD` 로 두어, 읽기 트랜잭션이 끝나도 커넥션을 요청 끝까지 잡음 → 관광공사 대기 중에도 커넥션 1개 점유(AT-004 실패로 확인, `open-in-view=false` 로 재실행 시 통과)
+  - 수정: `spring.jpa.open-in-view=false` 로 Boot 자동 등록을 끄고, 같은 `OpenEntityManagerInViewInterceptor` 를 직접 등록하되 `/api/v1/places/search` 만 제외. 다른 모든 경로의 OSIV 동작은 그대로
+  - 기각: 전역 OSIV 끄기(다른 API의 지연 로딩 영향 범위가 이 태스크 밖), 관광공사를 DB 검색보다 먼저 호출(검증과 지역 카탈로그 첫 로딩이 DB를 쓰면 다시 커넥션을 잡게 되어 순서에 기대는 취약한 구조)
 - 수용 기준: 테스트 대역 안에서 `TransactionSynchronizationManager.isActualTransactionActive() == false` 이고 `HikariPoolMXBean.activeConnections == 0`(OSIV 기본값 켜짐 상태 그대로에서 확인), 검증 실패 시 대역 호출 0회
 - 수용 테스트 ID: AT-004 (`PlaceSearchTourApiIntegrationTest`)
 
@@ -97,7 +100,8 @@ enum class TourSearchStatus { OK, FAILED, DISABLED }
 - 신규 `place/tour/`: `TourApiProperties`, `TourApiConfig`(RestClient 빌드, 타임아웃, URI 인코딩), `TourPlaceSource`(인터페이스, 테스트 대역 교체 지점), `TourApiClient`, `TourApiException`, `TourPlace`(원본 항목), `TourPlaceSearch`, `TourContentType`
 - 신규 `place/PlaceSearchFacade.kt`, `place/dto/TourPlaceItem.kt`
 - 변경 `PlaceController`(facade 호출), `PlaceSearchResponse`(필드 추가)
-- 변경 `src/main/resources/application.yml`: `place.tour.service-key: ${PLACE_TOUR_SERVICE_KEY:}`
+- 변경 `src/main/resources/application.yml`: `place.tour.service-key: ${PLACE_TOUR_SERVICE_KEY:}`, `spring.jpa.open-in-view: false`
+- 신규 `config/OpenInViewConfig.kt`: OSIV 인터셉터 직접 등록, 검색 경로만 제외
 - 변경 `.claude/rules/place.md`: 관광공사 실시간 검색 규칙(저장 금지, 트랜잭션 밖 호출, 키 로그 금지) 추가
 
 ### DB 스키마

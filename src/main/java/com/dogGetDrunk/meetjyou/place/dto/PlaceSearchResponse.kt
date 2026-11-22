@@ -1,9 +1,17 @@
 package com.dogGetDrunk.meetjyou.place.dto
 
-/** One search box, two groups: regions and places. Picking a place fills in its region on the client. */
+import com.dogGetDrunk.meetjyou.place.tour.TourSearchStatus
+
+/**
+ * One search box, three groups: regions, stores (SBIZ, from our DB) and 관광공사 places (searched live).
+ * Picking a place fills in its region on the client. [tourStatus] tells an empty tour group that found
+ * nothing (OK) from one that was not searched (FAILED, DISABLED).
+ */
 data class PlaceSearchResponse(
     val regions: List<RegionResponse>,
     val places: List<PlaceSearchItem>,
+    val tourPlaces: List<TourPlaceItem> = emptyList(),
+    val tourStatus: TourSearchStatus = TourSearchStatus.DISABLED,
 )
 
 data class PlaceSearchItem(
