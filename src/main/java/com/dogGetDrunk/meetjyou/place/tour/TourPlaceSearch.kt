@@ -52,12 +52,14 @@ class TourPlaceSearch(
         return TourSearchResult.FAILED
     }
 
+    // Dropped: a type we do not keep, no position, an unknown 시·도, or outside the region filter.
     private fun toItem(place: TourPlace, regionFilter: String?): TourPlaceItem? {
-        val type = TourContentType.fromId(place.contentTypeId) ?: return null
-        val lat = coordinate(place.mapy) ?: return null
-        val lng = coordinate(place.mapx) ?: return null
-        val region = resolveRegion(place) ?: return null
-        if (regionFilter != null && !regionCatalog.isWithin(region, regionFilter)) return null
+        val type = TourContentType.fromId(place.contentTypeId)
+        val lat = coordinate(place.mapy)
+        val lng = coordinate(place.mapx)
+        val region = resolveRegion(place)
+            ?.takeIf { regionFilter == null || regionCatalog.isWithin(it, regionFilter) }
+        if (type == null || lat == null || lng == null || region == null) return null
         return TourPlaceItem.of(place, type, lat, lng, regionCatalog.response(region))
     }
 

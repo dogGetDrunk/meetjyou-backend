@@ -40,14 +40,14 @@ class TourPlaceSearchTest : BehaviorSpec() {
         },
     )
 
+    // xy = (mapx, mapy) = (longitude, latitude), as the API names them.
     private fun place(
         id: String = "1",
         type: String = "12",
         regn: String = SEOUL,
         signgu: String = "110",
-        mapx: String = "126.97",
-        mapy: String = "37.57",
-    ) = TourPlace(id, type, "이름$id", "주소", mapx, mapy, regn, signgu)
+        xy: Pair<String, String> = "126.97" to "37.57",
+    ) = TourPlace(id, type, "이름$id", "주소", xy.first, xy.second, regn, signgu)
 
     private fun search(source: FakeSource, region: String? = null) =
         TourPlaceSearch(source, catalog).search(" 경복궁 ", region, SIZE)
@@ -72,7 +72,7 @@ class TourPlaceSearchTest : BehaviorSpec() {
             then("좌표가 숫자가 아니거나 0이면 버린다") {
                 val result = search(
                     FakeSource {
-                        listOf(place(id = "ok"), place(id = "x", mapx = ""), place(id = "y", mapy = "0"))
+                        listOf(place(id = "ok"), place(id = "x", xy = "" to "37.57"), place(id = "y", xy = "126.97" to "0"))
                     },
                 )
                 result.places.map { it.contentId } shouldBe listOf("ok")

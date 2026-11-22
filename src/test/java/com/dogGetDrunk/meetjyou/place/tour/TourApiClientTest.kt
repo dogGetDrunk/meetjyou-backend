@@ -45,7 +45,8 @@ class TourApiClientTest : BehaviorSpec() {
         beforeEach {
             val builder = RestClient.builder()
             server = MockRestServiceServer.bindTo(builder).build()
-            sut = TourApiClient(TourApiProperties(baseUrl = BASE_URL, serviceKey = KEY), builder.build(), ObjectMapper())
+            val props = TourApiProperties(baseUrl = BASE_URL, serviceKey = KEY)
+            sut = TourApiClient(props, builder.build(), ObjectMapper())
         }
 
         given("검색 요청") {

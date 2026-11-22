@@ -100,7 +100,8 @@ class PlaceSearchTourApiIntegrationTest : BehaviorSpec() {
     private fun search(query: String): ResponseEntity<String> {
         val headers = HttpHeaders()
         headers.setBearerAuth(jwt.generateAccessToken(member.uuid, member.role))
-        return rest.exchange("/api/v1/places/search?$query", HttpMethod.GET, HttpEntity<Void>(headers), String::class.java)
+        val request = HttpEntity<Void>(headers)
+        return rest.exchange("/api/v1/places/search?$query", HttpMethod.GET, request, String::class.java)
     }
 
     private fun json(response: ResponseEntity<String>): JsonNode = mapper.readTree(response.body)

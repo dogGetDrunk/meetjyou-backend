@@ -3,6 +3,7 @@ package com.dogGetDrunk.meetjyou.place.tour
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.http.client.ClientHttpResponse
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 import org.springframework.web.util.UriComponentsBuilder
@@ -48,23 +49,28 @@ class TourApiClient(
         return builder.encode().buildAndExpand(values).toUri()
     }
 
-    // Spring's exception messages hold the request URI (with the key), so only the class name is kept.
+    // Spring's exception messages hold the request URI (with the key), so neither the message nor the
+    // cause is kept: only the class name.
+    @Suppress("SwallowedException")
     private fun fetch(uri: URI): String {
         val body = try {
-            restClient.get().uri(uri).exchange { _, response ->
-                if (!response.statusCode.is2xxSuccessful) {
-                    throw TourApiException(TourApiException.Reason.HTTP_STATUS, "status=${response.statusCode.value()}")
-                }
-                response.body.readAllBytes().toString(Charsets.UTF_8)
-            }
+            restClient.get().uri(uri).exchange { _, response -> readBody(response) }
         } catch (e: RestClientException) {
             throw TourApiException(TourApiException.Reason.UNREACHABLE, e.javaClass.simpleName)
         }
         return body ?: throw TourApiException(TourApiException.Reason.BAD_BODY, "empty body")
     }
 
+    private fun readBody(response: ClientHttpResponse): String {
+        if (!response.statusCode.is2xxSuccessful) {
+            throw TourApiException(TourApiException.Reason.HTTP_STATUS, "status=${response.statusCode.value()}")
+        }
+        return response.body.readAllBytes().toString(Charsets.UTF_8)
+    }
+
     // The data.go.kr gateway answers its own errors (quota exceeded = 22, unregistered key = 30) in XML
-    // even when JSON was asked for.
+    // even when JSON was asked for. A body that is neither may echo the request, so it is not kept.
+    @Suppress("SwallowedException")
     private fun parse(body: String): JsonNode = try {
         objectMapper.readTree(body)
     } catch (e: JsonProcessingException) {
