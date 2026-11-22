@@ -34,11 +34,12 @@
 ### REQ-003 장애와 비활성 처리
 
 - 요구사항
-  - `TourApiException` 또는 예상하지 못한 `RuntimeException` → 관광지 결과 비움, 상태 `FAILED`, `log.warn` 1줄(원인 분류만, 키와 URI 없음). Discord 알림은 보내지 않음(한도 초과가 연속 알림 폭주가 됨)
+  - `TourApiException` 또는 예상하지 못한 `RuntimeException` → 관광지 결과 비움, 상태 `FAILED`, `log.warn` 1줄(원인 분류와 걸린 시간 ms만, 키와 URI 없음). Discord 알림은 보내지 않음(한도 초과가 연속 알림 폭주가 됨). 걸린 시간은 C-r1-02 재검토 근거(느린 응답 관측 시 총 시간 상한 추가)
   - 서비스키가 비어 있으면 호출하지 않고 상태 `DISABLED`
   - 성공 시 상태 `OK`(0건이어도 `OK`)
 - 수용 기준: 실패 유형마다 200 응답 + 지역과 가게 결과 그대로 + `tourStatus=FAILED`, 키 없음 → 호출 0회 + `DISABLED`
-- 수용 테스트 ID: AT-003 (`TourPlaceSearchTest`, `PlaceSearchTourApiIntegrationTest`)
+- 수용 기준 추가(C-r1-01): `PLACE_TOUR_SERVICE_KEY` 이름으로 값을 주면 `TourApiProperties.serviceKey` 에 들어가고, 없으면 빈 문자열
+- 수용 테스트 ID: AT-003 (`TourPlaceSearchTest`, `PlaceSearchTourApiIntegrationTest`, `TourApiPropertiesBindingTest`)
 
 ### REQ-004 DB 트랜잭션 밖에서 외부 호출
 
@@ -86,16 +87,17 @@ enum class TourSearchStatus { OK, FAILED, DISABLED }
 | 키 | 기본값 | 비고 |
 |---|---|---|
 | `base-url` | `https://apis.data.go.kr/B551011/KorService2` | |
-| `service-key` | `""` | 운영은 환경 변수 `PLACE_TOUR_SERVICE_KEY`(사람이 등록), 비면 비활성 |
+| `service-key` | `""` | `application.yml` 에 `service-key: ${PLACE_TOUR_SERVICE_KEY:}` 로 명시 매핑(relaxed binding의 표준 이름은 `PLACE_TOUR_SERVICEKEY` 라 `PLACE_TOUR_SERVICE_KEY` 가 자동으로 묶이지 않음, C-r1-01). 운영 등록은 사람, 비면 비활성 |
 | `mobile-app` | `meetjyou` | 필수 파라미터 |
 | `connect-timeout` | 1초 | |
-| `read-timeout` | 2초 | 검색 응답 최악 지연 = DB 검색 + 3초 미만(프론트 타임아웃 8초) |
+| `read-timeout` | 2초 | 읽기 사이 대기 한도일 뿐 응답 전체 시간 상한이 아님. 연결 실패와 응답 멈춤은 잡지만, 조금씩 끝없이 흘려보내는 응답은 3초를 넘길 수 있음(C-r1-02, 사람 결정으로 감수). 총 시간 상한은 두지 않음 |
 
 ### 파일
 
 - 신규 `place/tour/`: `TourApiProperties`, `TourApiConfig`(RestClient 빌드, 타임아웃, URI 인코딩), `TourPlaceSource`(인터페이스, 테스트 대역 교체 지점), `TourApiClient`, `TourApiException`, `TourPlace`(원본 항목), `TourPlaceSearch`, `TourContentType`
 - 신규 `place/PlaceSearchFacade.kt`, `place/dto/TourPlaceItem.kt`
 - 변경 `PlaceController`(facade 호출), `PlaceSearchResponse`(필드 추가)
+- 변경 `src/main/resources/application.yml`: `place.tour.service-key: ${PLACE_TOUR_SERVICE_KEY:}`
 - 변경 `.claude/rules/place.md`: 관광공사 실시간 검색 규칙(저장 금지, 트랜잭션 밖 호출, 키 로그 금지) 추가
 
 ### DB 스키마
