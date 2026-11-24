@@ -20,10 +20,18 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
+import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
+import org.springframework.context.event.EventListener
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor
+import org.springframework.messaging.simp.SimpMessageType
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.web.socket.messaging.SessionSubscribeEvent
 import java.util.UUID
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 /**
@@ -34,6 +42,7 @@ import java.util.concurrent.TimeUnit
  */
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("test")
+@Import(ChatStompFrameGuardIntegrationTest.RecorderConfig::class)
 @MockBean(
     FirebaseApp::class,
     AuthenticationDetailsProvider::class,
@@ -54,17 +63,62 @@ class ChatStompFrameGuardIntegrationTest : BehaviorSpec() {
     @Value("\${local.server.port}")
     private var port: Int = 0
 
+    @Autowired
+    private lateinit var subscriptions: SubscriptionRecorder
+
     private val clients = mutableListOf<RawStompClient>()
+
+    private data class Victim(val userUuid: UUID, val roomUuid: UUID)
 
     private data class Target(
         val name: String,
-        val destination: (UUID) -> String,
+        val subscription: (Victim) -> String,
+        val attackDestination: (Victim) -> String,
+        val sendControl: (Victim, Map<String, String>) -> Unit,
     )
 
     private val targets = listOf(
-        Target(name = "AT-003-1 다른 방 메시지 목적지", destination = { room -> "/sub/chat/room/$room" }),
-        Target(name = "AT-003-2 다른 방 이벤트 목적지", destination = { room -> "/sub/chat/room/$room/events" }),
+        Target(
+            name = "AT-003-1 다른 방 메시지 목적지",
+            subscription = { victim -> "/sub/chat/room/${victim.roomUuid}" },
+            attackDestination = { victim -> "/sub/chat/room/${victim.roomUuid}" },
+            sendControl = { victim, body -> messagingTemplate.convertAndSend("/sub/chat/room/${victim.roomUuid}", body) },
+        ),
+        Target(
+            name = "AT-003-2 다른 방 이벤트 목적지",
+            subscription = { victim -> "/sub/chat/room/${victim.roomUuid}/events" },
+            attackDestination = { victim -> "/sub/chat/room/${victim.roomUuid}/events" },
+            sendControl = { victim, body ->
+                messagingTemplate.convertAndSend("/sub/chat/room/${victim.roomUuid}/events", body)
+            },
+        ),
+        // SimpUserRegistry stays empty (see the task's logs/red-observations.md), so a name-only
+        // convertAndSendToUser reaches nobody; the control goes by the victim's session id instead.
+        Target(
+            name = "AT-003-3 다른 유저 오류 큐",
+            subscription = { _ -> USER_ERROR_QUEUE },
+            attackDestination = { victim -> "/user/${victim.userUuid}${ChatController.ERROR_QUEUE}" },
+            sendControl = { _, body -> sendToVictimSession(body) },
+        ),
     )
+
+    /** Session ids of `/user/queue/errors` subscriptions, in subscribe order. */
+    class SubscriptionRecorder {
+        val errorQueueSessionIds = LinkedBlockingQueue<String>()
+
+        @EventListener
+        fun on(event: SessionSubscribeEvent) {
+            val accessor = SimpMessageHeaderAccessor.wrap(event.message)
+            val sessionId = accessor.sessionId ?: return
+            if (accessor.destination == USER_ERROR_QUEUE) errorQueueSessionIds.add(sessionId)
+        }
+    }
+
+    @TestConfiguration
+    class RecorderConfig {
+        @Bean
+        fun subscriptionRecorder() = SubscriptionRecorder()
+    }
 
     init {
         extensions(SpringExtension())
@@ -72,6 +126,7 @@ class ChatStompFrameGuardIntegrationTest : BehaviorSpec() {
         afterEach {
             clients.forEach { it.close() }
             clients.clear()
+            subscriptions.errorQueueSessionIds.clear()
             chatTestDataHelper.cleanup()
         }
 
@@ -81,20 +136,6 @@ class ChatStompFrameGuardIntegrationTest : BehaviorSpec() {
                     then("공격자는 ERROR와 연결 종료, 이미 수신 중인 피해자는 그 프레임을 받지 않는다") {
                         verifyBrokerSendRejected(target)
                     }
-                }
-            }
-            // Name-based user routing finds no session today (SimpUserRegistry stays empty, see the
-            // task's logs/red-observations.md), so no victim can be shown receiving it; the guard
-            // must still refuse it in case that registration is ever fixed.
-            `when`("AT-003-3 다른 유저 오류 큐(/user/{uuid}/queue/errors)로 직접 SEND하면") {
-                then("공격자는 ERROR와 연결 종료") {
-                    val victim = chatTestDataHelper.createTestData()
-                    val attackerUuid = chatTestDataHelper.addMember(victim.roomUuid, "attacker", MemberStatus.BANNED)
-                    val attacker = connected(chatTestDataHelper.addRoomFor(attackerUuid), attackerUuid)
-
-                    attacker.sendTo("/user/${victim.userUuid}${ChatController.ERROR_QUEUE}", forgedBody())
-
-                    assertRejected(attacker, ErrorCode.INVALID_INPUT_VALUE)
                 }
             }
         }
@@ -141,17 +182,17 @@ class ChatStompFrameGuardIntegrationTest : BehaviorSpec() {
     }
 
     private fun verifyBrokerSendRejected(target: Target) {
-        val victim = chatTestDataHelper.createTestData()
+        val data = chatTestDataHelper.createTestData()
+        val victim = Victim(data.userUuid, data.roomUuid)
         val attackerUuid = chatTestDataHelper.addMember(victim.roomUuid, "attacker", MemberStatus.BANNED)
         val attackerRoomUuid = chatTestDataHelper.addRoomFor(attackerUuid)
 
         val victimClient = connected(victim.roomUuid, victim.userUuid)
-        val destination = target.destination(victim.roomUuid)
-        victimClient.subscribe(destination)
-        awaitSubscriptionReady(victimClient) { body -> messagingTemplate.convertAndSend(destination, body) }
+        victimClient.subscribe(target.subscription(victim))
+        awaitSubscriptionReady(victimClient) { body -> target.sendControl(victim, body) }
 
         val attacker = connected(attackerRoomUuid, attackerUuid)
-        attacker.sendTo(destination, forgedBody())
+        attacker.sendTo(target.attackDestination(victim), forgedBody())
 
         assertRejected(attacker, ErrorCode.INVALID_INPUT_VALUE)
         victimClient.awaitContaining(FORGED, SILENCE_MILLIS).shouldBeNull()
@@ -199,11 +240,22 @@ class ChatStompFrameGuardIntegrationTest : BehaviorSpec() {
         return client
     }
 
+    // Same as @SendToUser(broadcast = false) with no registered user: the session id stands in for
+    // the user name, and DefaultUserDestinationResolver routes a name equal to the session id to it.
+    private fun sendToVictimSession(body: Map<String, String>) {
+        val sessionId = subscriptions.errorQueueSessionIds.peek() ?: return
+        val headers = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE)
+        headers.sessionId = sessionId
+        headers.setLeaveMutable(true)
+        messagingTemplate.convertAndSendToUser(sessionId, ChatController.ERROR_QUEUE, body, headers.messageHeaders)
+    }
+
     private fun forgedBody() = """{"marker":"$FORGED"}"""
 
     private fun tokenOf(userUuid: UUID) = jwtProvider.generateAccessToken(userUuid, Role.USER)
 
     companion object {
+        private const val USER_ERROR_QUEUE = "/user${ChatController.ERROR_QUEUE}"
         private const val CONTROL = "control-frame"
         private const val FORGED = "forged-frame"
         private const val TIMEOUT_MILLIS = 5000L

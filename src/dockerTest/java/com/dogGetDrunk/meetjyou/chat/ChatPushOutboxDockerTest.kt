@@ -105,7 +105,8 @@ class ChatPushOutboxDockerTest : BehaviorSpec() {
                     }
                     val keys = jdbc.queryForList(OUTBOX_KEYS_SQL, String::class.java)
 
-                    keys.size shouldBe expected.size
+                    messageUuids.size shouldBe MESSAGE_COUNT
+                    keys.size shouldBe EXPECTED_ROWS
                     keys.toSet() shouldBe expected.toSet()
                 }
             }
@@ -115,6 +116,10 @@ class ChatPushOutboxDockerTest : BehaviorSpec() {
     companion object {
         private val mysql = SharedMySql.newDatabase()
         private const val MEMBER_COUNT = 3
+        private const val MESSAGE_COUNT = 2
+
+        // Two messages x two offline receivers (the sender is excluded).
+        private const val EXPECTED_ROWS = 4
         private const val CAPACITY = 4
         private const val TRIP_SECONDS = 86_400L
         private const val TAG_LENGTH = 8

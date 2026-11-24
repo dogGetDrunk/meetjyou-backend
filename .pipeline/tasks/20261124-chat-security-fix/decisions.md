@@ -20,3 +20,7 @@
 
 | 라운드 (최대 2) | 항목 | 수용/기각 | 근거 | 메인 설계자 | 사람 승인 |
 |---|---|---|---|---|---|
+| 1 | V-r1-01 | 수용 | AT-003-3을 C-r1-05대로 복구: 피해자 `/user/queue/errors` 구독 → 세션 id 지정 control 프레임 도착으로 구독 준비 증명 → 공격자 ERROR와 종료 → 1초 미수신. 레지스트리가 비어 있어도 Spring 6.2.1 `DefaultUserDestinationResolver` 는 사용자 이름이 세션 id와 같으면 그 세션으로 보냄(`@SendToUser(broadcast = false)` 와 같은 경로) | Opus 5.5 | |
+| 1 | V-r1-02 | 수용 | `result.md` 에 운영 확인(로그 범위, `sql_mode` 근거, 미확인 부분, 확정 조회) 기록 | Opus 5.5 | |
+| 1 | V-r1-03 | 수용 | `result.md` 에 H2 중간 상태(옛 키 + 길이 제한 → 행 0개와 길이 초과, 새 키 → 통과) 기록 | Opus 5.5 | |
+| 1 | V-r1-04 | 수용 | `ChatPushOutboxDockerTest` 에 메시지 2개, outbox 행 4개를 명시적으로 단언 | Opus 5.5 | |

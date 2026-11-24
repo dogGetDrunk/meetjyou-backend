@@ -23,6 +23,7 @@
 - 서버 정상 경로 `convertAndSendToUser(uuid, "/queue/errors")` → 도착 안 함
 - 클라이언트 SEND `/user/{uuid}/queue/errors` → 도착 안 함
 - 결론: 현재 설정에서 다른 유저 오류 큐 주입은 재현되지 않음(이름으로 세션을 못 찾아 버려짐). 다만 레지스트리 등록이 나중에 고쳐지면 바로 열리는 경로라 SEND 가드로 함께 막음
+- 추가 확인(V-r1-01 대응): Spring 6.2.1 `DefaultUserDestinationResolver.parseMessage` 는 사용자 이름이 메시지의 세션 id와 같으면 그 세션으로 보냄. `convertAndSendToUser(세션 id, "/queue/errors", ..., 세션 id 헤더)` 로 보낸 control 프레임은 피해자에게 도착 → AT-003-3의 구독 준비 증명에 사용
 
 ## #293 중간 상태와 MySQL 재현
 
