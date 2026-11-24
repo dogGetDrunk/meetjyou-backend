@@ -141,9 +141,11 @@ class ChatService(
                             "type" to "CHAT_MESSAGE",
                             "roomUuid" to room.uuid.toString(),
                         ),
-                        // The message uuid keeps the key unique per message; without it the first
-                        // outbox row would permanently suppress every later push for this room.
-                        dedupKey = "chat:${room.uuid}:${receiver.uuid}:${savedMessage.uuid}",
+                        // Message + receiver is unique per push; the room uuid is left out because
+                        // the message already implies it and it pushed the key past dedup_key's
+                        // 100 chars (#293). Without the message uuid the first outbox row would
+                        // permanently suppress every later push for this room.
+                        dedupKey = "chat:${savedMessage.uuid}:${receiver.uuid}",
                     ),
                 )
             )

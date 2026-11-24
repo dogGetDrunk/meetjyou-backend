@@ -36,9 +36,12 @@ class ChatStompInterceptor(
         val accessor = StompHeaderAccessor.wrap(message)
         val command = accessor.command ?: return message
 
+        // STOMP is the STOMP 1.2 alias of CONNECT; letting it fall through would open a connection
+        // without any token check.
         return when (command) {
-            StompCommand.CONNECT -> handleConnect(accessor, message)
+            StompCommand.CONNECT, StompCommand.STOMP -> handleConnect(accessor, message)
             StompCommand.SUBSCRIBE -> handleSubscribe(accessor, message)
+            StompCommand.SEND -> handleSend(accessor, message)
             else -> message
         }
     }
@@ -47,6 +50,8 @@ class ChatStompInterceptor(
         accessor: StompHeaderAccessor,
         message: Message<*>,
     ): Message<*> {
+        rejectIfAlreadyConnected(accessor)
+
         val roomUuid = accessor.getFirstNativeHeader(ROOM_UUID_HEADER)
             ?.let { rawRoomUuid -> runCatching { UUID.fromString(rawRoomUuid) }.getOrNull() }
             ?: throw InvalidInputException(value = ROOM_UUID_HEADER, message = "roomUuid header is missing or invalid")
@@ -98,6 +103,41 @@ class ChatStompInterceptor(
             userUuid,
         )
 
+        return message
+    }
+
+    // Spring passes a second CONNECT on the same session through to here (#295). Rebinding the
+    // connection to another room would leave it open, still subscribed, after a kick from the first.
+    private fun rejectIfAlreadyConnected(accessor: StompHeaderAccessor) {
+        val boundRoomUuid = accessor.sessionAttributes?.get(ChatSessionAttributes.ROOM_UUID) ?: return
+        log.warn(
+            "STOMP CONNECT rejected because the connection is already bound to a room. boundRoomUuid={}, sessionId={}",
+            boundRoomUuid,
+            accessor.sessionId,
+        )
+        throw InvalidInputException(value = ROOM_UUID_HEADER, message = "Connection is already bound to a room")
+    }
+
+    // Only application destinations reach @MessageMapping and ChatService's membership check. The
+    // simple broker also takes client SENDs to its own prefixes (/sub, /queue, /user) and hands them
+    // straight to every subscriber, so those would let anyone inject frames into another room (#294).
+    private fun handleSend(
+        accessor: StompHeaderAccessor,
+        message: Message<*>,
+    ): Message<*> {
+        accessor.destination
+            ?.takeIf { it.startsWith(SEND_DESTINATION_PREFIX) }
+            ?: run {
+                log.warn(
+                    "STOMP SEND rejected for a non-application destination. destination={}, sessionId={}",
+                    accessor.destination,
+                    accessor.sessionId,
+                )
+                throw InvalidInputException(
+                    value = accessor.destination ?: "destination",
+                    message = "Unsupported send destination",
+                )
+            }
         return message
     }
 
@@ -194,5 +234,7 @@ class ChatStompInterceptor(
         private val ROOM_SUBSCRIPTION_PATTERN = Regex("^/sub/chat/room/([^/]+)(/events)?$")
         private const val ERROR_QUEUE_SUBSCRIPTION = "/user${ChatController.ERROR_QUEUE}"
         private const val ROOM_UUID_HEADER = "roomUuid"
+        const val APP_DESTINATION_PREFIX = "/pub"
+        private const val SEND_DESTINATION_PREFIX = "$APP_DESTINATION_PREFIX/"
     }
 }

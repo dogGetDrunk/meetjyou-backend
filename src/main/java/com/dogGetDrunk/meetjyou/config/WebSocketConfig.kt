@@ -26,7 +26,8 @@ class WebSocketConfig(
     override fun configureMessageBroker(registry: MessageBrokerRegistry) {
         // /queue carries per-session replies (@SendToUser), e.g. /user/queue/errors for a failed SEND.
         registry.enableSimpleBroker("/sub", "/queue")
-        registry.setApplicationDestinationPrefixes("/pub")
+        // ChatStompInterceptor rejects any client SEND outside this prefix, so the two stay one constant.
+        registry.setApplicationDestinationPrefixes(ChatStompInterceptor.APP_DESTINATION_PREFIX)
     }
 
     override fun registerStompEndpoints(registry: StompEndpointRegistry) {

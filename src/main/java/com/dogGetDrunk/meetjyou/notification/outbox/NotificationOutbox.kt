@@ -2,6 +2,7 @@ package com.dogGetDrunk.meetjyou.notification.outbox
 
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.user.User
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -32,6 +33,7 @@ class NotificationOutbox(
 
     val dataJson: String,
 
+    @Column(length = DEDUP_KEY_MAX_LENGTH)
     val dedupKey: String? = null,
 
     @Enumerated(EnumType.STRING)
@@ -55,4 +57,10 @@ class NotificationOutbox(
     var deliveredTokenIds: String? = null
 
     enum class DeliveryStatus { PENDING, SENDING, SENT, FAILED, DEAD }
+
+    companion object {
+        // Matches V1's VARCHAR(100): H2 builds its test schema from the mapping, and without the length
+        // it was 255 there, so an over-long key (#293) passed every H2 test and failed only on MySQL.
+        const val DEDUP_KEY_MAX_LENGTH = 100
+    }
 }
