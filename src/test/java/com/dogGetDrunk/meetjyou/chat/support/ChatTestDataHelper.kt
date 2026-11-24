@@ -121,6 +121,12 @@ class ChatTestDataHelper(
     fun outboxRecipientUuids(): Set<UUID> =
         notificationOutboxRepository.findAll().map { it.user.uuid }.toSet()
 
+    @Transactional(readOnly = true)
+    fun outboxDedupKeys(): List<String?> = notificationOutboxRepository.findAll().map { it.dedupKey }
+
+    @Transactional(readOnly = true)
+    fun messageUuids(): List<UUID> = chatMessageRepository.findAll().map { it.uuid }
+
     @Transactional
     fun cleanup() {
         userPartyRepository.deleteAll()

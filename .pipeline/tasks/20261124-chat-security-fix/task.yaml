@@ -1,0 +1,9 @@
+key: 20261124-chat-security-fix
+title: 채팅 보안과 채팅 푸시 결함 수정 (11/23 리뷰)
+size: M
+mode: single
+format: 2
+created: '2026-11-24'
+links:
+  notion: https://app.notion.com/p/42156d9a97d981d8a6f9cfd4a85a9b37
+  issue: dogGetDrunk/meetjyou-backend#293

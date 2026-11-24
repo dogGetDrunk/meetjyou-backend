@@ -9,6 +9,7 @@ import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.workrequests.WorkRequestClient
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
+import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -18,6 +19,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
+import java.util.UUID
 
 /**
  * Guards issue #220: a chat message push (which carries the message body) must reach only the
@@ -69,9 +71,44 @@ class ChatPushRecipientIntegrationTest : BehaviorSpec() {
                 }
             }
         }
+
+        given("AT-001-1: 오프라인 JOINED 멤버 2명이 있는 채팅방") {
+            afterEach {
+                chatTestDataHelper.cleanup()
+            }
+
+            `when`("메시지 2개를 각각 커밋하면") {
+                then("메시지와 수신자 조합마다 키가 다른 outbox 행이 저장되고 키는 100자 이하다") {
+                    val data = chatTestDataHelper.createTestData()
+                    val receivers = listOf("receiverOne", "receiverTwo").map { nickname ->
+                        chatTestDataHelper.addMember(data.roomUuid, nickname, MemberStatus.JOINED)
+                    }
+
+                    listOf("first", "second").forEach { body -> send(data.roomUuid, data.userUuid, body) }
+
+                    val expected = chatTestDataHelper.messageUuids().flatMap { message ->
+                        receivers.map { receiver -> "chat:$message:$receiver" }
+                    }
+                    val keys = chatTestDataHelper.outboxDedupKeys()
+                    keys.size shouldBe EXPECTED_ROWS
+                    keys.toSet() shouldBe expected.toSet()
+                    keys.forEach { key -> (key?.length ?: 0) shouldBeLessThanOrEqual DEDUP_KEY_MAX_LENGTH }
+                }
+            }
+        }
+    }
+
+    // Commits for real: the outbox row is written by an AFTER_COMMIT listener, then read back here.
+    private fun send(roomUuid: UUID, senderUuid: UUID, body: String) {
+        TransactionTemplate(transactionManager).executeWithoutResult {
+            chatService.handleChatMessage(ChatMessageRequest(roomUuid = roomUuid, message = body), senderUuid)
+        }
     }
 
     companion object {
+        private const val EXPECTED_ROWS = 4
+        private const val DEDUP_KEY_MAX_LENGTH = 100
+
         private val INACTIVE_STATUSES = listOf(
             MemberStatus.PENDING,
             MemberStatus.REJECTED,

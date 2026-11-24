@@ -21,6 +21,9 @@ STOMP over WebSocket (`/ws-chat`, pub `/pub/**`, sub `/sub/**`). Key classes:
 - Kick / leave → `ChatParticipantService.removeParticipant` publishes `ChatAccessRevokedEvent`; withdrawal → `UserSessionRevoker.revokeAll` publishes `UserSessionsRevokedEvent`. `ChatSessionRevocationListener` closes the matching sessions after commit — close code 1008, reason `MEMBER_BANNED` / `MEMBER_LEFT` (`ChatAccessRevocationReason`) or `USER_WITHDRAWN`; the reconnect is rejected on CONNECT
 - The removed member never receives the room's MEMBER_BANNED / MEMBER_LEFT event (its session closes first, and sending the event first would still race the async outbound channel) — the close reason is its only signal. A new removal path needs its own reason value
 - A new way to lose room access must publish one of these events
+- One CONNECT per connection: a second CONNECT (or its STOMP 1.2 alias `STOMP`, checked the same way) on a bound session is rejected. Spring passes it through, and rebinding the room would let a kicked connection survive (#295)
+- SEND only to `/pub/**` (`ChatStompInterceptor.APP_DESTINATION_PREFIX`, shared with `WebSocketConfig`). The simple broker also accepts client SENDs to `/sub`, `/queue`, `/user` and delivers them to subscribers unchecked, skipping `ChatService` (#294)
+- `SimpUserRegistry` stays empty (the interceptor sets the user on a copied accessor), so name-based `/user/{uuid}/...` routing reaches nobody — per-session replies (`@SendToUser(broadcast = false)`) work. Fixing the registration opens that path, still closed by the SEND rule
 - SEND rechecks membership and `User.isActive()` per message — covers the gap between commit and close
 - Accepted race: a CONNECT validated just before the removal commits can set its attributes after the close scan and stay open until it reconnects (#221 PR)
 
