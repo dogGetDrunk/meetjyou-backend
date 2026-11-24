@@ -82,7 +82,9 @@ class ChatStompFrameGuardIntegrationTest : BehaviorSpec() {
             name = "AT-003-1 다른 방 메시지 목적지",
             subscription = { victim -> "/sub/chat/room/${victim.roomUuid}" },
             attackDestination = { victim -> "/sub/chat/room/${victim.roomUuid}" },
-            sendControl = { victim, body -> messagingTemplate.convertAndSend("/sub/chat/room/${victim.roomUuid}", body) },
+            sendControl = { victim, body ->
+                messagingTemplate.convertAndSend("/sub/chat/room/${victim.roomUuid}", body)
+            },
         ),
         Target(
             name = "AT-003-2 다른 방 이벤트 목적지",
