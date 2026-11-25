@@ -13,5 +13,8 @@ class TourApiException(
         HTTP_STATUS,
         BAD_BODY,
         RESULT_CODE,
+
+        /** The daily call quota is used up (data.go.kr code 22): the search pauses calls for a while. */
+        QUOTA_EXCEEDED,
     }
 }
