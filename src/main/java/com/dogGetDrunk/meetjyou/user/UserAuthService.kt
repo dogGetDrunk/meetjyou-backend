@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshToken
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.RefreshTokenRepository
 import com.dogGetDrunk.meetjyou.auth.refreshtoken.findChainHeadForUpdate
+import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
 import com.dogGetDrunk.meetjyou.auth.social.socialTokenOf
 import com.dogGetDrunk.meetjyou.common.exception.business.jwt.IncorrectJwtSubjectException
@@ -16,7 +17,9 @@ import com.dogGetDrunk.meetjyou.user.dto.TokenResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import org.springframework.transaction.TransactionSystemException
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Duration
 import java.time.Instant
 
@@ -27,11 +30,16 @@ class UserAuthService(
     private val jwtProvider: JwtProvider,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val tokenPairIssuer: TokenPairIssuer,
+    private val transactionTemplate: TransactionTemplate,
     @Value("\${jwt.rotation-overlap-seconds}") private val rotationOverlapSeconds: Long,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Transactional
+    /**
+     * Not @Transactional, on purpose: the provider check is a network call and must not hold a
+     * pooled DB connection. It runs before the request's first DB access, so open-in-view holds
+     * nothing yet either; the account work then runs in one short transaction.
+     */
     fun loginViaSocial(request: LoginRequest, nonce: String? = null): TokenResponse {
         val token = socialTokenOf(request.idToken, request.accessToken)
 
@@ -41,10 +49,15 @@ class UserAuthService(
             .get(request.authProvider)
             .verifyAndExtract(token, nonce)
 
+        return transactionTemplate.execute { issueForSocialAccount(principal) }
+            ?: throw TransactionSystemException("Login transaction returned no result")
+    }
+
+    private fun issueForSocialAccount(principal: SocialPrincipal): TokenResponse {
         val user = userRepository.findBySocialAccount(principal.authProvider, principal.subject)
             ?: throw UserNotFoundException(
-                request.authProvider.name,
-                message = "User not found for provider ${request.authProvider}"
+                principal.authProvider.name,
+                message = "User not found for provider ${principal.authProvider}"
             )
 
         restoreIfWithdrawn(user)
