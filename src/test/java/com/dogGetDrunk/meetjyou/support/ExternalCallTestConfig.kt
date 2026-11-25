@@ -4,10 +4,11 @@ import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
 import com.dogGetDrunk.meetjyou.auth.social.SocialToken
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifier
 import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
+import com.dogGetDrunk.meetjyou.auth.social.apple.AppleVerifier
+import com.dogGetDrunk.meetjyou.auth.social.google.GoogleVerifier
+import com.dogGetDrunk.meetjyou.auth.social.kakao.KakaoVerifier
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.zaxxer.hikari.HikariDataSource
-import io.mockk.every
-import io.mockk.mockk
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
@@ -27,17 +28,19 @@ class ExternalCallTestConfig {
     @Bean
     fun verifierProbe(dataSource: DataSource) = VerifierProbe(dataSource.unwrap(HikariDataSource::class.java))
 
+    // A subclass, not a mockk: unit tests call clearAllMocks(), which would wipe a mockk's stubs inside
+    // this cached context and make later specs in the same JVM fail.
     @Bean
     @Primary
-    fun fakeSocialVerifierRegistry(probe: VerifierProbe): SocialVerifierRegistry {
-        val registry = mockk<SocialVerifierRegistry>()
-        every { registry.get(any()) } answers {
-            val provider = firstArg<AuthProvider>()
-            object : SocialVerifier {
-                override fun verifyAndExtract(token: SocialToken, nonce: String?) = probe.answer(provider)
-            }
+    fun fakeSocialVerifierRegistry(
+        probe: VerifierProbe,
+        google: GoogleVerifier,
+        kakao: KakaoVerifier,
+        apple: AppleVerifier,
+    ): SocialVerifierRegistry = object : SocialVerifierRegistry(google, kakao, apple) {
+        override fun get(provider: AuthProvider): SocialVerifier = object : SocialVerifier {
+            override fun verifyAndExtract(token: SocialToken, nonce: String?) = probe.answer(provider)
         }
-        return registry
     }
 }
 
