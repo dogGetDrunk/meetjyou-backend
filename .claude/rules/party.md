@@ -19,6 +19,6 @@ paths:
 - No FK to `party` has ON DELETE CASCADE — delete order: chat data (`purgeRoomData`) → chat room → post → user_party → party
 - COMPLETED parties are read-only (`validatePartyWritable`); chat membership is synced manually (`enterRoom` / `removeParticipant` + room event broadcast)
 - Reuse host checks: `verifyPartyHost`, `assertCurrentUserIsHost`, `requireActiveHostMembership` ("active" = JOINED)
-- Methods that call OCI Object Storage stay non-`@Transactional` (no DB connection held during network I/O)
+- Methods that call OCI Object Storage stay non-`@Transactional`, and that alone is not enough: open-in-view holds the first connection a request uses until it ends. The image routes are excluded from it (`OpenInViewConfig`), so their DB work must finish inside a transaction before the OCI call — party image downloads go through `PartyImageDownloadService` (read-only `TransactionTemplate` → plain values → PAR). Pinned by `ImageParConnectionIntegrationTest`
 
 **Testing:** one Kotest `BehaviorSpec` per use case, `PartyService` built by hand from relaxed mockk; locking and `@DynamicUpdate` are covered by `UpdatePartyNameIntegrationTest` and `PartyPostLostUpdateIntegrationTest`; lock freshness after a preload by `PartyLockFreshReadDockerTest` (MySQL only — H2 is READ COMMITTED). Membership races (#222): `UserPartyLostUpdateIntegrationTest` (H2) + `UserPartyLockFreshReadDockerTest` (MySQL).
