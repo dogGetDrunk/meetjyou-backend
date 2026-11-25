@@ -47,6 +47,7 @@
 
 - `agent-pipeline gate` (`./gradlew test build`, detekt와 `ConventionTest` 포함): exit 0, `BUILD SUCCESSFUL in 1m 31s`, test 888건 실패 0, 건너뜀 0 (커밋 `50e76e1`)
 - `./gradlew dockerTest` (Testcontainers MySQL): `BUILD SUCCESSFUL in 3m 17s`, 176건 실패 0, 건너뜀 0 (커밋 `b3c7633` 기준, 이후 변경은 `src/test` 와 태스크 문서뿐이라 dockerTest 대상 코드 동일)
+- `origin/main`(#306 관광공사 한도 태스크) 병합 후 `agent-pipeline gate` 재실행: exit 0, `BUILD SUCCESSFUL in 1m 38s`, test 898건 실패 0, 건너뜀 0
 - RED 확인 3건: 로그인 `@Transactional` 복원 시 3건 실패, 이미지 경로 OSIV 제외 제거 시 7건 실패(커넥션 1), 넓은 패턴(`/parties/*/img/**`) 시 `PUT .../img/confirm` 에서 실패
 
 ## 핵심 결정과 기각한 대안
