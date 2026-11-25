@@ -10,6 +10,7 @@ import com.nimbusds.jwt.proc.DefaultJWTProcessor
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.jwt.Jwt
@@ -17,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
+import org.springframework.web.client.RestClient
 
 @Configuration
 class KakaoOidcConfig(
@@ -38,5 +40,15 @@ class KakaoOidcConfig(
         )
         decoder.setJwtValidator(validators)
         return decoder
+    }
+
+    // The builder bean is prototype-scoped, so these timeouts stay local to the Kakao REST calls.
+    @Bean
+    @Qualifier("kakaoRestClient")
+    fun kakaoRestClient(restClientBuilder: RestClient.Builder): RestClient {
+        val requestFactory = SimpleClientHttpRequestFactory()
+        requestFactory.setConnectTimeout(props.connectTimeout)
+        requestFactory.setReadTimeout(props.readTimeout)
+        return restClientBuilder.requestFactory(requestFactory).build()
     }
 }

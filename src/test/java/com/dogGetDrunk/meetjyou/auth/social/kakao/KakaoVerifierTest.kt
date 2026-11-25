@@ -40,7 +40,7 @@ class KakaoVerifierTest : BehaviorSpec() {
     private val meterRegistry = SimpleMeterRegistry()
     private val restClientBuilder = RestClient.builder()
     private val kakaoApi = MockRestServiceServer.bindTo(restClientBuilder).build()
-    private val sut = KakaoVerifier(props, kakaoJwtDecoder, meterRegistry, restClientBuilder)
+    private val sut = KakaoVerifier(props, kakaoJwtDecoder, meterRegistry, restClientBuilder.build())
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 
