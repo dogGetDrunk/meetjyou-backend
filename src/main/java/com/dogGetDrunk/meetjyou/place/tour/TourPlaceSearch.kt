@@ -7,10 +7,6 @@ import com.dogGetDrunk.meetjyou.place.dto.TourPlaceItem
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.time.Duration
-import java.time.Instant
-import java.time.ZoneId
-import java.util.concurrent.atomic.AtomicReference
 
 data class TourSearchResult(
     val status: TourSearchStatus,
@@ -30,18 +26,16 @@ data class TourSearchResult(
 class TourPlaceSearch(
     private val source: TourPlaceSource,
     private val regionCatalog: RegionCatalog,
-    private val clock: Clock = Clock.systemUTC(),
+    clock: Clock = Clock.systemUTC(),
 ) {
     private val log = LoggerFactory.getLogger(TourPlaceSearch::class.java)
 
-    // Set when the daily quota is used up; no call until then. In memory: the app runs one instance, and
-    // it holds no answer, so ADR-0004 (no caching) still holds.
-    private val pausedUntil = AtomicReference<Instant?>(null)
+    private val quotaPause = TourQuotaPause(clock)
 
     /** [regionCode] is already validated by the local search; it narrows the API call (see [areaOf]). */
     fun search(query: String, regionCode: String?, size: Int): TourSearchResult = when {
         !source.enabled -> TourSearchResult.DISABLED
-        isPaused() -> TourSearchResult.FAILED
+        quotaPause.isActive() -> TourSearchResult.FAILED
         else -> call(query, regionCode, size)
     }
 
@@ -63,18 +57,9 @@ class TourPlaceSearch(
         }
     }
 
-    private fun isPaused(): Boolean {
-        val until = pausedUntil.get() ?: return false
-        return clock.instant().isBefore(until)
-    }
-
-    // Until the next KST midnight or for an hour, whichever ends first: the quota is thought to reset at
-    // midnight, but that is unconfirmed, and a later reset must not cost the whole next day.
+    // One warn per pause; the paused searches after it stay silent.
     private fun pause(startedAt: Long): TourSearchResult {
-        val now = clock.instant()
-        val nextMidnight = now.atZone(KST).toLocalDate().plusDays(1).atStartOfDay(KST).toInstant()
-        val resumeAt = minOf(nextMidnight, now.plus(QUOTA_PAUSE))
-        pausedUntil.set(resumeAt)
+        val resumeAt = quotaPause.start()
         log.warn(
             "Tour search paused: reason={}, resumeAt={}, elapsedMs={}",
             TourApiException.Reason.QUOTA_EXCEEDED, resumeAt, elapsedMs(startedAt),
@@ -135,7 +120,5 @@ class TourPlaceSearch(
     private companion object {
         const val UNEXPECTED = "UNEXPECTED"
         const val NANOS_PER_MILLI = 1_000_000L
-        val QUOTA_PAUSE: Duration = Duration.ofHours(1)
-        val KST: ZoneId = ZoneId.of("Asia/Seoul")
     }
 }
