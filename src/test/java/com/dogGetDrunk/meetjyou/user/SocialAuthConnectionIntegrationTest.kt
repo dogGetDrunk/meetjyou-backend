@@ -4,6 +4,7 @@ import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
 import com.dogGetDrunk.meetjyou.support.EXTERNAL_CALL_H2_URL
 import com.dogGetDrunk.meetjyou.support.ExternalCallTestConfig
 import com.dogGetDrunk.meetjyou.support.VerifierProbe
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.firebase.FirebaseApp
 import com.oracle.bmc.auth.AuthenticationDetailsProvider
 import com.oracle.bmc.objectstorage.ObjectStorageClient
@@ -12,6 +13,7 @@ import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldNotBeBlank
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.mock.mockito.MockBean
@@ -43,6 +45,7 @@ class SocialAuthConnectionIntegrationTest : BehaviorSpec() {
     @Autowired private lateinit var jwt: JwtProvider
     @Autowired private lateinit var users: UserRepository
     @Autowired private lateinit var probe: VerifierProbe
+    @Autowired private lateinit var mapper: ObjectMapper
 
     private fun seedUser(provider: AuthProvider, externalId: String): User {
         val tag = UUID.randomUUID().toString().take(NICKNAME_LENGTH)
@@ -97,6 +100,9 @@ class SocialAuthConnectionIntegrationTest : BehaviorSpec() {
 
                     assertSingleCleanCall(provider)
                     response.statusCode shouldBe HttpStatus.OK
+                    val body = mapper.readTree(response.body)
+                    body["accessToken"].asText().shouldNotBeBlank()
+                    body["refreshToken"].asText().shouldNotBeBlank()
                 }
             }
 

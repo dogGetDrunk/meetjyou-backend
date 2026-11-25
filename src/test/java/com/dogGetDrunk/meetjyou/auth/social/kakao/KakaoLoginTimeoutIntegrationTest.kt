@@ -7,6 +7,7 @@ import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.workrequests.WorkRequestClient
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
+import io.kotest.matchers.longs.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -19,6 +20,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import java.util.concurrent.TimeUnit
 
 private const val H2_URL = "jdbc:h2:mem:kakao_login_timeout;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"
 
@@ -49,9 +51,13 @@ class KakaoLoginTimeoutIntegrationTest : BehaviorSpec() {
                 headers.contentType = MediaType.APPLICATION_JSON
                 val body = mapOf("authProvider" to "KAKAO", "accessToken" to "held-token")
 
+                val startedNs = System.nanoTime()
                 val response = rest.postForEntity("/api/v1/auth/login", HttpEntity(body, headers), String::class.java)
+                val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNs)
 
                 server.received.count shouldBe 0L
+                // Well under the 5s default and the server's 5s hold: only the injected 200ms timeout fits.
+                elapsedMs shouldBeLessThan MAX_ELAPSED_MS
                 response.statusCode shouldBe HttpStatus.SERVICE_UNAVAILABLE
                 mapper.readTree(response.body)["errorCode"].asText() shouldBe "SOCIAL_PROVIDER_UNAVAILABLE"
             }
@@ -60,6 +66,7 @@ class KakaoLoginTimeoutIntegrationTest : BehaviorSpec() {
 
     companion object {
         private const val READ_TIMEOUT = "200ms"
+        private const val MAX_ELAPSED_MS = 2_000L
         private val server = HeldResponseServer()
 
         @JvmStatic

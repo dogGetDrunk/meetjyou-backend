@@ -19,3 +19,8 @@
 
 | 라운드 (최대 2) | 항목 | 수용/기각 | 근거 | 메인 설계자 | 사람 승인 |
 |---|---|---|---|---|---|
+| 1 | V-r1-01 | 수용 | fake가 `SocialVerifierRegistry.get` 을 덮어써 운영 레지스트리의 provider 선택을 건너뜀. 세 검증기 빈을 각자 자기 provider를 기록하는 하위 클래스(`@Primary`)로 바꿔 운영 레지스트리가 고르게 함. 레지스트리에서 Google을 Kakao로 바꾸면 2건 실패함을 RED로 확인 | Claude Opus 5.5 | - |
+| 1 | V-r1-02 | 수용 | 로그인 케이스가 응답 본문을 확인하지 않음. `accessToken`, `refreshToken` 비어 있지 않음 단언 추가 | Claude Opus 5.5 | - |
+| 1 | V-r1-03 | 수용 | 서버 보류 상한과 기본 read timeout이 모두 5s라 주입한 200ms가 적용되지 않아도 503이 나올 수 있음. HTTP 테스트에 경과 시간 2s 미만 단언 추가 | Claude Opus 5.5 | - |
+| 1 | V-r1-04 | 수용 | `result.md` 미작성 상태에서 검증이 돌았음. 최종 gate(`./gradlew test build`)와 `./gradlew dockerTest` 결과를 `result.md` 에 기록 | Claude Opus 5.5 | - |
+| 1 | V-r1-05 | 수용 | REQ-008 후속 기록 누락. Apple 해제 두 경로와 남은 커넥션 점유, 제외 근거를 `result.md` 후속 항목에 기록 | Claude Opus 5.5 | - |

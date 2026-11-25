@@ -13,3 +13,4 @@
 | 2026-11-26 | 테스트 공통 | AT-001/002, AT-004, AT-006 세 클래스가 같은 컨텍스트 설정(`support/ExternalCallTestConfig`, H2 URL `external_call_connection`, `@MockBean` 4종)을 공유. 검증기 fake는 mockk가 아닌 `SocialVerifierRegistry` 하위 클래스 | 클래스마다 컨텍스트를 만들면 테스트 JVM OOM. mockk stub은 다른 단위 테스트의 `clearAllMocks()` 에 지워짐 | Claude Opus 5.5 |
 | 2026-11-26 | 테스트 공통 | `build.gradle.kts` 테스트 태스크 `maxHeapSize = "1g"` | Gradle 기본 512m에서 컨텍스트 캐시 증가로 OOM. 기각: 컨텍스트 캐시 축소(공유 H2 스키마 삭제 연쇄 위험), 수용 테스트 축소(C-r1-02 수용분) | Claude Opus 5.5 |
 | 2026-11-26 | REQ-001 | `UserAuthService` 생성자 7개로 detekt `LongParameterList` 신규 → 근거 주석과 `@Suppress`. 기존 baseline 항목 2개(`PartyService`, `OracleObjectStorageController`)는 바뀐 시그니처로 ID만 교체, 항목 수 329 유지 | baseline 추가 금지 규칙. 기각: 소셜 로그인 별도 서비스 분리(인증 모듈 테스트와 규칙까지 범위 확대) | Claude Opus 5.5 |
+| 2026-11-26 | 테스트 공통 | AT-001/002 fake를 레지스트리 하위 클래스에서 provider별 검증기 하위 클래스(`@Primary` 빈 3개)로 변경, 로그인 토큰 쌍 단언, AT-003 HTTP 경과 시간 2s 미만 단언 | V-r1-01, V-r1-02, V-r1-03 | Claude Opus 5.5 |
