@@ -39,11 +39,15 @@ class TourPlaceSearch(
     private val pausedUntil = AtomicReference<Instant?>(null)
 
     /** [regionCode] is already validated by the local search; it narrows the API call (see [areaOf]). */
+    fun search(query: String, regionCode: String?, size: Int): TourSearchResult = when {
+        !source.enabled -> TourSearchResult.DISABLED
+        isPaused() -> TourSearchResult.FAILED
+        else -> call(query, regionCode, size)
+    }
+
     // Any failure, expected or not, must only empty the tour group, never fail the whole search.
     @Suppress("TooGenericExceptionCaught")
-    fun search(query: String, regionCode: String?, size: Int): TourSearchResult {
-        if (!source.enabled) return TourSearchResult.DISABLED
-        if (isPaused()) return TourSearchResult.FAILED
+    private fun call(query: String, regionCode: String?, size: Int): TourSearchResult {
         val startedAt = System.nanoTime()
         return try {
             val area = areaOf(regionCode)
