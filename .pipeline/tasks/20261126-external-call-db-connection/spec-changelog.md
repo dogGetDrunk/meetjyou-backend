@@ -10,3 +10,6 @@
 | 2026-11-26 | REQ-008 | Apple 해제 경로 후속 기록 요구사항 신설 | C-r1-06 | Claude Opus 5.5 |
 | 2026-11-26 | REQ-007 | OSIV 제외 규칙을 DB 작업 뒤 외부 호출 경로로 한정 | C-r1-07 | Claude Opus 5.5 |
 | 2026-11-26 | REQ-005 | 별도 빈 근거 정정, `PartyService` 생성자에서 `PartyImgService`, `PostImgService` 제거와 테스트 17곳 인자 수정 명시 | 구현 중 확인: 옮기고 나면 두 의존이 쓰이지 않아 detekt 미사용 경고 대상, 생성자 변경은 피할 수 없음 | Claude Opus 5.5 |
+| 2026-11-26 | 테스트 공통 | AT-001/002, AT-004, AT-006 세 클래스가 같은 컨텍스트 설정(`support/ExternalCallTestConfig`, H2 URL `external_call_connection`, `@MockBean` 4종)을 공유. 검증기 fake는 mockk가 아닌 `SocialVerifierRegistry` 하위 클래스 | 클래스마다 컨텍스트를 만들면 테스트 JVM OOM. mockk stub은 다른 단위 테스트의 `clearAllMocks()` 에 지워짐 | Claude Opus 5.5 |
+| 2026-11-26 | 테스트 공통 | `build.gradle.kts` 테스트 태스크 `maxHeapSize = "1g"` | Gradle 기본 512m에서 컨텍스트 캐시 증가로 OOM. 기각: 컨텍스트 캐시 축소(공유 H2 스키마 삭제 연쇄 위험), 수용 테스트 축소(C-r1-02 수용분) | Claude Opus 5.5 |
+| 2026-11-26 | REQ-001 | `UserAuthService` 생성자 7개로 detekt `LongParameterList` 신규 → 근거 주석과 `@Suppress`. 기존 baseline 항목 2개(`PartyService`, `OracleObjectStorageController`)는 바뀐 시그니처로 ID만 교체, 항목 수 329 유지 | baseline 추가 금지 규칙. 기각: 소셜 로그인 별도 서비스 분리(인증 모듈 테스트와 규칙까지 범위 확대) | Claude Opus 5.5 |
