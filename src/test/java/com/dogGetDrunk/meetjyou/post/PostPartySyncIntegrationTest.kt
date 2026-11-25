@@ -76,7 +76,7 @@ class PostPartySyncIntegrationTest : BehaviorSpec() {
     private val tx by lazy { TransactionTemplate(manager) }
     private val partyService by lazy {
         PartyService(parties, posts, plans, markers, rooms, mockk(relaxed = true), mockk(relaxed = true),
-            memberships, users, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper(),
+            memberships, users, mockk(relaxed = true), ObjectMapper(),
             provider, PlaceTestDoubles.regionCatalog())
     }
     private val service by lazy {

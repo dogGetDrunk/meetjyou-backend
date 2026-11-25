@@ -21,6 +21,8 @@ import io.mockk.verify
 import java.time.Instant
 import java.time.LocalDateTime
 import java.util.UUID
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 
 class UserAuthServiceTest : BehaviorSpec() {
     private val socialVerifierRegistry = mockk<SocialVerifierRegistry>(relaxed = true)
@@ -34,6 +36,7 @@ class UserAuthServiceTest : BehaviorSpec() {
         jwtProvider,
         refreshTokenRepository,
         TokenPairIssuer(jwtProvider, refreshTokenRepository),
+        TransactionTemplate(mockk<PlatformTransactionManager>(relaxed = true)),
         rotationOverlapSeconds = 30L,
     )
 

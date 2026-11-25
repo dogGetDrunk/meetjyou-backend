@@ -20,6 +20,8 @@ import io.mockk.mockk
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 
 class UserAuthServiceWithdrawalTest : BehaviorSpec() {
 
@@ -31,6 +33,7 @@ class UserAuthServiceWithdrawalTest : BehaviorSpec() {
     private val sut = UserAuthService(
         socialVerifierRegistry, userRepository, jwtProvider, refreshTokenRepository,
         TokenPairIssuer(jwtProvider, refreshTokenRepository),
+        TransactionTemplate(mockk<PlatformTransactionManager>(relaxed = true)),
         rotationOverlapSeconds = 30L,
     )
 

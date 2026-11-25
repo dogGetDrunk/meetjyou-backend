@@ -70,7 +70,7 @@ class SocialAccountConcurrencyDockerTest : BehaviorSpec() {
     private val currentUserProvider = mockk<CurrentUserProvider>()
     private val sequence = AtomicInteger()
 
-    private val sut by lazy { SocialAccountService(socialVerifierRegistry, userRepository, currentUserProvider) }
+    private val sut by lazy { SocialAccountService(socialVerifierRegistry, userRepository, currentUserProvider, tx) }
     private val tx by lazy { TransactionTemplate(transactionManager) }
     private val jdbc by lazy { JdbcTemplate(dataSource) }
 
