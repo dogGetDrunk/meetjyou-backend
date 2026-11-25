@@ -66,7 +66,7 @@
 
 - 요구사항
   - `PartyService.resolvePartyOriginalImageDownload`, `resolvePartyThumbnailImageDownloads`, `resolveThumbnail` 을 새 빈 `PartyImageDownloadService`(`party` 패키지)로 이동. `OracleObjectStorageController` 는 새 빈을 호출
-    - 근거: `PartyService` 를 직접 생성하는 테스트가 10개라 생성자에 트랜잭션 템플릿을 추가하면 변경이 넓어짐. 이미지 해석은 `PartyService` 의 다른 로직과 상태를 공유하지 않음
+    - 근거: 이미지 해석은 `PartyService` 의 다른 로직과 상태를 공유하지 않고, 옮기면 `PartyService` 가 OCI 의존(`PartyImgService`, `PostImgService`)을 완전히 버림. 두 의존은 생성자에서 제거하고 `PartyService` 를 직접 생성하는 테스트 17곳의 인자를 맞춤
   - 새 빈: 클래스와 메서드에 `@Transactional` 없음. 읽기 전용 `TransactionTemplate`(`isReadOnly = true`, `PlatformTransactionManager` 로 생성) 안에서 DB를 읽어 "어느 객체의 이미지를 쓸지"(파티 자체, 연결 모집글, 없음)만 값으로 계산하고, 트랜잭션이 끝난 뒤 OCI PAR 발급
     - 원본: `requireParty` → `imageState` 에 따라 파티 uuid, `postRepository.findByParty_Uuid` 의 모집글 uuid, 또는 null. 파티 없음은 `PartyNotFoundException`(404) 그대로
     - 썸네일: `partyRepository.findAllByUuidIn` 을 먼저, 그다음 `postRepository.findAllByParty_UuidIn` (같은 영속성 컨텍스트라 `post.party.uuid` 접근이 추가 쿼리 없이 해결됨). 입력 순서와 길이를 유지한 `List<ParResponse?>`, 없는 파티와 `NONE` 은 null

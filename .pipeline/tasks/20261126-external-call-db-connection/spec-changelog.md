@@ -9,3 +9,4 @@
 | 2026-11-26 | 마일스톤 | `./gradlew dockerTest` 전체 실행과 결과 기록 추가 | C-r1-05 | Claude Opus 5.5 |
 | 2026-11-26 | REQ-008 | Apple 해제 경로 후속 기록 요구사항 신설 | C-r1-06 | Claude Opus 5.5 |
 | 2026-11-26 | REQ-007 | OSIV 제외 규칙을 DB 작업 뒤 외부 호출 경로로 한정 | C-r1-07 | Claude Opus 5.5 |
+| 2026-11-26 | REQ-005 | 별도 빈 근거 정정, `PartyService` 생성자에서 `PartyImgService`, `PostImgService` 제거와 테스트 17곳 인자 수정 명시 | 구현 중 확인: 옮기고 나면 두 의존이 쓰이지 않아 detekt 미사용 경고 대상, 생성자 변경은 피할 수 없음 | Claude Opus 5.5 |

@@ -5,8 +5,6 @@ import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.chat.participant.ChatParticipantService
 import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.notificationcenter.support.NotificationCenterFixtures
 import com.dogGetDrunk.meetjyou.party.dto.JoinRequestStatus
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
@@ -42,14 +40,12 @@ class GetPendingJoinRequestsTest : BehaviorSpec() {
     private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
-    private val partyImgService = mockk<PartyImgService>(relaxed = true)
-    private val postImgService = mockk<PostImgService>(relaxed = true)
     private val objectMapper = ObjectMapper()
     private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val sut = PartyService(
         partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
         chatParticipantService, chatRoomEventBroadcaster, userPartyRepository,
-        userRepository, publisher, partyImgService, postImgService, objectMapper, currentUserProvider,
+        userRepository, publisher, objectMapper, currentUserProvider,
             PlaceTestDoubles.regionCatalog(),
     )
 

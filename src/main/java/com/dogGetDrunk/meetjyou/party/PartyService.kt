@@ -27,9 +27,6 @@ import com.dogGetDrunk.meetjyou.chat.event.ChatRoomEventBroadcaster
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinCancelNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinNotAllowedException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyJoinRejectedCooldownException
-import com.dogGetDrunk.meetjyou.cloud.oracle.dto.ParResponse
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.notification.NotificationPayload
 import com.dogGetDrunk.meetjyou.notification.NotificationType
 import com.dogGetDrunk.meetjyou.notification.event.NotificationEvent
@@ -49,7 +46,6 @@ import com.dogGetDrunk.meetjyou.plan.Marker
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.dto.GetPlanResponse
-import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostRepository
 import com.dogGetDrunk.meetjyou.user.UserRepository
 import com.dogGetDrunk.meetjyou.user.dto.UserDisplay
@@ -80,8 +76,6 @@ class PartyService(
     private val userPartyRepository: UserPartyRepository,
     private val userRepository: UserRepository,
     private val publisher: ApplicationEventPublisher,
-    private val partyImgService: PartyImgService,
-    private val postImgService: PostImgService,
     private val objectMapper: ObjectMapper,
     private val currentUserProvider: CurrentUserProvider,
     private val regionCatalog: RegionCatalog,
@@ -663,35 +657,6 @@ class PartyService(
     fun clearPartyImageState(partyUuid: UUID) {
         requireParty(partyUuid).imageState = PartyImageState.NONE
         log.info("Party image cleared: uuid=$partyUuid")
-    }
-
-    @Transactional(readOnly = true)
-    fun resolvePartyOriginalImageDownload(partyUuid: UUID): ParResponse? {
-        val party = requireParty(partyUuid)
-        return when (party.imageState) {
-            PartyImageState.CUSTOM -> partyImgService.createPartyOriginalImgDownloadPars(party.uuid)
-            PartyImageState.NONE -> null
-            PartyImageState.INHERITED -> postRepository.findByParty_Uuid(partyUuid)
-                ?.let { postImgService.createPostOriginalImgDownloadPars(it.uuid) }
-        }
-    }
-
-    // Deliberately NOT @Transactional: the OCI PAR calls below are synchronous network I/O, and
-    // must not run while holding a pooled DB connection (see ADR — Hikari pool exhaustion).
-    // The two repository calls each run in their own short-lived, auto-committed transaction.
-    fun resolvePartyThumbnailImageDownloads(partyUuids: List<UUID>): List<ParResponse?> {
-        val partyByUuid = partyRepository.findAllByUuidIn(partyUuids).associateBy { it.uuid }
-        val postByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associateBy { it.party.uuid }
-        return partyUuids.map { resolveThumbnail(partyByUuid[it], postByPartyUuid[it]) }
-    }
-
-    private fun resolveThumbnail(party: Party?, post: Post?): ParResponse? {
-        if (party == null) return null
-        return when (party.imageState) {
-            PartyImageState.CUSTOM -> partyImgService.createPartyThumbnailImgDownloadPars(listOf(party.uuid)).firstOrNull()
-            PartyImageState.NONE -> null
-            PartyImageState.INHERITED -> post?.let { postImgService.createPostThumbnailImgDownloadPars(listOf(it.uuid)).firstOrNull() }
-        }
     }
 
     private fun snapshotPlan(party: Party) {
