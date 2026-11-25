@@ -5,6 +5,13 @@
 
 | 라운드 (최대 2) | 항목 | 수용/기각 | 근거 | 메인 설계자 | 사람 승인 |
 |---|---|---|---|---|---|
+| 1 | C-r1-01 | 수용 | AT-002에 provider별 케이스가 없어 한 provider로 통과 가능. AT-001, AT-002 모두 세 provider 독립 케이스와 검증기 1회 호출 확인을 먼저 요구하도록 수정 | Claude Opus 5.5 | - |
+| 1 | C-r1-02 | 수용 | intent 성공 기준이 503 응답 자체를 요구하는데 spec은 예외만 검사. 수신 latch로 응답 보류 중 timeout임을 증명하고, 실제 KakaoVerifier로 `POST /api/v1/auth/login` 503과 `errorCode` 를 확인하는 HTTP 테스트 추가 | Claude Opus 5.5 | - |
+| 1 | C-r1-03 | 수용 | 모집글 삭제는 파티를 지우지 않아 INHERITED인데 모집글 없는 파티가 실제로 존재. 현재 동작(원본 204, 썸네일 null, OCI 0회)을 수용 기준과 AT-005 케이스로 고정 | Claude Opus 5.5 | - |
+| 1 | C-r1-04 | 수용 | 마지막 값만 남기는 기록이면 빈 기록이나 앞선 호출의 점유를 놓침. 호출별 기록 목록 + 기대 작업과 대상 객체와 횟수 확인 후 전 기록 단언으로 수정 | Claude Opus 5.5 | - |
+| 1 | C-r1-05 | 수용 | 프로젝트 gate는 `./gradlew test build` 라 dockerTest가 빠짐. intent 성공 기준대로 마지막 마일스톤에 `./gradlew dockerTest` 전체 실행과 결과 기록 추가 | Claude Opus 5.5 | - |
+| 1 | C-r1-06 | 수용 | intent가 Apple 해제 경로 제외를 후속 기록으로 요구. REQ-008로 `result.md` 기록 요구사항 추가 | Claude Opus 5.5 | - |
+| 1 | C-r1-07 | 수용 | 외부 호출이 첫 DB 작업보다 앞서는 경로는 커넥션을 잡지 않으므로 제외 대상이 아님. KDoc 규칙을 "DB 작업 뒤 외부 호출" 경로로 한정 | Claude Opus 5.5 | - |
 
 ## 구현 후 검증 결정
 
