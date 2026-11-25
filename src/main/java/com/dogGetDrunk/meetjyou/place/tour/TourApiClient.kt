@@ -21,21 +21,21 @@ class TourApiClient(
 ) : TourPlaceSource {
     override val enabled: Boolean get() = props.enabled
 
-    override fun searchKeyword(keyword: String, sidoCode: String?, size: Int): List<TourPlace> {
-        val body = fetch(buildUri(keyword, sidoCode, size))
+    override fun searchKeyword(keyword: String, sidoCode: String?, signguCode: String?, size: Int): List<TourPlace> {
+        val body = fetch(buildUri(keyword, sidoCode, signguCode, size))
         val response = parse(body).path("response")
         val resultCode = response.path("header").path("resultCode").asText("")
         if (resultCode != SUCCESS_CODE) {
             // Upstream text goes into logs: only a short code-shaped value is echoed (V-r1-01).
             val shown = resultCode.takeIf { RESULT_CODE_SHAPE.matches(it) } ?: UNSHOWN_CODE
-            throw TourApiException(TourApiException.Reason.RESULT_CODE, "resultCode=$shown")
+            throw TourApiException(reasonOf(resultCode), "resultCode=$shown")
         }
         return items(response.path("body").path("items").path("item")).map(::toTourPlace)
     }
 
     // Values go in as URI variables: those are encoded strictly, so the key's '+' becomes %2B exactly once.
     // A literal query value would keep '+', which the gateway reads as a space (= wrong key).
-    private fun buildUri(keyword: String, sidoCode: String?, size: Int): URI {
+    private fun buildUri(keyword: String, sidoCode: String?, signguCode: String?, size: Int): URI {
         val values = mutableMapOf(
             "serviceKey" to props.serviceKey,
             "MobileOS" to MOBILE_OS,
@@ -46,6 +46,7 @@ class TourApiClient(
             "pageNo" to FIRST_PAGE,
         )
         if (sidoCode != null) values["lDongRegnCd"] = sidoCode
+        if (signguCode != null) values["lDongSignguCd"] = signguCode
         val builder = UriComponentsBuilder.fromUriString(props.baseUrl).path(SEARCH_KEYWORD_PATH)
         values.keys.forEach { builder.queryParam(it, "{$it}") }
         return builder.encode().buildAndExpand(values).toUri()
@@ -78,10 +79,14 @@ class TourApiClient(
     } catch (e: JsonProcessingException) {
         val gatewayCode = GATEWAY_REASON.find(body)?.groupValues?.get(1)
         if (gatewayCode != null) {
-            throw TourApiException(TourApiException.Reason.RESULT_CODE, "gatewayReasonCode=$gatewayCode")
+            throw TourApiException(reasonOf(gatewayCode), "gatewayReasonCode=$gatewayCode")
         }
         throw TourApiException(TourApiException.Reason.BAD_BODY, e.javaClass.simpleName)
     }
+
+    // The quota code is the same in the JSON header and the gateway's XML answer.
+    private fun reasonOf(code: String): TourApiException.Reason =
+        if (code == QUOTA_EXCEEDED_CODE) TourApiException.Reason.QUOTA_EXCEEDED else TourApiException.Reason.RESULT_CODE
 
     // No result: `items` is an empty string, so `item` is missing. One result may come as a bare object.
     private fun items(item: JsonNode): List<JsonNode> = when {
@@ -104,6 +109,7 @@ class TourApiClient(
     companion object {
         const val SEARCH_KEYWORD_PATH = "/searchKeyword2"
         const val SUCCESS_CODE = "0000"
+        const val QUOTA_EXCEEDED_CODE = "22"
         private const val MOBILE_OS = "ETC"
         private const val RESPONSE_TYPE = "json"
         private const val FIRST_PAGE = "1"

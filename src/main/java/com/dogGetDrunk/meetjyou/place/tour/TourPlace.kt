@@ -16,6 +16,9 @@ data class TourPlace(
 interface TourPlaceSource {
     val enabled: Boolean
 
-    /** [sidoCode] narrows to one 시·도 (법정동 2-digit code). Throws [TourApiException] on any failure. */
-    fun searchKeyword(keyword: String, sidoCode: String?, size: Int): List<TourPlace>
+    /**
+     * [sidoCode] narrows to one 시·도 (법정동 2-digit code), [signguCode] further to one 시·군·구 within it
+     * (the last 3 digits). Throws [TourApiException] on any failure.
+     */
+    fun searchKeyword(keyword: String, sidoCode: String?, signguCode: String?, size: Int): List<TourPlace>
 }

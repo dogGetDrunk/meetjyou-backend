@@ -9,8 +9,17 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 
-/** AT-002 (type filter, region mapping, region filter, coordinates) and AT-003 unit part (failure, disabled). */
+/**
+ * Task 20261122-tour-api-realtime AT-002/AT-003 (types, regions, coordinates, failure, disabled) and task
+ * 20261126-tour-quota-region-filter AT-002 (quota pause) and AT-003 (시·군·구 sent to the API).
+ */
 class TourPlaceSearchTest : BehaviorSpec() {
 
     private class FakeSource(
@@ -19,12 +28,25 @@ class TourPlaceSearchTest : BehaviorSpec() {
     ) : TourPlaceSource {
         var calls = 0
         var lastSido: String? = null
+        var lastSigngu: String? = null
 
-        override fun searchKeyword(keyword: String, sidoCode: String?, size: Int): List<TourPlace> {
+        override fun searchKeyword(
+            keyword: String,
+            sidoCode: String?,
+            signguCode: String?,
+            size: Int,
+        ): List<TourPlace> {
             calls++
             lastSido = sidoCode
+            lastSigngu = signguCode
             return answer()
         }
+    }
+
+    private class MutableClock(var now: Instant) : Clock() {
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+        override fun withZone(zone: ZoneId): Clock = this
+        override fun instant(): Instant = now
     }
 
     private val catalog = RegionCatalog(
@@ -91,13 +113,83 @@ class TourPlaceSearchTest : BehaviorSpec() {
         }
 
         given("지역 필터가 있을 때") {
-            then("API에는 시·도만 넘기고 결과는 일반구까지 포함해 다시 거른다") {
+            then("일반구를 둔 시는 API에 시·도만 넘기고 결과는 일반구까지 포함해 다시 거른다") {
                 val source = FakeSource {
                     listOf(place(id = "jangan", regn = GYEONGGI, signgu = "111"), place(id = "jongno"))
                 }
                 val result = search(source, region = SUWON)
                 source.lastSido shouldBe GYEONGGI
+                source.lastSigngu shouldBe null
                 result.places.map { it.contentId } shouldBe listOf("jangan")
+            }
+            then("일반 시·군·구는 시·군·구 코드도 넘기고 결과는 그대로 다시 거른다") {
+                val source = FakeSource { listOf(place(id = "jongno"), place(id = "other", signgu = "140")) }
+                val result = search(source, region = JONGNO)
+                (source.lastSido to source.lastSigngu) shouldBe (SEOUL to "110")
+                result.places.map { it.contentId } shouldBe listOf("jongno")
+            }
+            then("일반구, 시·도, 필터 없음은 시·군·구 코드를 넘기지 않는다") {
+                val expected = mapOf(JANGAN to GYEONGGI, SEOUL to SEOUL, null to null)
+                expected.forEach { (region, sido) ->
+                    val source = FakeSource()
+                    search(source, region = region)
+                    (source.lastSido to source.lastSigngu) shouldBe (sido to null)
+                }
+            }
+        }
+
+        given("한도 초과(QUOTA_EXCEEDED)를 받으면") {
+            val quota = { throw TourApiException(TourApiException.Reason.QUOTA_EXCEEDED, "gatewayReasonCode=22") }
+
+            then("같은 시각의 다음 검색은 호출 없이 FAILED") {
+                val clock = MutableClock(kst("2026-11-26T14:00:00"))
+                val source = FakeSource(answer = quota)
+                val sut = TourPlaceSearch(source, catalog, clock)
+                sut.search("a", null, SIZE).status shouldBe TourSearchStatus.FAILED
+                sut.search("a", null, SIZE).status shouldBe TourSearchStatus.FAILED
+                source.calls shouldBe 1
+            }
+            then("자정이 한 시간보다 멀면 한 시간 뒤부터 다시 호출") {
+                val clock = MutableClock(kst("2026-11-26T14:00:00"))
+                val source = FakeSource(answer = quota)
+                val sut = TourPlaceSearch(source, catalog, clock)
+                sut.search("a", null, SIZE)
+                clock.now = kst("2026-11-26T14:59:59")
+                sut.search("a", null, SIZE)
+                source.calls shouldBe 1
+                clock.now = kst("2026-11-26T15:00:00")
+                sut.search("a", null, SIZE)
+                source.calls shouldBe 2
+            }
+            then("자정이 한 시간보다 가까우면 KST 자정부터 다시 호출") {
+                val clock = MutableClock(kst("2026-11-26T23:30:00"))
+                val source = FakeSource(answer = quota)
+                val sut = TourPlaceSearch(source, catalog, clock)
+                sut.search("a", null, SIZE)
+                clock.now = kst("2026-11-26T23:59:59")
+                sut.search("a", null, SIZE)
+                source.calls shouldBe 1
+                clock.now = kst("2026-11-27T00:00:00")
+                sut.search("a", null, SIZE)
+                source.calls shouldBe 2
+            }
+            then("재개 뒤 정상 응답이면 OK") {
+                var exhausted = true
+                val clock = MutableClock(kst("2026-11-26T14:00:00"))
+                val source = FakeSource { if (exhausted) quota() else emptyList() }
+                val sut = TourPlaceSearch(source, catalog, clock)
+                sut.search("a", null, SIZE)
+                exhausted = false
+                clock.now = clock.now.plus(Duration.ofHours(1))
+                sut.search("a", null, SIZE).status shouldBe TourSearchStatus.OK
+            }
+            then("한도 초과가 아닌 실패는 멈추지 않고 다음 검색에서 다시 호출") {
+                val clock = MutableClock(kst("2026-11-26T14:00:00"))
+                val source = FakeSource { throw TourApiException(TourApiException.Reason.UNREACHABLE, "x") }
+                val sut = TourPlaceSearch(source, catalog, clock)
+                sut.search("a", null, SIZE)
+                sut.search("a", null, SIZE)
+                source.calls shouldBe 2
             }
         }
 
@@ -120,6 +212,9 @@ class TourPlaceSearchTest : BehaviorSpec() {
             }
         }
     }
+
+    private fun kst(local: String): Instant =
+        LocalDateTime.parse(local).atZone(ZoneId.of("Asia/Seoul")).toInstant()
 
     private companion object {
         const val SIZE = 20
