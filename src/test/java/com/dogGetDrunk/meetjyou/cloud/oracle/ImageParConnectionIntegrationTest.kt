@@ -8,6 +8,8 @@ import com.dogGetDrunk.meetjyou.party.PartyImageState
 import com.dogGetDrunk.meetjyou.party.PartyRepository
 import com.dogGetDrunk.meetjyou.post.Post
 import com.dogGetDrunk.meetjyou.post.PostRepository
+import com.dogGetDrunk.meetjyou.support.EXTERNAL_CALL_H2_URL
+import com.dogGetDrunk.meetjyou.support.ExternalCallTestConfig
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.User
 import com.dogGetDrunk.meetjyou.user.UserRepository
@@ -32,6 +34,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.boot.test.web.client.TestRestTemplate
+import org.springframework.context.annotation.Import
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
@@ -43,8 +46,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.UUID
 import javax.sql.DataSource
 
-private const val H2_URL = "jdbc:h2:mem:image_par_connection;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"
-
 /**
  * AT-006: every OCI image route that reads the DB first makes each OCI call with no transaction and no
  * pooled connection held (open-in-view excluded, DB work finished first). Every OCI call is recorded,
@@ -53,10 +54,13 @@ private const val H2_URL = "jdbc:h2:mem:image_par_connection;MODE=MySQL;DB_CLOSE
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["spring.datasource.url=$H2_URL"],
+    properties = ["spring.datasource.url=$EXTERNAL_CALL_H2_URL"],
 )
 @ActiveProfiles("test")
-@MockBean(FirebaseApp::class, AuthenticationDetailsProvider::class, WorkRequestClient::class)
+@Import(ExternalCallTestConfig::class)
+@MockBean(
+    FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class,
+)
 class ImageParConnectionIntegrationTest : BehaviorSpec() {
     @Autowired private lateinit var rest: TestRestTemplate
     @Autowired private lateinit var jwt: JwtProvider
@@ -66,9 +70,14 @@ class ImageParConnectionIntegrationTest : BehaviorSpec() {
     @Autowired private lateinit var memberships: UserPartyRepository
     @Autowired private lateinit var dataSource: DataSource
 
-    @MockBean private lateinit var objectStorage: ObjectStorageClient
+    @Autowired private lateinit var objectStorage: ObjectStorageClient
 
-    private data class OciCall(val operation: String, val objectName: String, val transactionActive: Boolean, val activeConnections: Int)
+    private data class OciCall(
+        val operation: String,
+        val objectName: String,
+        val transactionActive: Boolean,
+        val activeConnections: Int,
+    )
 
     private data class Scene(val user: User, val party: Party, val post: Post)
 
@@ -144,7 +153,8 @@ class ImageParConnectionIntegrationTest : BehaviorSpec() {
             }
             then("파티: 호스트 확인 뒤 원본과 썸네일 PAR을 커넥션 없이 발급") {
                 val s = scene()
-                call(s.user, HttpMethod.POST, "/parties/${s.party.uuid}/img/par/upload").statusCode shouldBe HttpStatus.OK
+                call(s.user, HttpMethod.POST, "/parties/${s.party.uuid}/img/par/upload")
+                    .statusCode shouldBe HttpStatus.OK
                 assertOciCalls(
                     PAR to ImageTarget.PARTY_ORIGINAL.toObjectName(s.party.uuid),
                     PAR to ImageTarget.PARTY_THUMBNAIL.toObjectName(s.party.uuid),
@@ -192,7 +202,8 @@ class ImageParConnectionIntegrationTest : BehaviorSpec() {
             }
             then("파티: 호스트 확인 뒤 원본과 썸네일 삭제") {
                 val s = scene()
-                call(s.user, HttpMethod.DELETE, "/parties/${s.party.uuid}/img").statusCode shouldBe HttpStatus.NO_CONTENT
+                call(s.user, HttpMethod.DELETE, "/parties/${s.party.uuid}/img")
+                    .statusCode shouldBe HttpStatus.NO_CONTENT
                 assertOciCalls(
                     DELETE to ImageTarget.PARTY_ORIGINAL.toObjectName(s.party.uuid),
                     DELETE to ImageTarget.PARTY_THUMBNAIL.toObjectName(s.party.uuid),

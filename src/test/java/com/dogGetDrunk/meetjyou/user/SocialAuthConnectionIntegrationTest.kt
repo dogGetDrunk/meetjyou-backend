@@ -1,40 +1,29 @@
 package com.dogGetDrunk.meetjyou.user
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
-import com.dogGetDrunk.meetjyou.auth.social.SocialPrincipal
-import com.dogGetDrunk.meetjyou.auth.social.SocialToken
-import com.dogGetDrunk.meetjyou.auth.social.SocialVerifier
-import com.dogGetDrunk.meetjyou.auth.social.SocialVerifierRegistry
+import com.dogGetDrunk.meetjyou.support.EXTERNAL_CALL_H2_URL
+import com.dogGetDrunk.meetjyou.support.ExternalCallTestConfig
+import com.dogGetDrunk.meetjyou.support.VerifierProbe
 import com.google.firebase.FirebaseApp
 import com.oracle.bmc.auth.AuthenticationDetailsProvider
 import com.oracle.bmc.objectstorage.ObjectStorageClient
 import com.oracle.bmc.workrequests.WorkRequestClient
-import com.zaxxer.hikari.HikariDataSource
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
-import io.mockk.every
-import io.mockk.mockk
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.boot.test.web.client.TestRestTemplate
-import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
-import org.springframework.context.annotation.Primary
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.UUID
-import javax.sql.DataSource
-
-private const val H2_URL = "jdbc:h2:mem:social_auth_connection;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"
 
 /**
  * AT-001 (login) and AT-002 (social link): for every provider the verifier runs outside any
@@ -42,10 +31,10 @@ private const val H2_URL = "jdbc:h2:mem:social_auth_connection;MODE=MySQL;DB_CLO
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["spring.datasource.url=$H2_URL"],
+    properties = ["spring.datasource.url=$EXTERNAL_CALL_H2_URL"],
 )
 @ActiveProfiles("test")
-@Import(SocialAuthConnectionIntegrationTest.FakeVerifierConfig::class)
+@Import(ExternalCallTestConfig::class)
 @MockBean(
     FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class,
 )
@@ -54,42 +43,6 @@ class SocialAuthConnectionIntegrationTest : BehaviorSpec() {
     @Autowired private lateinit var jwt: JwtProvider
     @Autowired private lateinit var users: UserRepository
     @Autowired private lateinit var probe: VerifierProbe
-
-    data class Observation(val provider: AuthProvider, val transactionActive: Boolean, val activeConnections: Int)
-
-    /** Stands in for the three provider verifiers and records what the request held during each call. */
-    class VerifierProbe(private val pool: HikariDataSource) {
-        val observations = mutableListOf<Observation>()
-        var subject = ""
-
-        fun answer(provider: AuthProvider): SocialPrincipal {
-            observations += Observation(
-                provider,
-                TransactionSynchronizationManager.isActualTransactionActive(),
-                pool.hikariPoolMXBean.activeConnections,
-            )
-            return SocialPrincipal(provider, subject, null)
-        }
-    }
-
-    @TestConfiguration
-    class FakeVerifierConfig {
-        @Bean
-        fun verifierProbe(dataSource: DataSource) = VerifierProbe(dataSource.unwrap(HikariDataSource::class.java))
-
-        @Bean
-        @Primary
-        fun fakeSocialVerifierRegistry(probe: VerifierProbe): SocialVerifierRegistry {
-            val registry = mockk<SocialVerifierRegistry>()
-            every { registry.get(any()) } answers {
-                val provider = firstArg<AuthProvider>()
-                object : SocialVerifier {
-                    override fun verifyAndExtract(token: SocialToken, nonce: String?) = probe.answer(provider)
-                }
-            }
-            return registry
-        }
-    }
 
     private fun seedUser(provider: AuthProvider, externalId: String): User {
         val tag = UUID.randomUUID().toString().take(NICKNAME_LENGTH)
@@ -112,7 +65,8 @@ class SocialAuthConnectionIntegrationTest : BehaviorSpec() {
     private fun link(user: User, provider: AuthProvider): ResponseEntity<String> {
         val headers = jsonHeaders()
         headers.setBearerAuth(jwt.generateAccessToken(user.uuid, user.role))
-        return rest.postForEntity("/api/v1/users/me/social-accounts", HttpEntity(tokenBody(provider), headers), String::class.java)
+        val request = HttpEntity(tokenBody(provider), headers)
+        return rest.postForEntity("/api/v1/users/me/social-accounts", request, String::class.java)
     }
 
     private fun otherThan(provider: AuthProvider) =

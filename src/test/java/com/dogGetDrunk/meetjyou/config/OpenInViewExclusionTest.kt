@@ -1,6 +1,8 @@
 package com.dogGetDrunk.meetjyou.config
 
 import com.dogGetDrunk.meetjyou.cloud.oracle.OracleObjectStorageController
+import com.dogGetDrunk.meetjyou.support.EXTERNAL_CALL_H2_URL
+import com.dogGetDrunk.meetjyou.support.ExternalCallTestConfig
 import com.google.firebase.FirebaseApp
 import com.oracle.bmc.auth.AuthenticationDetailsProvider
 import com.oracle.bmc.objectstorage.ObjectStorageClient
@@ -12,6 +14,7 @@ import io.kotest.matchers.collections.shouldHaveSize
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.context.annotation.Import
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.web.bind.annotation.RequestMethod
@@ -20,14 +23,16 @@ import org.springframework.web.servlet.handler.WebRequestHandlerInterceptorAdapt
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 import java.util.UUID
 
-private const val H2_URL = "jdbc:h2:mem:open_in_view_exclusion;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"
-
 /**
  * AT-004: open-in-view is off exactly for the OCI image routes and the place search, and on for every
  * other handler. Judged per handler, so a pattern that also catches an unrelated route fails here.
  */
-@SpringBootTest(properties = ["spring.datasource.url=$H2_URL"])
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = ["spring.datasource.url=$EXTERNAL_CALL_H2_URL"],
+)
 @ActiveProfiles("test")
+@Import(ExternalCallTestConfig::class)
 @MockBean(
     FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class,
 )
@@ -66,7 +71,8 @@ class OpenInViewExclusionTest : BehaviorSpec() {
                     .map { "${it.method} ${it.path} openInView=${it.openInView}" }
 
                 wrong.shouldBeEmpty()
-                routes.filter { it.handler.beanType == OracleObjectStorageController::class.java } shouldHaveSize IMAGE_ROUTES
+                val imageRoutes = routes.filter { it.handler.beanType == OracleObjectStorageController::class.java }
+                imageRoutes shouldHaveSize IMAGE_ROUTES
             }
         }
     }

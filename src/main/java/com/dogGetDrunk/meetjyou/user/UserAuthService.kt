@@ -23,6 +23,9 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.time.Duration
 import java.time.Instant
 
+// Seven collaborators since login verification moved out of its transaction (TransactionTemplate);
+// splitting social login into its own service was left out of the #298 change to keep it small.
+@Suppress("LongParameterList")
 @Service
 class UserAuthService(
     private val socialVerifierRegistry: SocialVerifierRegistry,

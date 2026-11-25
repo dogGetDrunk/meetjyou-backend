@@ -47,7 +47,8 @@ class PartyImageDownloadServiceTest : BehaviorSpec() {
 
     private fun postOf(party: Party) = NotificationCenterFixtures.post(party, UserFixtures.user())
 
-    private fun par(name: String) = ParResponse(url = "https://par/$name", httpMethod = "GET", expiresAt = Instant.EPOCH)
+    private fun par(name: String) =
+        ParResponse(url = "https://par/$name", httpMethod = "GET", expiresAt = Instant.EPOCH)
 
     init {
         given("원본 다운로드") {
@@ -122,8 +123,12 @@ class PartyImageDownloadServiceTest : BehaviorSpec() {
                     val uuids = listOf(custom.uuid, missing, none.uuid, inherited.uuid, orphan.uuid)
                     every { partyRepository.findAllByUuidIn(uuids) } returns listOf(custom, none, inherited, orphan)
                     every { postRepository.findAllByParty_UuidIn(uuids) } returns listOf(post)
-                    every { partyImgService.createPartyThumbnailImgDownloadPars(listOf(custom.uuid)) } returns listOf(par("p"))
-                    every { postImgService.createPostThumbnailImgDownloadPars(listOf(post.uuid)) } returns listOf(par("q"))
+                    every {
+                        partyImgService.createPartyThumbnailImgDownloadPars(listOf(custom.uuid))
+                    } returns listOf(par("p"))
+                    every {
+                        postImgService.createPostThumbnailImgDownloadPars(listOf(post.uuid))
+                    } returns listOf(par("q"))
 
                     sut.resolveThumbnails(uuids) shouldContainExactly listOf(par("p"), null, null, par("q"), null)
                     verify(exactly = 1) { partyRepository.findAllByUuidIn(uuids) }

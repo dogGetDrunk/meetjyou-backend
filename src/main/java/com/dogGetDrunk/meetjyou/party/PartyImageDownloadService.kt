@@ -55,7 +55,8 @@ class PartyImageDownloadService(
         return when (party.imageState) {
             PartyImageState.CUSTOM -> ImageSource(ImageOwner.PARTY, party.uuid)
             PartyImageState.NONE -> null
-            PartyImageState.INHERITED -> postRepository.findByParty_Uuid(partyUuid)?.let { ImageSource(ImageOwner.POST, it.uuid) }
+            PartyImageState.INHERITED ->
+                postRepository.findByParty_Uuid(partyUuid)?.let { ImageSource(ImageOwner.POST, it.uuid) }
         }
     }
 
@@ -63,7 +64,8 @@ class PartyImageDownloadService(
     // instead of one query per post.
     private fun thumbnailSourcesOf(partyUuids: List<UUID>): List<ImageSource?> {
         val partyByUuid = partyRepository.findAllByUuidIn(partyUuids).associateBy { it.uuid }
-        val postUuidByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids).associate { it.party.uuid to it.uuid }
+        val postUuidByPartyUuid = postRepository.findAllByParty_UuidIn(partyUuids)
+            .associate { it.party.uuid to it.uuid }
         return partyUuids.map { uuid ->
             val party = partyByUuid[uuid] ?: return@map null
             when (party.imageState) {
