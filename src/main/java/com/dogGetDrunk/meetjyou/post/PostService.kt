@@ -87,7 +87,7 @@ class PostService(
                 ?.let { return buildCreatePostResponse(it) }
         }
 
-        val destination = travelDestinationResolver.resolve(request.regionCode, request.placeId)
+        val destination = travelDestinationResolver.resolve(request.regionCode, request.placeId, request.tourContentId)
         val planRef = resolvePlanReference(request.planUuid, request.isPlanPublic)
         val partyResult = partyService.createParty(buildCreatePartyRequest(request, author.uuid, destination))
         val post = buildPost(author, partyResult.party, request, planRef)
@@ -203,7 +203,9 @@ class PostService(
         validateCapacityNotBelowJoined(post.party, request.capacity)
 
         val destination =
-            travelDestinationResolver.resolve(request.regionCode, request.placeId, post.travelDestination())
+            travelDestinationResolver.resolve(
+                request.regionCode, request.placeId, request.tourContentId, post.travelDestination(),
+            )
 
         applyPlanChange(post, request.planUuid, request.isPlanPublic)
         applyPostFields(post, request)

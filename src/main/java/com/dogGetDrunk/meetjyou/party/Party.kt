@@ -62,6 +62,9 @@ class Party(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "place_id")
     var place: Place? = null
+    // 관광공사 place (ADR-0004: only its id is kept). Never set together with [place] (DB CHECK).
+    @Column(name = "tour_content_id", length = TravelDestination.TOUR_CONTENT_ID_MAX_LENGTH)
+    var tourContentId: String? = null
 
     companion object {
         const val NAME_MAX_LENGTH = 20
@@ -87,11 +90,12 @@ class Party(
         applyTravelDestination(travelDestination)
     }
 
-    fun travelDestination(): TravelDestination = TravelDestination(regionCode, place)
+    fun travelDestination(): TravelDestination = TravelDestination(regionCode, place, tourContentId)
 
     fun applyTravelDestination(destination: TravelDestination) {
         regionCode = destination.regionCode
         place = destination.place
+        tourContentId = destination.tourContentId
     }
 
     fun closeRecruitment() {

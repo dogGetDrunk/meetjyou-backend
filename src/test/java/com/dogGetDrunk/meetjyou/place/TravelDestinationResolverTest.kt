@@ -68,10 +68,58 @@ class TravelDestinationResolverTest : BehaviorSpec() {
             // The place moved to another district in a later import: 11680 no longer contains it.
             val stored = TravelDestination("11680", janganCafe)
             then("계층 검사 없이 저장된 값을 유지한다") {
-                sut.resolve("11680", 7L, stored) shouldBe stored
+                sut.resolve("11680", 7L, current = stored) shouldBe stored
             }
             then("하나라도 바꾸면 다시 검사한다") {
-                shouldThrow<InvalidInputException> { sut.resolve("11", 7L, stored) }
+                shouldThrow<InvalidInputException> { sut.resolve("11", 7L, current = stored) }
+            }
+        }
+
+        // AT-002: 관광공사 contentid, shape only
+        given("관광공사 장소 id를 주면") {
+            then("지역과 함께면 그 지역, 장소(store)는 없음") {
+                sut.resolve("11680", null, "126508") shouldBe TravelDestination("11680", null, "126508")
+            }
+            then("지역 없이 주면 미지정 지역") {
+                sut.resolve(null, null, "126508") shouldBe TravelDestination("00", null, "126508")
+            }
+            then("숫자 1자리와 20자리는 경계값으로 허용") {
+                sut.resolve(null, null, "1").tourContentId shouldBe "1"
+                val twenty = "1".repeat(TravelDestination.TOUR_CONTENT_ID_MAX_LENGTH)
+                sut.resolve(null, null, twenty).tourContentId shouldBe twenty
+            }
+            then("21자리, 빈 문자열, 공백, 문자 포함, 음수는 400") {
+                val tooLong = "1".repeat(TravelDestination.TOUR_CONTENT_ID_MAX_LENGTH + 1)
+                listOf(tooLong, "", " ", "12a", "-1", " 126508").forEach { invalid ->
+                    shouldThrow<InvalidInputException> { sut.resolve(null, null, invalid) }
+                }
+            }
+            then("지역 검사는 그대로: 없는 지역이면 400") {
+                shouldThrow<InvalidInputException> { sut.resolve("99999", null, "126508") }
+            }
+        }
+        given("store 장소와 관광공사 장소를 함께 주면") {
+            then("장소 조회 전에 400") {
+                shouldThrow<InvalidInputException> { sut.resolve(null, 7L, "126508") }
+                // 99 does not exist: the single-place check must fire before the lookup.
+                shouldThrow<InvalidInputException> { sut.resolve(null, 99L, "126508") }.message shouldBe
+                    "Choose either a store place or a tour place, not both"
+            }
+        }
+        given("관광공사 장소가 저장된 글을 수정할 때") {
+            val stored = TravelDestination("11680", null, "126508")
+            then("세 값이 같으면 저장된 값 그대로") {
+                sut.resolve("11680", null, "126508", stored) shouldBe stored
+            }
+            then("지역만 바꾸면 새 지역 + 같은 id") {
+                sut.resolve("11", null, "126508", stored) shouldBe TravelDestination("11", null, "126508")
+            }
+            then("id만 바꾸면 새 id") {
+                sut.resolve("11680", null, "999", stored) shouldBe TravelDestination("11680", null, "999")
+            }
+            then("id를 빼면 지워지고, store 장소로 바꿀 수 있다") {
+                sut.resolve("11680", null, null, stored) shouldBe TravelDestination("11680", null)
+                sut.resolve(null, 7L, null, stored) shouldBe TravelDestination("41111", janganCafe)
             }
         }
     }

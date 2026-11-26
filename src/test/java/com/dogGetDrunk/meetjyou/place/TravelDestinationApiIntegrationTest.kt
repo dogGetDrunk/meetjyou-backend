@@ -1,6 +1,7 @@
 package com.dogGetDrunk.meetjyou.place
 
 import com.dogGetDrunk.meetjyou.auth.jwt.JwtProvider
+import com.dogGetDrunk.meetjyou.place.support.CountingTourConfig
 import com.dogGetDrunk.meetjyou.user.AuthProvider
 import com.dogGetDrunk.meetjyou.user.Role
 import com.dogGetDrunk.meetjyou.user.User
@@ -20,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.boot.test.web.client.TestRestTemplate
+import org.springframework.context.annotation.Import
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
@@ -31,14 +33,19 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
-private const val H2_URL = "jdbc:h2:mem:travel_destination_api;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"
+// Shared with TourContentRefApiIntegrationTest so both classes reuse one cached Spring context.
+internal const val TRAVEL_DESTINATION_H2_URL =
+    "jdbc:h2:mem:travel_destination_api;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE"
 
 /** AT-011 (post/party/plan destinations) and AT-009 (search parameter validation). */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["spring.datasource.url=$H2_URL", "spring.jpa.properties.hibernate.generate_statistics=true"],
+    properties = [
+        "spring.datasource.url=$TRAVEL_DESTINATION_H2_URL", "spring.jpa.properties.hibernate.generate_statistics=true",
+    ],
 )
 @ActiveProfiles("test")
+@Import(CountingTourConfig::class)
 @MockBean(
     FirebaseApp::class, AuthenticationDetailsProvider::class, ObjectStorageClient::class, WorkRequestClient::class,
 )

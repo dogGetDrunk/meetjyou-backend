@@ -35,6 +35,8 @@ data class CreatePostRequest(
     @field:Size(max = Region.CODE_MAX_LENGTH)
     val regionCode: String? = null,
     val placeId: Long? = null,
+    // 관광공사 contentid (digits). Exclusive with placeId; shape-checked only (TravelDestinationResolver).
+    val tourContentId: String? = null,
 ) {
 
     // @JsonIgnore is required, not cosmetic: Jackson's bean introspection treats any public

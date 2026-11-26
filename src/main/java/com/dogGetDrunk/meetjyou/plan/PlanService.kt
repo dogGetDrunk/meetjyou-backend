@@ -52,7 +52,7 @@ class PlanService(
                 ?.let { return buildCreatePlanResponse(it) }
         }
 
-        val destination = travelDestinationResolver.resolve(request.regionCode, request.placeId)
+        val destination = travelDestinationResolver.resolve(request.regionCode, request.placeId, request.tourContentId)
         val plan = Plan(
             title = request.title,
             itinStart = request.itinStart,
@@ -176,7 +176,9 @@ class PlanService(
         }
         // Not `destination`: that name is the plan's free-text field inside the apply block below.
         val travelDestination =
-            travelDestinationResolver.resolve(request.regionCode, request.placeId, plan.travelDestination())
+            travelDestinationResolver.resolve(
+                request.regionCode, request.placeId, request.tourContentId, plan.travelDestination(),
+            )
 
         plan.apply {
             title = request.title
