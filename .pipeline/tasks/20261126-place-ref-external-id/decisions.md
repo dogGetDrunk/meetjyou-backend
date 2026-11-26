@@ -5,6 +5,14 @@
 
 | 라운드 (최대 2) | 항목 | 수용/기각 | 근거 | 메인 설계자 | 사람 승인 |
 |---|---|---|---|---|---|
+| 1 | C-r1-01 | 기각-감수 | 해시 변경은 배포 직전 키로 배포 직후 같은 요청을 재시도할 때만 409로 드러나고 중복 글이나 데이터 손상은 없음. 재시도는 수 초 단위라 배포 경계와 겹칠 확률이 낮고, PR #280(`placeId` 추가)도 같은 조건으로 배포됨. 구 해시 호환 비교는 필드 추가마다 키 서비스에 호환 로직을 쌓는 과설계 | claude-opus-5-5 | damiannlee, 2026-11-26 선택지 응답: "기각-감수 (Recommended)" |
+| 1 | C-r1-02 | 수용 | REQ-005 응답 9개를 AT-003 단언에 하나씩 연결, 값 있는 경우와 null 표현(소상공인과 지역만) 모두 | claude-opus-5-5 | |
+| 1 | C-r1-03 | 수용 | JSON 토큰 계약 명시: 따옴표 문자열과 따옴표 없는 정수(Jackson 기본 스칼라 강제 변환으로 문자열이 됨, 같은 형식 검증 적용)는 허용, 명시적 `null` 은 생략과 같음. raw body로 AT-003에서 확인 | claude-opus-5-5 | |
+| 1 | C-r1-04 | 수용 | 소상공인 → 관광공사, 관광공사 → 소상공인 전환을 모집글(파티 동기화 포함)과 계획서에서 확인, MySQL에서도 한 UPDATE로 출처를 바꾸는 경우가 CHECK를 통과하는지 AT-001에 추가 | claude-opus-5-5 | |
+| 1 | C-r1-05 | 수용 | `gate` 는 `./gradlew test build` 만 실행하고 dockerTest는 CI(`build dockerTest`)에서만 돔. 로컬 `./gradlew dockerTest` 실행과 결과 기록을 마일스톤에 추가 | claude-opus-5-5 | |
+| 1 | C-r1-06 | 수용 | 제안한 복구 절차 문서와 실패 주입 리허설 대신 원인을 없앰: 테이블별 마이그레이션 3개(V48 post, V49 party, V50 plan)로 나누고 각 파일은 ALTER 한 문장. MySQL 8.0 InnoDB 원자적 DDL이라 실패한 파일은 변경을 남기지 않고, `flyway repair` 후 재배포하면 그 파일부터 다시 적용됨. 이 절차를 result.md에 기록 | claude-opus-5-5 | |
+| 1 | C-r1-07 | 수용 | AT-003 통합 테스트에 `enabled = true` 인 카운팅 `TourPlaceSource` fake를 주입하고 쓰기와 조회 흐름 전체에서 호출 0회 단언 | claude-opus-5-5 | |
+| 1 | C-r1-08 | 수용 | 표시 필드를 자원별로 정정: 모집글 `location`, 파티와 계획서 `destination`. REQ-006과 `place.md` 에 반영 | claude-opus-5-5 | |
 
 ## 구현 후 검증 결정
 
