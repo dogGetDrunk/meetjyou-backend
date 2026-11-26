@@ -3,6 +3,8 @@ description: Travel destination rules (region, place, SBIZ import, search) — l
 paths:
   - "**/place/**"
   - "**/db/migration/V4[4-6]__*"
+  - "**/db/migration/V4[89]__*"
+  - "**/db/migration/V50__*"
 ---
 
 # Place Module
@@ -16,8 +18,12 @@ Travel destination = region (required, '00' 미지정 when none) + place (option
 - H2 tests get the same rows through `hibernate.hbm2ddl.import_files` = `V45` (application-test.yml) — a new region migration must stay loadable by that multi-line extractor or get its own entry
 
 ## Destinations on post / party / plan
-- Transition period (decided 2026-11-09): `location`/`destination` strings stay required; `regionCode`/`placeId` are optional extras. Dropping the strings is a separate task after the app ships
+- Transition period (decided 2026-11-09): `location`/`destination` strings stay required; `regionCode`/`placeId`/`tourContentId` are optional extras. Dropping the strings is a separate task after the app ships
 - `TravelDestinationResolver`: re-sending the stored pair is accepted without the hierarchy check — an import may move a place to another district, and the post keeps the region the author chose (never bulk-synced)
+- 관광공사 place = `tour_content_id` only (ADR-0004, 2026-11-26 revision): no name, address or coordinates stored, no 관광공사 call on write or read. The resolver checks the shape (`^[0-9]{1,20}$`) and nothing else, so a nonexistent id or one outside `regionCode` can be saved (accepted). No region given → 미지정 '00'
+  - Exclusive with `place_id`: resolver 400 first, MySQL CHECK `chk_<table>_single_place` behind it (H2 has no CHECK — `TourContentRefSchemaDockerTest`)
+  - Responses carry `tourContentId` only; the name shown is the free-text field: post `location`, party and plan `destination`. Storing the name waits on 공사's answer on whether it counts as caching
+  - Each table got its own migration (`V48` post, `V49` party, `V50` plan), one `ALTER` each: InnoDB atomic DDL, so a failed one leaves nothing behind and `flyway repair` + redeploy resumes there
 - Party gets its destination only from the post (`createParty`, `syncFromPost` under the party row lock)
 - `GetPlanResponse.region/place` are nullable with defaults: `party.planSnapshot` JSON written before them must still deserialize
 

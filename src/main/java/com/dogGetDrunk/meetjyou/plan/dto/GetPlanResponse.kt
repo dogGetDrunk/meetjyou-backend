@@ -20,9 +20,10 @@ data class GetPlanResponse(
     val userUuid: UUID,
     val markers: List<MarkerResponse>,
     // Nullable with defaults: party.planSnapshot stores this as JSON, and snapshots written before
-    // travel destinations existed have neither field.
+    // travel destinations (or tour places) existed lack these fields.
     val region: RegionResponse? = null,
     val place: PlaceSummaryResponse? = null,
+    val tourContentId: String? = null,
 ) {
     companion object {
         fun of(plan: Plan, markers: List<Marker>, region: RegionResponse?) = GetPlanResponse(
@@ -39,6 +40,7 @@ data class GetPlanResponse(
             markers = markers.map { MarkerResponse.of(it) },
             region = region,
             place = plan.place?.let { PlaceSummaryResponse.of(it) },
+            tourContentId = plan.tourContentId,
         )
     }
 }
