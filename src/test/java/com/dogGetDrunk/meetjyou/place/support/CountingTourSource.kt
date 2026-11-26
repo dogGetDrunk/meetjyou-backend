@@ -15,7 +15,7 @@ class CountingTourSource : TourPlaceSource {
     override val enabled = true
     var calls = 0
 
-    override fun searchKeyword(keyword: String, sidoCode: String?, size: Int): List<TourPlace> {
+    override fun searchKeyword(keyword: String, sidoCode: String?, signguCode: String?, size: Int): List<TourPlace> {
         calls++
         return emptyList()
     }

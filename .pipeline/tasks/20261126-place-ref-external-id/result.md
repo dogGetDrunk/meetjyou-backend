@@ -49,10 +49,11 @@
 
 ## gate 근거
 
-- 최종 `agent-pipeline gate`(`./gradlew test build`, detekt, Konsist 포함): exit 0, `BUILD SUCCESSFUL`
-  - 검증 반영 후 전체 실행 4분 25초, 마지막 확인 실행은 입력이 같아 전 태스크 `UP-TO-DATE`
-- `./gradlew test`: 153 suite, 882 테스트, 실패 0, skip 0
-- `./gradlew dockerTest`(MySQL 8.0.41, 운영과 같은 버전): 28 suite, 181 테스트, 실패 0, skip 0
+- 최종 `agent-pipeline gate`(`./gradlew test build`, detekt, Konsist 포함), `origin/main`(#306 246, #307 247) 병합 후: exit 0, `BUILD SUCCESSFUL in 3m 35s`
+  - `./gradlew test`: 159 suite, 914 테스트, 실패 0, skip 0
+  - 병합 시 충돌 없음. 246이 `TourPlaceSource.searchKeyword` 에 `signguCode` 를 추가해 테스트 fake 시그니처만 맞춤
+- 병합 전 `./gradlew test`: 153 suite, 882 테스트, 실패 0, skip 0
+- `./gradlew dockerTest`(MySQL 8.0.41, 운영과 같은 버전, 병합 전 로컬): 28 suite, 181 테스트, 실패 0, skip 0. 병합 후 결과는 CI `build dockerTest` 로 확인
   - `TourContentRefSchemaDockerTest`(AT-001) 5건 통과: 컬럼 형식, 동시 지정 CHECK 위반(오류 코드 3819), 단일 지정 성공, 한 UPDATE 출처 전환 두 방향 성공, 기존 FK 유지
   - 우려했던 "참조 동작 있는 FK 컬럼에 CHECK 금지"(오류 3823)는 `fk_*_place` 에 참조 동작이 없어 발생하지 않음
 - 첫 gate에서 `PostDetailConnectionIntegrationTest` 3건이 컨텍스트 로드 중 `OutOfMemoryError: Java heap space` 로 실패
@@ -79,5 +80,5 @@
 - **사람 작업**: 공사에 "선택 장소 이름 저장이 캐싱 금지에 해당하는지" 문의 메일 발송(Gmail 초안만 있음). 허용되면 이름 컬럼 추가를 별도 결정
 - **프론트 합의**: 모집글과 계획서 작성 시 관광지 선택 → `tourContentId` + `regionCode` 전송, 화면 이름은 `location`/`destination` 에 넣어 보내기. 노션 244 TODO "프론트와 검색 결과 형식 합의"와 함께 진행
 - **노션 244 TODO 갱신**: "장소 참조를 출처 + 외부 id 구조로 변경" 체크(보드 쓰기라 사람 확인 후)
-- **테스트 힙 한도**: 테스트 JVM 기본 힙 512MB에 컨텍스트가 거의 찬 상태. 병렬 태스크(246, 247)가 새 컨텍스트를 만들면 같은 OOM 가능 → 기존 컨텍스트 설정 재사용 또는 별도 태스크로 힙 설정 검토
+- **테스트 힙**: 247(#307)이 테스트 JVM 힙을 1g로 올려 당장의 여유는 생김. 이 태스크는 그 전에 컨텍스트 공유로 해결했고 그대로 둠. 새 통합 테스트는 가능하면 기존 컨텍스트 설정을 재사용
 - 248(`location` 길이 검증, 완료 파티 409)은 이 PR 머지 후 진행, 마이그레이션은 `V51` 부터
