@@ -23,6 +23,8 @@ import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 
 class SocialAccountServiceTest : BehaviorSpec() {
 
@@ -30,7 +32,12 @@ class SocialAccountServiceTest : BehaviorSpec() {
     private val socialVerifier = mockk<SocialVerifier>()
     private val userRepository = mockk<UserRepository>()
     private val currentUserProvider = mockk<CurrentUserProvider>()
-    private val sut = SocialAccountService(socialVerifierRegistry, userRepository, currentUserProvider)
+    private val sut = SocialAccountService(
+        socialVerifierRegistry,
+        userRepository,
+        currentUserProvider,
+        TransactionTemplate(mockk<PlatformTransactionManager>(relaxed = true)),
+    )
 
     override fun isolationMode() = IsolationMode.InstancePerLeaf
 

@@ -14,13 +14,16 @@ import com.dogGetDrunk.meetjyou.user.dto.SocialAccountResponse
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.TransactionSystemException
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 
 @Service
 class SocialAccountService(
     private val socialVerifierRegistry: SocialVerifierRegistry,
     private val userRepository: UserRepository,
     private val currentUserProvider: CurrentUserProvider,
+    private val transactionTemplate: TransactionTemplate,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -30,11 +33,19 @@ class SocialAccountService(
             .sortedBy { it.createdAt }
             .map { SocialAccountResponse.of(it) }
 
-    @Transactional
+    /**
+     * Not @Transactional, on purpose: the provider check is a network call and must not hold a
+     * pooled DB connection, so it runs first and the account work runs in one short transaction.
+     */
     fun link(request: LinkSocialAccountRequest, nonce: String?): SocialAccountLinkResult {
         val principal = socialVerifierRegistry
             .get(request.authProvider)
             .verifyAndExtract(socialTokenOf(request.idToken, request.accessToken), nonce)
+        return transactionTemplate.execute { linkVerified(principal) }
+            ?: throw TransactionSystemException("Link transaction returned no result")
+    }
+
+    private fun linkVerified(principal: SocialPrincipal): SocialAccountLinkResult {
         val user = currentUserProvider.user
 
         findOwnLinkedAccount(user, principal)?.let { existing ->

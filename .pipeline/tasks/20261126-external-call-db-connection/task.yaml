@@ -1,0 +1,9 @@
+key: 20261126-external-call-db-connection
+title: 외부 서버 호출 중 DB 커넥션 점유 해소
+size: M
+mode: single
+format: 2
+created: '2026-11-25'
+links:
+  notion: https://app.notion.com/p/42156d9a97d98189bbffdfbed1a26e1d
+  issue: dogGetDrunk/meetjyou-backend#298

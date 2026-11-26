@@ -6,6 +6,7 @@ import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.UserImgService
+import com.dogGetDrunk.meetjyou.party.PartyImageDownloadService
 import com.dogGetDrunk.meetjyou.party.PartyService
 import com.dogGetDrunk.meetjyou.post.PostService
 import com.dogGetDrunk.meetjyou.user.UserService
@@ -30,6 +31,7 @@ class OracleObjectStorageController(
     private val partyImgService: PartyImgService,
     private val postService: PostService,
     private val partyService: PartyService,
+    private val partyImageDownloadService: PartyImageDownloadService,
     private val userService: UserService,
     private val currentUserProvider: CurrentUserProvider,
 ) {
@@ -146,7 +148,7 @@ class OracleObjectStorageController(
     fun createPartyOriginalImgDownloadPar(
         @PathVariable partyUuid: UUID,
     ): ResponseEntity<ParResponse> {
-        val response = partyService.resolvePartyOriginalImageDownload(partyUuid)
+        val response = partyImageDownloadService.resolveOriginal(partyUuid)
             ?: return ResponseEntity.noContent().build()
         return ResponseEntity.ok(response)
     }
@@ -159,7 +161,7 @@ class OracleObjectStorageController(
     fun createPartyThumbnailImgDownloadPar(
         @Valid @RequestBody request: BulkRequest,
     ): ResponseEntity<List<ParResponse?>> {
-        val response = partyService.resolvePartyThumbnailImageDownloads(request.uuid)
+        val response = partyImageDownloadService.resolveThumbnails(request.uuid)
         return ResponseEntity.ok(response)
     }
 

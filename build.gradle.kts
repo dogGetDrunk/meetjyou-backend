@@ -171,6 +171,9 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // Spring caches one context per distinct test configuration; at Gradle's 512m default the
+    // suite ran out of heap once two more contexts were added (2026-11-26, #298/#299).
+    maxHeapSize = "1g"
     // A skipped test verifies nothing but still looks green (e.g. a Kotest name starting with "!").
     addTestListener(object : TestListener {
         override fun beforeSuite(suite: TestDescriptor) = Unit

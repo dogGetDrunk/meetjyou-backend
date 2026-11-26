@@ -7,8 +7,6 @@ import com.dogGetDrunk.meetjyou.chat.room.ChatRoomRepository
 import com.dogGetDrunk.meetjyou.common.exception.business.notFound.PostNotFoundException
 import com.dogGetDrunk.meetjyou.common.exception.business.party.PartyNotFoundException
 import com.dogGetDrunk.meetjyou.common.util.CurrentUserProvider
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PartyImgService
-import com.dogGetDrunk.meetjyou.image.cloud.oracle.service.PostImgService
 import com.dogGetDrunk.meetjyou.plan.MarkerRepository
 import com.dogGetDrunk.meetjyou.plan.PlanRepository
 import com.dogGetDrunk.meetjyou.plan.support.PlanFixtures
@@ -44,14 +42,12 @@ class PartyImageAndPlanTest : BehaviorSpec() {
     private val userPartyRepository = mockk<UserPartyRepository>(relaxed = true)
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
-    private val partyImgService = mockk<PartyImgService>(relaxed = true)
-    private val postImgService = mockk<PostImgService>(relaxed = true)
     private val objectMapper = ObjectMapper().findAndRegisterModules()
     private val currentUserProvider = mockk<CurrentUserProvider>(relaxed = true)
     private val sut = PartyService(
         partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
         chatParticipantService, chatRoomEventBroadcaster, userPartyRepository,
-        userRepository, publisher, partyImgService, postImgService, objectMapper, currentUserProvider,
+        userRepository, publisher, objectMapper, currentUserProvider,
             PlaceTestDoubles.regionCatalog(),
     )
 
@@ -91,27 +87,6 @@ class PartyImageAndPlanTest : BehaviorSpec() {
                 then("imageState가 NONE으로 바뀌어 기본 이미지를 표시한다") {
                     sut.clearPartyImageState(party.uuid)
                     party.imageState shouldBe PartyImageState.NONE
-                }
-            }
-        }
-
-        given("파티 이미지 다운로드 PAR 조회 시") {
-            `when`("imageState가 NONE이면") {
-                val party = party().apply { imageState = PartyImageState.NONE }
-                every { partyRepository.findByUuid(party.uuid) } returns party
-
-                then("null을 반환해 기본 이미지를 쓰도록 한다") {
-                    sut.resolvePartyOriginalImageDownload(party.uuid) shouldBe null
-                }
-            }
-
-            `when`("imageState가 INHERITED이고 연결된 모집글에 이미지가 없으면") {
-                val party = party().apply { imageState = PartyImageState.INHERITED }
-                every { partyRepository.findByUuid(party.uuid) } returns party
-                every { postRepository.findByParty_Uuid(party.uuid) } returns null
-
-                then("null을 반환한다") {
-                    sut.resolvePartyOriginalImageDownload(party.uuid) shouldBe null
                 }
             }
         }

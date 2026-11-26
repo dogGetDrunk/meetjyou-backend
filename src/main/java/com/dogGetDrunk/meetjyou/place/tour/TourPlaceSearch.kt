@@ -2,9 +2,11 @@ package com.dogGetDrunk.meetjyou.place.tour
 
 import com.dogGetDrunk.meetjyou.place.Region
 import com.dogGetDrunk.meetjyou.place.RegionCatalog
+import com.dogGetDrunk.meetjyou.place.RegionLevel
 import com.dogGetDrunk.meetjyou.place.dto.TourPlaceItem
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.time.Clock
 
 data class TourSearchResult(
     val status: TourSearchStatus,
@@ -24,33 +26,70 @@ data class TourSearchResult(
 class TourPlaceSearch(
     private val source: TourPlaceSource,
     private val regionCatalog: RegionCatalog,
+    clock: Clock = Clock.systemUTC(),
 ) {
     private val log = LoggerFactory.getLogger(TourPlaceSearch::class.java)
 
-    /** [regionCode] is already validated by the local search; it narrows the API call to its 시·도. */
+    private val quotaPause = TourQuotaPause(clock)
+
+    /** [regionCode] is already validated by the local search; it narrows the API call (see [areaOf]). */
+    fun search(query: String, regionCode: String?, size: Int): TourSearchResult = when {
+        !source.enabled -> TourSearchResult.DISABLED
+        quotaPause.isActive() -> TourSearchResult.FAILED
+        else -> call(query, regionCode, size)
+    }
+
     // Any failure, expected or not, must only empty the tour group, never fail the whole search.
     @Suppress("TooGenericExceptionCaught")
-    fun search(query: String, regionCode: String?, size: Int): TourSearchResult {
-        if (!source.enabled) return TourSearchResult.DISABLED
+    private fun call(query: String, regionCode: String?, size: Int): TourSearchResult {
         val startedAt = System.nanoTime()
         return try {
-            val sidoCode = regionCode?.take(Region.SIDO_CODE_LENGTH)
-            val places = source.searchKeyword(query.trim(), sidoCode, size).mapNotNull { toItem(it, regionCode) }
+            val area = areaOf(regionCode)
+            val places = source.searchKeyword(query.trim(), area.sidoCode, area.signguCode, size)
+                .mapNotNull { toItem(it, regionCode) }
             TourSearchResult(TourSearchStatus.OK, places)
         } catch (e: TourApiException) {
-            failed(e.reason.name, e.message.orEmpty(), startedAt)
+            if (e.reason == TourApiException.Reason.QUOTA_EXCEEDED) pause(startedAt)
+            else failed(e.reason.name, e.message.orEmpty(), startedAt)
         } catch (e: RuntimeException) {
             // Class name only: client exception messages carry the request URI, key included.
             failed(UNEXPECTED, e.javaClass.simpleName, startedAt)
         }
     }
 
-    // The elapsed time is the evidence for adding a total deadline later (C-r1-02).
-    private fun failed(reason: String, detail: String, startedAt: Long): TourSearchResult {
-        val elapsedMs = (System.nanoTime() - startedAt) / NANOS_PER_MILLI
-        log.warn("Tour search failed: reason={}, detail={}, elapsedMs={}", reason, detail, elapsedMs)
+    // One warn per pause; the paused searches after it stay silent.
+    private fun pause(startedAt: Long): TourSearchResult {
+        val resumeAt = quotaPause.start()
+        log.warn(
+            "Tour search paused: reason={}, resumeAt={}, elapsedMs={}",
+            TourApiException.Reason.QUOTA_EXCEEDED, resumeAt, elapsedMs(startedAt),
+        )
         return TourSearchResult.FAILED
     }
+
+    // The elapsed time is the evidence for adding a total deadline later (C-r1-02).
+    private fun failed(reason: String, detail: String, startedAt: Long): TourSearchResult {
+        log.warn("Tour search failed: reason={}, detail={}, elapsedMs={}", reason, detail, elapsedMs(startedAt))
+        return TourSearchResult.FAILED
+    }
+
+    private fun elapsedMs(startedAt: Long): Long = (System.nanoTime() - startedAt) / NANOS_PER_MILLI
+
+    // The 시·군·구 goes to the API only for a plain one (right under its 시·도, no general-gu below): how the
+    // API codes general-gu and their cities is unverified, and a wrong code would empty the group. Every
+    // other filter sends the 시·도 alone and is narrowed afterwards by toItem.
+    private fun areaOf(regionCode: String?): TourArea {
+        if (regionCode == null) return TourArea(null, null)
+        val sidoCode = regionCode.take(Region.SIDO_CODE_LENGTH)
+        val region = regionCatalog.find(regionCode)
+        val plainDistrict = region != null &&
+            region.level == RegionLevel.SIGUNGU &&
+            region.parentCode == sidoCode &&
+            !regionCatalog.hasChildren(regionCode)
+        return TourArea(sidoCode, if (plainDistrict) regionCode.drop(Region.SIDO_CODE_LENGTH) else null)
+    }
+
+    private data class TourArea(val sidoCode: String?, val signguCode: String?)
 
     // Dropped: a type we do not keep, no position, an unknown 시·도, or outside the region filter.
     private fun toItem(place: TourPlace, regionFilter: String?): TourPlaceItem? {

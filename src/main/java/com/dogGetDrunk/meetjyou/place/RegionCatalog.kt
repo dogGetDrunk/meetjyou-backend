@@ -31,6 +31,9 @@ class RegionCatalog(
         return false
     }
 
+    /** True when some region hangs directly under [code] (a 시·도, or a city with general-gu). */
+    fun hasChildren(code: String): Boolean = snapshot.childrenOf[code].orEmpty().isNotEmpty()
+
     /** [code] plus every region below it (a 시·도's districts, a city's general-gu). */
     fun selfAndDescendants(code: String): Set<String> {
         val result = mutableSetOf(code)

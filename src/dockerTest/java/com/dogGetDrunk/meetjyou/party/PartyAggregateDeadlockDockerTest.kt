@@ -106,7 +106,7 @@ class PartyAggregateDeadlockDockerTest : BehaviorSpec() {
         PartyService(
             partyRepository, postRepository, planRepository, markerRepository, chatRoomRepository,
             chatParticipantService, mockk(relaxed = true), userPartyRepository, userRepository,
-            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper().findAndRegisterModules(),
+            mockk(relaxed = true), ObjectMapper().findAndRegisterModules(),
             currentUserProvider, PlaceTestDoubles.regionCatalog(),
         )
     }

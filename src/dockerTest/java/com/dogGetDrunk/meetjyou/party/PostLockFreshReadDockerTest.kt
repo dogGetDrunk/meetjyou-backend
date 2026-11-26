@@ -72,7 +72,7 @@ class PostLockFreshReadDockerTest : BehaviorSpec() {
     private val tx by lazy { TransactionTemplate(manager) }
     private val partyService by lazy {
         PartyService(parties, posts, plans, markers, rooms, mockk(relaxed = true), mockk(relaxed = true),
-            memberships, users, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), ObjectMapper().findAndRegisterModules(), provider,
+            memberships, users, mockk(relaxed = true), ObjectMapper().findAndRegisterModules(), provider,
                 PlaceTestDoubles.regionCatalog())
     }
     private val service by lazy {

@@ -72,7 +72,12 @@ class PlaceSearchTourApiIntegrationTest : BehaviorSpec() {
         var activeConnections: Int? = null
         lateinit var pool: HikariDataSource
 
-        override fun searchKeyword(keyword: String, sidoCode: String?, size: Int): List<TourPlace> {
+        override fun searchKeyword(
+            keyword: String,
+            sidoCode: String?,
+            signguCode: String?,
+            size: Int,
+        ): List<TourPlace> {
             calls++
             transactionActive = TransactionSynchronizationManager.isActualTransactionActive()
             activeConnections = pool.hikariPoolMXBean.activeConnections

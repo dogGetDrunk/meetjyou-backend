@@ -60,12 +60,14 @@ class RefreshTokenRotationConcurrencyDockerTest : BehaviorSpec() {
             userRepository: UserRepository,
             refreshTokenRepository: RefreshTokenRepository,
             jwtProvider: JwtProvider,
+            transactionManager: PlatformTransactionManager,
         ) = UserAuthService(
             socialVerifierRegistry = mockk(relaxed = true),
             userRepository = userRepository,
             jwtProvider = jwtProvider,
             refreshTokenRepository = refreshTokenRepository,
             tokenPairIssuer = TokenPairIssuer(jwtProvider, refreshTokenRepository),
+            transactionTemplate = TransactionTemplate(transactionManager),
             rotationOverlapSeconds = ROTATION_OVERLAP_SECONDS,
         )
     }

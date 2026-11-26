@@ -1,0 +1,9 @@
+key: 20261126-tour-quota-region-filter
+title: 관광공사 검색 호출 한도와 시군구 지역 필터 보완
+size: S
+mode: single
+format: 2
+created: '2026-11-25'
+links:
+  notion: https://app.notion.com/p/42156d9a97d981b591ebdb04da9d911c
+  issue: dogGetDrunk/meetjyou-backend#296
