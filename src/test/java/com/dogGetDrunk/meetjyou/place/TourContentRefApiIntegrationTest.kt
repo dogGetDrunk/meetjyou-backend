@@ -100,6 +100,12 @@ class TourContentRefApiIntegrationTest : BehaviorSpec() {
         ) + destination
     }
 
+    /** A post body as literal JSON text with [member] appended verbatim, so the wire token is exactly it. */
+    private fun rawPostBody(member: String): String {
+        val base = mapper.writeValueAsString(postBody(mapOf("regionCode" to "11110")))
+        return "${base.dropLast(1)},$member}"
+    }
+
     private fun planBody(destination: Map<String, Any?>): Map<String, Any?> {
         val start = Instant.now().plus(3, ChronoUnit.DAYS)
         return mapOf(
@@ -122,7 +128,10 @@ class TourContentRefApiIntegrationTest : BehaviorSpec() {
         // The field is always present; null is how a store or region-only destination shows.
         node.has("tourContentId") shouldBe true
         val value = node.get("tourContentId")
-        return if (value.isNull) null else value.asText()
+        if (value.isNull) return null
+        // A JSON string, not a number: the fixed interface is "tourContentId": "126508".
+        value.isTextual shouldBe true
+        return value.asText()
     }
 
     private fun placeIdOf(node: JsonNode): Long? {
@@ -173,7 +182,10 @@ class TourContentRefApiIntegrationTest : BehaviorSpec() {
                 val toTour = ok(call(HttpMethod.PUT, "/posts/$uuid", author, postBody(tour(BULGUKSA))))
                 tourIdOf(toTour) shouldBe BULGUKSA
                 placeIdOf(toTour) shouldBe null
-                val partyAfterTour = getParty(getPost(author, uuid))
+                val postAfterTour = getPost(author, uuid)
+                tourIdOf(postAfterTour) shouldBe BULGUKSA
+                placeIdOf(postAfterTour) shouldBe null
+                val partyAfterTour = getParty(postAfterTour)
                 tourIdOf(partyAfterTour) shouldBe BULGUKSA
                 placeIdOf(partyAfterTour) shouldBe null
 
@@ -209,6 +221,9 @@ class TourContentRefApiIntegrationTest : BehaviorSpec() {
                 val toStore = ok(call(HttpMethod.PUT, "/plans/$uuid", owner, planBody(storePlace(cafe))))
                 tourIdOf(toStore) shouldBe null
                 placeIdOf(toStore) shouldBe cafe.id
+                val storedStore = ok(call(HttpMethod.GET, "/plans/$uuid", owner))
+                tourIdOf(storedStore) shouldBe null
+                placeIdOf(storedStore) shouldBe cafe.id
 
                 ok(call(HttpMethod.PUT, "/plans/$uuid", owner, planBody(tour(GYEONGBOKGUNG))))
                 val toTour = ok(call(HttpMethod.GET, "/plans/$uuid", owner))
@@ -238,10 +253,10 @@ class TourContentRefApiIntegrationTest : BehaviorSpec() {
             then("따옴표 없는 정수는 문자열로 저장, 명시적 null은 생략과 같다") {
                 val toursBefore = tourSource.calls
                 val author = user()
-                val numeric = ok(call(HttpMethod.POST, "/posts", author, postBody(tour(126508))))
+                val numeric = ok(call(HttpMethod.POST, "/posts", author, rawPostBody(""""tourContentId":126508""")))
                 tourIdOf(getPost(author, numeric.get("uuid").asText())) shouldBe GYEONGBOKGUNG
 
-                val explicitNull = ok(call(HttpMethod.POST, "/posts", author, postBody(tour(null))))
+                val explicitNull = ok(call(HttpMethod.POST, "/posts", author, rawPostBody(""""tourContentId":null""")))
                 tourIdOf(getPost(author, explicitNull.get("uuid").asText())) shouldBe null
                 tourSource.calls shouldBe toursBefore
             }

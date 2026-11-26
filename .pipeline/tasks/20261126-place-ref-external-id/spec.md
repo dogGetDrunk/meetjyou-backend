@@ -127,7 +127,7 @@ ALTER TABLE post
 - MySQL은 참조 동작(`ON DELETE`, `ON UPDATE`)이 있는 FK 컬럼에 CHECK를 금지(오류 `3823`). `fk_*_place` 는 참조 동작이 없어 해당하지 않는다고 판단 → AT-001이 실제 MySQL에서 마이그레이션 적용으로 확인
 - H2(`create-drop`, 엔티티 기준)에는 CHECK가 없음 → 동시 지정 차단은 리졸버(AT-002, AT-003)와 MySQL(AT-001)로 나눠 확인
 - 248(`location` 길이, 완료 파티 409)이 같은 DTO와 다음 마이그레이션 번호를 씀 → 이 태스크 머지 후 진행(intent 제외 범위), 248은 V51부터
-- 감수(C-r1-01, damiannlee 승인): `CreatePostRequest` 필드 추가로 멱등 키 해시가 바뀜 → 배포 직전 키로 배포 직후 같은 요청을 재시도하면 원래 글 대신 409. 중복 글과 데이터 손상은 없음. result.md 후속 항목에 기록
+- 감수(C-r1-01, V-r1-01, damiannlee 승인): `CreatePostRequest`, `CreatePlanRequest` 필드 추가로 멱등 키 해시가 바뀜 → 배포 직전 키로 배포 직후 같은 요청을 재시도하면 원래 글이나 계획서 대신 409. 중복 글과 데이터 손상은 없음. result.md 후속 항목에 기록
 
 ## 마일스톤
 

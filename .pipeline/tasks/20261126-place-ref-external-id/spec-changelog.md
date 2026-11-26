@@ -8,3 +8,4 @@
 | 2026-11-26 | REQ-006 | 표시 필드를 모집글 `location`, 파티와 계획서 `destination` 으로 정정 | C-r1-08 | claude-opus-5-5 |
 | 2026-11-26 | 위험, 마일스톤 | 멱등 해시 변경 감수 기록, `./gradlew dockerTest` 실행 마일스톤 추가 | C-r1-01, C-r1-05 | claude-opus-5-5 |
 | 2026-11-26 | REQ-005, REQ-004 | AT-004를 별도 `GetPlanResponseSnapshotCompatTest` 대신 `TourContentRefApiIntegrationTest` 안에서 앱의 실제 `ObjectMapper` 빈으로 확인, AT-003 파일명도 같은 클래스로 확정 | 스냅샷 역직렬화 실패는 `runCatching` 으로 조용히 null이 되므로 손으로 만든 매퍼가 아닌 앱 빈으로 확인해야 의미가 있음 | claude-opus-5-5 |
+| 2026-11-26 | 위험 | 멱등 해시 감수 범위에 `CreatePlanRequest` 추가 | V-r1-01(사람 승인) | claude-opus-5-5 |

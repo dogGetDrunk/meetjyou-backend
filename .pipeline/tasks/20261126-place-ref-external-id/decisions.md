@@ -20,3 +20,10 @@
 
 | 라운드 (최대 2) | 항목 | 수용/기각 | 근거 | 메인 설계자 | 사람 승인 |
 |---|---|---|---|---|---|
+| 1 | V-r1-01 | 기각-감수 | C-r1-01과 같은 조건: 여행계획서 생성도 `CreatePlanRequest` 필드 추가로 멱등 키 해시가 바뀌어, 배포 직전 키로 배포 직후 같은 요청을 재시도할 때만 409. 중복 생성과 데이터 손상 없음. spec 위험 항목과 result.md 후속에 두 생성 API를 함께 기록 | claude-opus-5-5 | damiannlee, 2026-11-26 선택지 응답: "기각-감수 (Recommended)" |
+| 1 | V-r1-02 | 수용 | ADR-0004 Consequences "미확인" 항목의 "응답 시마다 재조회" 문구를 이번 결정(이름 미저장, 재조회 없음, 허용 시 이름 컬럼 별도 결정)으로 정정, 재검토 조건도 맞춤, 개정 이력에 기록 | claude-opus-5-5 | |
+| 1 | V-r1-03 | 수용 | 모집글 store → 관광공사 전환 뒤 모집글 GET, 계획서 관광공사 → store 전환 뒤 계획서 GET으로 저장 상태 단언 추가 | claude-opus-5-5 | |
+| 1 | V-r1-04 | 수용 | 토큰 테스트를 리터럴 JSON 문자열 본문(`"tourContentId":126508`, `"tourContentId":null`)으로 바꿔 HTTP 클라이언트 직렬화에 맡기지 않음 | claude-opus-5-5 | |
+| 1 | V-r1-05 | 수용 | 응답 단언 헬퍼가 값이 있을 때 JSON 문자열 노드(`isTextual`)인지 확인 | claude-opus-5-5 | |
+| 1 | V-r1-06 | 수용 | 검증 시점에 result.md가 아직 작성 전이었음. dockerTest 결과(28 suite, 181 테스트, 실패 0, skip 0, AT-001 5건 통과)를 result.md에 기록 | claude-opus-5-5 | |
+| 1 | V-r1-07 | 수용 | 검증 시점에 result.md가 아직 작성 전이었음. 마이그레이션 실패 복구 절차(`flyway repair` 후 재배포)를 result.md에 기록 | claude-opus-5-5 | |
